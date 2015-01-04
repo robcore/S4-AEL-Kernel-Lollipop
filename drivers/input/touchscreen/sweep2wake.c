@@ -37,6 +37,7 @@
 /* uncomment since no touchscreen defines android touch, do that here */
 //#define ANDROID_TOUCH_DECLARED
 
+
 /* Version, author, desc, etc */
 #define DRIVER_AUTHOR "Dennis Rassmann <showp1984@gmail.com>"
 #define DRIVER_DESCRIPTION "Sweep2wake for almost any device"
@@ -139,6 +140,7 @@ static void detect_sweep2wake(int sweep_coord, int sweep_height, bool st)
         pr_info(LOGTAG"x,y(%4d,%4d) single:%s\n",
                 x, y, (single_touch) ? "true" : "false");
 #endif
+<<<<<<< HEAD
 	if (s2w_swap_coord == 1) {
 		//swap the coordinate system
 		swap_temp1 = sweep_coord;
@@ -146,6 +148,71 @@ static void detect_sweep2wake(int sweep_coord, int sweep_height, bool st)
 
 		sweep_height = swap_temp1;
 		sweep_coord = swap_temp2;
+=======
+	/* s2s: right->left */
+	if ((single_touch) && (scr_suspended == false) && (s2w_switch > 0)) {
+		scr_on_touch = true;
+		prev_coord = DEFAULT_S2W_X_B5;
+		next_coord = DEFAULT_S2W_X_B2;
+		if ((barrier[0] == true) ||
+				((sweep_coord < prev_coord) &&
+				(sweep_coord > next_coord) &&
+				(sweep_height > DEFAULT_S2W_Y_LIMIT))) {
+			prev_coord = next_coord;
+			next_coord = DEFAULT_S2W_X_B1;
+			barrier[0] = true;
+			if ((barrier[1] == true) ||
+					((sweep_coord < prev_coord) &&
+					(sweep_coord > next_coord) &&
+					(sweep_height >
+					DEFAULT_S2W_Y_LIMIT))) {
+				prev_coord = next_coord;
+				barrier[1] = true;
+				if ((sweep_coord < prev_coord) &&
+						(sweep_height >
+						DEFAULT_S2W_Y_LIMIT)) {
+					if (sweep_coord <
+							DEFAULT_S2W_X_B0) {
+						if (exec_count) {
+							pr_info(LOGTAG"OFF\n");
+							sweep2wake_pwrswitch();
+							exec_count = false;
+						}
+					}
+				}
+			}
+		}
+		/* s2s: left->right */
+		reverse_prev_coord = DEFAULT_S2W_X_B0;
+		reverse_next_coord = DEFAULT_S2W_X_B3;
+		if ((reverse_barrier[0] == true) ||
+				((sweep_coord > reverse_prev_coord) &&
+				(sweep_coord < reverse_next_coord) &&
+				(sweep_height > DEFAULT_S2W_Y_LIMIT))) {
+			reverse_prev_coord = reverse_next_coord;
+			reverse_next_coord = DEFAULT_S2W_X_B4;
+			reverse_barrier[0] = true;
+			if ((reverse_barrier[1] == true) ||
+					((sweep_coord > reverse_prev_coord) &&
+					(sweep_coord < reverse_next_coord) &&
+					(sweep_height >
+					DEFAULT_S2W_Y_LIMIT))) {
+				reverse_prev_coord = reverse_next_coord;
+				reverse_barrier[1] = true;
+				if ((sweep_coord > reverse_prev_coord) &&
+						(sweep_height >
+						DEFAULT_S2W_Y_LIMIT)) {
+					if (sweep_coord > DEFAULT_S2W_X_B5) {
+						if (exec_count) {
+							pr_info(LOGTAG"OFF\n");
+							sweep2wake_pwrswitch();
+							exec_count = false;
+						}
+					}
+				}
+			}
+		}
+>>>>>>> ef1e907... Added sweep2sleep from right to left [Dorimanx] and disabled by default [UpInTheAir]
 	}
 
 	//power on
@@ -457,7 +524,7 @@ static struct input_handler s2w_input_handler = {
 /*
  * SYSFS stuff below here
  */
-static ssize_t s2w_sweep2wake_show(struct device *dev,
+static ssize_t s2w_sweep2sleep_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	size_t count = 0;
@@ -467,7 +534,7 @@ static ssize_t s2w_sweep2wake_show(struct device *dev,
 	return count;
 }
 
-static ssize_t s2w_sweep2wake_dump(struct device *dev,
+static ssize_t s2w_sweep2sleep_dump(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	if (buf[0] >= '0' && buf[0] <= '1' && buf[1] == '\n')
@@ -477,8 +544,8 @@ static ssize_t s2w_sweep2wake_dump(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(sweep2wake, (S_IWUSR|S_IRUGO),
-	s2w_sweep2wake_show, s2w_sweep2wake_dump);
+static DEVICE_ATTR(sweep2sleep, (S_IWUSR|S_IRUGO),
+	s2w_sweep2sleep_show, s2w_sweep2sleep_dump);
 
 static ssize_t s2w_s2w_s2sonly_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -525,12 +592,17 @@ static DEVICE_ATTR(sweep2wake_version, (S_IWUSR|S_IRUGO),
 /*
  * INIT / EXIT stuff below here
  */
+<<<<<<< HEAD
 #ifdef ANDROID_TOUCH_DECLARED
 extern struct kobject *android_touch_kobj;
 #else
 struct kobject *android_touch_kobj;
 EXPORT_SYMBOL_GPL(android_touch_kobj);
 #endif
+=======
+struct kobject *sweep2sleep_kobj;
+EXPORT_SYMBOL_GPL(sweep2sleep_kobj);
+>>>>>>> ef1e907... Added sweep2sleep from right to left [Dorimanx] and disabled by default [UpInTheAir]
 
 static int __init sweep2wake_init(void)
 {
@@ -576,11 +648,19 @@ static int __init sweep2wake_init(void)
 	if (rc)
 		pr_err("%s: Failed to register s2w_input_handler\n", __func__);
 
+<<<<<<< HEAD
 #ifndef ANDROID_TOUCH_DECLARED
 	android_touch_kobj = kobject_create_and_add("android_touch", NULL) ;
 	if (android_touch_kobj == NULL) {
 		pr_warn("%s: android_touch_kobj create_and_add failed\n", __func__);
 	}
+=======
+#ifdef CONFIG_POWERSUSPEND
+	register_power_suspend(&s2w_power_suspend_handler);
+#endif
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	register_early_suspend(&s2w_early_suspend_handler);
+>>>>>>> ef1e907... Added sweep2sleep from right to left [Dorimanx] and disabled by default [UpInTheAir]
 #endif
 	rc = sysfs_create_file(android_touch_kobj, &dev_attr_sweep2wake.attr);
 	if (rc) {
@@ -595,6 +675,23 @@ static int __init sweep2wake_init(void)
 		pr_warn("%s: sysfs_create_file failed for sweep2wake_version\n", __func__);
 	}
 
+	sweep2sleep_kobj = kobject_create_and_add("sweep2sleep", NULL) ;
+	if (sweep2sleep_kobj == NULL) {
+		pr_warn("%s: sweep2sleep_kobj create_and_add failed\n",
+				__func__);
+	}
+	rc = sysfs_create_file(sweep2sleep_kobj, &dev_attr_sweep2sleep.attr);
+	if (rc) {
+		pr_warn("%s: sysfs_create_file failed for sweep2wake\n",
+				__func__);
+	}
+	rc = sysfs_create_file(sweep2sleep_kobj,
+			&dev_attr_sweep2wake_version.attr);
+	if (rc) {
+		pr_warn("%s: sysfs_create_file failed for \
+				sweep2wake_version\n", __func__);
+	}
+
 err_input_dev:
 	input_free_device(sweep2wake_pwrdev);
 err_alloc_dev:
@@ -605,8 +702,18 @@ err_alloc_dev:
 
 static void __exit sweep2wake_exit(void)
 {
+<<<<<<< HEAD
 #ifndef ANDROID_TOUCH_DECLARED
 	kobject_del(android_touch_kobj);
+=======
+	kobject_del(sweep2sleep_kobj);
+
+#ifdef CONFIG_POWERSUSPEND
+	unregister_power_suspend(&s2w_power_suspend_handler);
+#endif
+#ifdef CONFIG_HAS_EARLYSUSPEND
+    unregister_early_suspend(&s2w_early_suspend_handler);
+>>>>>>> ef1e907... Added sweep2sleep from right to left [Dorimanx] and disabled by default [UpInTheAir]
 #endif
 	input_unregister_handler(&s2w_input_handler);
 	destroy_workqueue(s2w_input_wq);
