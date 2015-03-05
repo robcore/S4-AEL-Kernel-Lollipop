@@ -1126,7 +1126,6 @@ config TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE
 	  To compile this driver as a module, choose M here: the
 	  module will be called synaptics_dsx_fw_update.
 
-<<<<<<< HEAD
 config TOUCHSCREEN_ZINITIX_BT532
 	tristate "ZINITIX BT532 I2C Touchscreen"
 	depends on I2C
@@ -1138,7 +1137,6 @@ config TOUCHSCREEN_ZINITIX_BT532
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called BT532.
-=======
 config TOUCHSCREEN_SWEEP2WAKE
 	tristate "Sweep2Wake for touchscreens"
 	select TOUCHSCREEN_PREVENT_SLEEP
@@ -1149,6 +1147,4 @@ config TOUCHSCREEN_PREVENT_SLEEP
 	default y
 	help
 	This disables the sleep function of modified touchscreen drivers.
->>>>>>> 5d34b8a... Sweep2Sleep baby [Huge thanks to showp1984]
-
 endif
