@@ -23,11 +23,7 @@
 /* 
  * Timeout for stopping processes
  */
-<<<<<<< HEAD
 #define TIMEOUT	(20 * HZ)
-=======
-unsigned int __read_mostly freeze_timeout_msecs = 2 * MSEC_PER_SEC;
->>>>>>> 42a031f... Decrease time to enter sleep [Pafcholini]
 
 static int try_to_freeze_tasks(bool user_only)
 {
