@@ -74,7 +74,15 @@ config IOSCHED_SIOPLUS
 	tristate "Simple I/O scheduler plus"
  	default y
  	---help---
- 	  The Simple I/O scheduler is an extremely simple scheduler,
+ 	  The Simple I/O scheduler is an extremely simple scheduler.
+
+config IOSCHED_TRIPNDROID
+	tristate "TripNDroid IO Scheduler"
+	default n
+	---help---
+	  The TripNDroid IO Scheduler is based on noop, deadline and vr
+	  it uses deadlines to ensure some fairness. The scheduler is build
+	  to keep a minimum overhead. It is mainly build for mobile devices.
 
 config IOSCHED_CFQ
 	tristate "CFQ I/O scheduler"
@@ -127,6 +135,7 @@ config DEFAULT_IOSCHED
         default "vr" if DEFAULT_VR
 	default "fiops" if DEFAULT_FIOPS
 	default "sioplus" if DEFAULT_SIOPLUS
+	default "tripndroid" if DEFAULT_TRIPNDROID
 
 endmenu
 
