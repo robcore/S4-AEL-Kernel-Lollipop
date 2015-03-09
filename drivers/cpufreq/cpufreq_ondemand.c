@@ -313,46 +313,9 @@ static void ondemand_powersave_bias_init_cpu(int cpu)
 
 static void ondemand_powersave_bias_init(void)
 {
-<<<<<<< HEAD
 	int i;
 	for_each_online_cpu(i) {
 		ondemand_powersave_bias_init_cpu(i);
-=======
-	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
-	struct cpufreq_policy *policy = dbs_info->cdbs.cur_policy;
-	struct dbs_data *dbs_data = policy->governor_data;
-	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
-
-	dbs_info->freq_lo = 0;
-
-	/* Check for frequency increase */
-	if (load > od_tuners->up_threshold) {
-		/* If switching to max speed, apply sampling_down_factor */
-		if (policy->cur < policy->max)
-			dbs_info->rate_mult =
-				od_tuners->sampling_down_factor;
-		dbs_freq_increase(policy, policy->max);
-	} else {
-		/* Calculate the next frequency proportional to load */
-		unsigned int freq_next, min_f, max_f;
-
-		min_f = policy->cpuinfo.min_freq;
-		max_f = policy->cpuinfo.max_freq;
-		freq_next = min_f + load * (max_f - min_f) / 100;
-
-		/* No longer fully busy, reset rate_mult */
-		dbs_info->rate_mult = 1;
-
-		if (!od_tuners->powersave_bias) {
-			__cpufreq_driver_target(policy, freq_next,
-					CPUFREQ_RELATION_C);
-			return;
-		}
-
-		freq_next = od_ops.powersave_bias_target(policy, freq_next,
-					CPUFREQ_RELATION_C);
-		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_C);
->>>>>>> 197930c... Currently, ondemand calculates the target frequency proportional to load using the formula:
 	}
 }
 
