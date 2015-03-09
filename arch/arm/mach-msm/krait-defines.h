@@ -1,8 +1,8 @@
-/* alps_io.h
+/*
+ * Author: Paul Reioux aka Faux123 <reioux@gmail.com>
  *
- * Input device driver for alps sensor
- *
- * Copyright (C) 2011-2012 ALPS ELECTRIC CO., LTD. All Rights Reserved.
+ * krait-defines
+ * Copyright 2013 Paul Reioux
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -14,17 +14,15 @@
  * GNU General Public License for more details.
  *
  */
+#ifdef CONFIG_CPU_OVERCLOCK
+#define OVERCLOCK_EXTRA_FREQS	7
+#else
+#define OVERCLOCK_EXTRA_FREQS	0
+#endif
 
-#ifndef ___ALPS_IO_H_INCLUDED
-#define ___ALPS_IO_H_INCLUDED
-
-#include <linux/ioctl.h>
-
-#define ALPSIO   0xAF
-
-#define ALPSIO_SET_MAGACTIVATE   _IOW(ALPSIO, 0, int)
-#define ALPSIO_SET_ACCACTIVATE   _IOW(ALPSIO, 1, int)
-#define ALPSIO_SET_DELAY         _IOW(ALPSIO, 2, int)
-
+#ifdef CONFIG_LOW_CPUCLOCKS
+#define FREQ_TABLE_SIZE (39 + OVERCLOCK_EXTRA_FREQS)
+#else
+#define FREQ_TABLE_SIZE (35 + OVERCLOCK_EXTRA_FREQS)
 #endif
 

@@ -116,8 +116,6 @@ static struct msm_bus_scale_pdata bus_scale_data __initdata = {
 };
 
 static struct l2_level l2_freq_tbl[] __initdata = {
-<<<<<<< HEAD
-=======
 #ifdef CONFIG_LOW_CPUCLOCKS
 	[0]  = { {  378000, HFPLL, 2, 0x1C },  950000, 1050000, 1 },
 	[1]  = { {  384000, PLL_8, 0, 0x00 },  950000, 1050000, 1 },
@@ -137,7 +135,6 @@ static struct l2_level l2_freq_tbl[] __initdata = {
 	[15] = { { 1134000, HFPLL, 1, 0x2A }, 1150000, 1150000, 5 },
 	[16] = { { 1188000, HFPLL, 1, 0x2C }, 1150000, 1150000, 5 },
 #else
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	[0]  = { {  384000, PLL_8, 0, 0x00 },  950000, 1050000, 1 },
 	[1]  = { {  432000, HFPLL, 2, 0x20 }, 1050000, 1050000, 2 },
 	[2]  = { {  486000, HFPLL, 2, 0x24 }, 1050000, 1050000, 2 },
@@ -153,11 +150,8 @@ static struct l2_level l2_freq_tbl[] __initdata = {
 	[12] = { { 1026000, HFPLL, 1, 0x26 }, 1150000, 1150000, 5 },
 	[13] = { { 1080000, HFPLL, 1, 0x28 }, 1150000, 1150000, 5 },
 	[14] = { { 1134000, HFPLL, 1, 0x2A }, 1150000, 1150000, 5 },
-<<<<<<< HEAD
-=======
 	[15] = { { 1188000, HFPLL, 1, 0x2C }, 1150000, 1150000, 5 },
 #endif
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ }
 };
 
@@ -504,8 +498,6 @@ static struct acpu_level tbl_PVS6_1700MHz[] __initdata = {
 };
 
 static struct acpu_level tbl_PVS0_2000MHz[] __initdata = {
-<<<<<<< HEAD
-=======
 #ifdef CONFIG_LOW_CPUCLOCKS
 	{ 1, {   162000, HFPLL, 2, 0x0C }, L2(0),   900000 },
 	{ 1, {   216000, HFPLL, 2, 0x10 }, L2(0),   900000 },
@@ -514,7 +506,6 @@ static struct acpu_level tbl_PVS0_2000MHz[] __initdata = {
 	{ 1, {   378000, HFPLL, 2, 0x1C }, L2(0),   925000 },
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(1),   950000 },
 #else
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),   950000 },
 	{ 1, {   486000, HFPLL, 2, 0x24 }, L2(5),   950000 },
 	{ 1, {   594000, HFPLL, 1, 0x16 }, L2(5),   950000 },
@@ -522,7 +513,6 @@ static struct acpu_level tbl_PVS0_2000MHz[] __initdata = {
 	{ 1, {   810000, HFPLL, 1, 0x1E }, L2(5),   962500 },
 	{ 1, {   918000, HFPLL, 1, 0x22 }, L2(5),   975000 },
 	{ 1, {  1026000, HFPLL, 1, 0x26 }, L2(5),  1000000 },
-<<<<<<< HEAD
 	{ 1, {  1134000, HFPLL, 1, 0x2A }, L2(14), 1025000 },
 	{ 1, {  1242000, HFPLL, 1, 0x2E }, L2(14), 1037500 },
 	{ 1, {  1350000, HFPLL, 1, 0x32 }, L2(14), 1062500 },
@@ -531,7 +521,6 @@ static struct acpu_level tbl_PVS0_2000MHz[] __initdata = {
 	{ 1, {  1674000, HFPLL, 1, 0x3E }, L2(14), 1175000 },
 	{ 1, {  1782000, HFPLL, 1, 0x42 }, L2(14), 1225000 },
 	{ 1, {  1890000, HFPLL, 1, 0x46 }, L2(14), 1287500 },
-=======
 	{ 1, {  1134000, HFPLL, 1, 0x2A }, L2(15), 1025000 },
 	{ 1, {  1242000, HFPLL, 1, 0x2E }, L2(15), 1037500 },
 	{ 1, {  1350000, HFPLL, 1, 0x32 }, L2(15), 1062500 },
@@ -551,13 +540,10 @@ static struct acpu_level tbl_PVS0_2000MHz[] __initdata = {
 //	{ 1, {  2268000, HFPLL, 1, 0x54 }, L2(15), 1450000 },
 #endif
 #endif
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ 0, { 0 } }
 };
 
 static struct acpu_level tbl_PVS1_2000MHz[] __initdata = {
-<<<<<<< HEAD
-=======
 #ifdef CONFIG_LOW_CPUCLOCKS
 	{ 1, {   162000, HFPLL, 2, 0x0C }, L2(0),   875000 },
 	{ 1, {   216000, HFPLL, 2, 0x10 }, L2(0),   875000 },
@@ -566,7 +552,6 @@ static struct acpu_level tbl_PVS1_2000MHz[] __initdata = {
 	{ 1, {   378000, HFPLL, 2, 0x1C }, L2(0),   900000 },
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(1),   925000 },
 #else
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),   925000 },
 	{ 1, {   486000, HFPLL, 2, 0x24 }, L2(5),   925000 },
 	{ 1, {   594000, HFPLL, 1, 0x16 }, L2(5),   925000 },
@@ -574,7 +559,6 @@ static struct acpu_level tbl_PVS1_2000MHz[] __initdata = {
 	{ 1, {   810000, HFPLL, 1, 0x1E }, L2(5),   937500 },
 	{ 1, {   918000, HFPLL, 1, 0x22 }, L2(5),   950000 },
 	{ 1, {  1026000, HFPLL, 1, 0x26 }, L2(5),   975000 },
-<<<<<<< HEAD
 	{ 1, {  1134000, HFPLL, 1, 0x2A }, L2(14), 1000000 },
 	{ 1, {  1242000, HFPLL, 1, 0x2E }, L2(14), 1012500 },
 	{ 1, {  1350000, HFPLL, 1, 0x32 }, L2(14), 1037500 },
@@ -583,7 +567,6 @@ static struct acpu_level tbl_PVS1_2000MHz[] __initdata = {
 	{ 1, {  1674000, HFPLL, 1, 0x3E }, L2(14), 1137500 },
 	{ 1, {  1782000, HFPLL, 1, 0x42 }, L2(14), 1187500 },
 	{ 1, {  1890000, HFPLL, 1, 0x46 }, L2(14), 1250000 },
-=======
 	{ 1, {  1134000, HFPLL, 1, 0x2A }, L2(15), 1000000 },
 	{ 1, {  1242000, HFPLL, 1, 0x2E }, L2(15), 1012500 },
 	{ 1, {  1350000, HFPLL, 1, 0x32 }, L2(15), 1037500 },
@@ -603,13 +586,10 @@ static struct acpu_level tbl_PVS1_2000MHz[] __initdata = {
 //	{ 1, {  2268000, HFPLL, 1, 0x54 }, L2(15), 1425000 },
 #endif
 #endif
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ 0, { 0 } }
 };
 
 static struct acpu_level tbl_PVS2_2000MHz[] __initdata = {
-<<<<<<< HEAD
-=======
 #ifdef CONFIG_LOW_CPUCLOCKS
 	{ 1, {   162000, HFPLL, 2, 0x0C }, L2(0),   850000 },
 	{ 1, {   216000, HFPLL, 2, 0x10 }, L2(0),   850000 },
@@ -618,7 +598,6 @@ static struct acpu_level tbl_PVS2_2000MHz[] __initdata = {
 	{ 1, {   378000, HFPLL, 2, 0x1C }, L2(0),   875000 },
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(1),   900000 },
 #else
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),   900000 },
 	{ 1, {   486000, HFPLL, 2, 0x24 }, L2(5),   900000 },
 	{ 1, {   594000, HFPLL, 1, 0x16 }, L2(5),   900000 },
@@ -626,7 +605,6 @@ static struct acpu_level tbl_PVS2_2000MHz[] __initdata = {
 	{ 1, {   810000, HFPLL, 1, 0x1E }, L2(5),   912500 },
 	{ 1, {   918000, HFPLL, 1, 0x22 }, L2(5),   925000 },
 	{ 1, {  1026000, HFPLL, 1, 0x26 }, L2(5),   950000 },
-<<<<<<< HEAD
 	{ 1, {  1134000, HFPLL, 1, 0x2A }, L2(14),  975000 },
 	{ 1, {  1242000, HFPLL, 1, 0x2E }, L2(14),  987500 },
 	{ 1, {  1350000, HFPLL, 1, 0x32 }, L2(14), 1012500 },
@@ -635,7 +613,6 @@ static struct acpu_level tbl_PVS2_2000MHz[] __initdata = {
 	{ 1, {  1674000, HFPLL, 1, 0x3E }, L2(14), 1112500 },
 	{ 1, {  1782000, HFPLL, 1, 0x42 }, L2(14), 1162500 },
 	{ 1, {  1890000, HFPLL, 1, 0x46 }, L2(14), 1212500 },
-=======
 	{ 1, {  1134000, HFPLL, 1, 0x2A }, L2(15),  975000 },
 	{ 1, {  1242000, HFPLL, 1, 0x2E }, L2(15),  987500 },
 	{ 1, {  1350000, HFPLL, 1, 0x32 }, L2(15), 1012500 },
@@ -655,13 +632,10 @@ static struct acpu_level tbl_PVS2_2000MHz[] __initdata = {
 //	{ 1, {  2268000, HFPLL, 1, 0x54 }, L2(15), 1387500 },
 #endif
 #endif
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ 0, { 0 } }
 };
 
 static struct acpu_level tbl_PVS3_2000MHz[] __initdata = {
-<<<<<<< HEAD
-=======
 #ifdef CONFIG_LOW_CPUCLOCKS
 	{ 1, {   162000, HFPLL, 2, 0x0C }, L2(0),   850000 },
 	{ 1, {   216000, HFPLL, 2, 0x10 }, L2(0),   850000 },
@@ -670,7 +644,6 @@ static struct acpu_level tbl_PVS3_2000MHz[] __initdata = {
 	{ 1, {   378000, HFPLL, 2, 0x1C }, L2(0),   875000 },
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(1),   900000 },
 #else
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),   900000 },
 	{ 1, {   486000, HFPLL, 2, 0x24 }, L2(5),   900000 },
 	{ 1, {   594000, HFPLL, 1, 0x16 }, L2(5),   900000 },
@@ -678,7 +651,6 @@ static struct acpu_level tbl_PVS3_2000MHz[] __initdata = {
 	{ 1, {   810000, HFPLL, 1, 0x1E }, L2(5),   900000 },
 	{ 1, {   918000, HFPLL, 1, 0x22 }, L2(5),   912500 },
 	{ 1, {  1026000, HFPLL, 1, 0x26 }, L2(5),   937500 },
-<<<<<<< HEAD
 	{ 1, {  1134000, HFPLL, 1, 0x2A }, L2(14),  962500 },
 	{ 1, {  1242000, HFPLL, 1, 0x2E }, L2(14),  975000 },
 	{ 1, {  1350000, HFPLL, 1, 0x32 }, L2(14), 1000000 },
@@ -687,7 +659,6 @@ static struct acpu_level tbl_PVS3_2000MHz[] __initdata = {
 	{ 1, {  1674000, HFPLL, 1, 0x3E }, L2(14), 1087500 },
 	{ 1, {  1782000, HFPLL, 1, 0x42 }, L2(14), 1137500 },
 	{ 1, {  1890000, HFPLL, 1, 0x46 }, L2(14), 1175000 },
-=======
 	{ 1, {  1134000, HFPLL, 1, 0x2A }, L2(15),  962500 },
 	{ 1, {  1242000, HFPLL, 1, 0x2E }, L2(15),  975000 },
 	{ 1, {  1350000, HFPLL, 1, 0x32 }, L2(15), 1000000 },
@@ -707,13 +678,10 @@ static struct acpu_level tbl_PVS3_2000MHz[] __initdata = {
 //	{ 1, {  2268000, HFPLL, 1, 0x54 }, L2(15), 1350000 },
 #endif
 #endif
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ 0, { 0 } }
 };
 
 static struct acpu_level tbl_PVS4_2000MHz[] __initdata = {
-<<<<<<< HEAD
-=======
 #ifdef CONFIG_LOW_CPUCLOCKS
 	{ 1, {   162000, HFPLL, 2, 0x0C }, L2(0),   825000 },
 	{ 1, {   216000, HFPLL, 2, 0x10 }, L2(0),   825000 },
@@ -722,7 +690,6 @@ static struct acpu_level tbl_PVS4_2000MHz[] __initdata = {
 	{ 1, {   378000, HFPLL, 2, 0x1C }, L2(0),   850000 },
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(1),   875000 },
 #else
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),   875000 },
 	{ 1, {   486000, HFPLL, 2, 0x24 }, L2(5),   875000 },
 	{ 1, {   594000, HFPLL, 1, 0x16 }, L2(5),   875000 },
@@ -730,7 +697,6 @@ static struct acpu_level tbl_PVS4_2000MHz[] __initdata = {
 	{ 1, {   810000, HFPLL, 1, 0x1E }, L2(5),   887500 },
 	{ 1, {   918000, HFPLL, 1, 0x22 }, L2(5),   900000 },
 	{ 1, {  1026000, HFPLL, 1, 0x26 }, L2(5),   925000 },
-<<<<<<< HEAD
 	{ 1, {  1134000, HFPLL, 1, 0x2A }, L2(14),  950000 },
 	{ 1, {  1242000, HFPLL, 1, 0x2E }, L2(14),  962500 },
 	{ 1, {  1350000, HFPLL, 1, 0x32 }, L2(14),  975000 },
@@ -739,7 +705,6 @@ static struct acpu_level tbl_PVS4_2000MHz[] __initdata = {
 	{ 1, {  1674000, HFPLL, 1, 0x3E }, L2(14), 1075000 },
 	{ 1, {  1782000, HFPLL, 1, 0x42 }, L2(14), 1112500 },
 	{ 1, {  1890000, HFPLL, 1, 0x46 }, L2(14), 1150000 },
-=======
 	{ 1, {  1134000, HFPLL, 1, 0x2A }, L2(15),  950000 },
 	{ 1, {  1242000, HFPLL, 1, 0x2E }, L2(15),  962500 },
 	{ 1, {  1350000, HFPLL, 1, 0x32 }, L2(15),  975000 },
@@ -759,14 +724,11 @@ static struct acpu_level tbl_PVS4_2000MHz[] __initdata = {
 //	{ 1, {  2268000, HFPLL, 1, 0x54 }, L2(15), 1325000 },
 #endif
 #endif
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ 0, { 0 } }
 };
 
 
 static struct acpu_level tbl_PVS5_2000MHz[] __initdata = {
-<<<<<<< HEAD
-=======
 #ifdef CONFIG_LOW_CPUCLOCKS
 	{ 1, {   162000, HFPLL, 2, 0x0C }, L2(0),   825000 },
 	{ 1, {   216000, HFPLL, 2, 0x10 }, L2(0),   825000 },
@@ -775,7 +737,6 @@ static struct acpu_level tbl_PVS5_2000MHz[] __initdata = {
 	{ 1, {   378000, HFPLL, 2, 0x1C }, L2(0),   850000 },
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(1),   875000 },
 #else
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),   875000 },
 	{ 1, {   486000, HFPLL, 2, 0x24 }, L2(5),   875000 },
 	{ 1, {   594000, HFPLL, 1, 0x16 }, L2(5),   875000 },
@@ -783,7 +744,6 @@ static struct acpu_level tbl_PVS5_2000MHz[] __initdata = {
 	{ 1, {   810000, HFPLL, 1, 0x1E }, L2(5),   887500 },
 	{ 1, {   918000, HFPLL, 1, 0x22 }, L2(5),   900000 },
 	{ 1, {  1026000, HFPLL, 1, 0x26 }, L2(5),   925000 },
-<<<<<<< HEAD
 	{ 1, {  1134000, HFPLL, 1, 0x2A }, L2(14),  937500 },
 	{ 1, {  1242000, HFPLL, 1, 0x2E }, L2(14),  950000 },
 	{ 1, {  1350000, HFPLL, 1, 0x32 }, L2(14),  962500 },
@@ -792,7 +752,6 @@ static struct acpu_level tbl_PVS5_2000MHz[] __initdata = {
 	{ 1, {  1674000, HFPLL, 1, 0x3E }, L2(14), 1050000 },
 	{ 1, {  1782000, HFPLL, 1, 0x42 }, L2(14), 1087500 },
 	{ 1, {  1890000, HFPLL, 1, 0x46 }, L2(14), 1125000 },
-=======
 	{ 1, {  1134000, HFPLL, 1, 0x2A }, L2(15),  937500 },
 	{ 1, {  1242000, HFPLL, 1, 0x2E }, L2(15),  950000 },
 	{ 1, {  1350000, HFPLL, 1, 0x32 }, L2(15),  962500 },
@@ -812,13 +771,10 @@ static struct acpu_level tbl_PVS5_2000MHz[] __initdata = {
 //	{ 1, {  2268000, HFPLL, 1, 0x54 }, L2(15), 1300000 },
 #endif
 #endif
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ 0, { 0 } }
 };
 
 static struct acpu_level tbl_PVS6_2000MHz[] __initdata = {
-<<<<<<< HEAD
-=======
 #ifdef CONFIG_LOW_CPUCLOCKS
 	{ 1, {   162000, HFPLL, 2, 0x0C }, L2(0),   825000 },
 	{ 1, {   216000, HFPLL, 2, 0x10 }, L2(0),   825000 },
@@ -827,7 +783,6 @@ static struct acpu_level tbl_PVS6_2000MHz[] __initdata = {
 	{ 1, {   378000, HFPLL, 2, 0x1C }, L2(0),   850000 },
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(1),   875000 },
 #else
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),   875000 },
 	{ 1, {   486000, HFPLL, 2, 0x24 }, L2(5),   875000 },
 	{ 1, {   594000, HFPLL, 1, 0x16 }, L2(5),   875000 },
@@ -835,7 +790,6 @@ static struct acpu_level tbl_PVS6_2000MHz[] __initdata = {
 	{ 1, {   810000, HFPLL, 1, 0x1E }, L2(5),   887500 },
 	{ 1, {   918000, HFPLL, 1, 0x22 }, L2(5),   900000 },
 	{ 1, {  1026000, HFPLL, 1, 0x26 }, L2(5),   925000 },
-<<<<<<< HEAD
 	{ 1, {  1134000, HFPLL, 1, 0x2A }, L2(14),  937500 },
 	{ 1, {  1242000, HFPLL, 1, 0x2E }, L2(14),  950000 },
 	{ 1, {  1350000, HFPLL, 1, 0x32 }, L2(14),  962500 },
@@ -844,7 +798,6 @@ static struct acpu_level tbl_PVS6_2000MHz[] __initdata = {
 	{ 1, {  1674000, HFPLL, 1, 0x3E }, L2(14), 1025000 },
 	{ 1, {  1782000, HFPLL, 1, 0x42 }, L2(14), 1062500 },
 	{ 1, {  1890000, HFPLL, 1, 0x46 }, L2(14), 1100000 },
-=======
 	{ 1, {  1134000, HFPLL, 1, 0x2A }, L2(15),  937500 },
 	{ 1, {  1242000, HFPLL, 1, 0x2E }, L2(15),  950000 },
 	{ 1, {  1350000, HFPLL, 1, 0x32 }, L2(15),  962500 },
@@ -864,7 +817,6 @@ static struct acpu_level tbl_PVS6_2000MHz[] __initdata = {
 //	{ 1, {  2268000, HFPLL, 1, 0x54 }, L2(15), 1275000 },
 #endif
 #endif
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 	{ 0, { 0 } }
 };
 
@@ -883,21 +835,18 @@ static struct pvs_table pvs_tables[NUM_SPEED_BINS][NUM_PVS] __initdata = {
 	[1][6] = { tbl_PVS6_1700MHz, sizeof(tbl_PVS6_1700MHz),     25000 },
 
 	[2][0] = { tbl_PVS0_2000MHz, sizeof(tbl_PVS0_2000MHz),     0 },
-<<<<<<< HEAD
 	[2][1] = { tbl_PVS1_2000MHz, sizeof(tbl_PVS1_2000MHz),     25000 },
 	[2][2] = { tbl_PVS2_2000MHz, sizeof(tbl_PVS2_2000MHz),     25000 },
 	[2][3] = { tbl_PVS3_2000MHz, sizeof(tbl_PVS3_2000MHz),     25000 },
 	[2][4] = { tbl_PVS4_2000MHz, sizeof(tbl_PVS4_2000MHz),     25000 },
 	[2][5] = { tbl_PVS5_2000MHz, sizeof(tbl_PVS5_2000MHz),     25000 },
 	[2][6] = { tbl_PVS6_2000MHz, sizeof(tbl_PVS6_2000MHz),     25000 },
-=======
 	[2][1] = { tbl_PVS1_2000MHz, sizeof(tbl_PVS1_2000MHz),     26000 },
 	[2][2] = { tbl_PVS2_2000MHz, sizeof(tbl_PVS2_2000MHz),     26000 },
 	[2][3] = { tbl_PVS3_2000MHz, sizeof(tbl_PVS3_2000MHz),     26000 },
 	[2][4] = { tbl_PVS4_2000MHz, sizeof(tbl_PVS4_2000MHz),     26000 },
 	[2][5] = { tbl_PVS5_2000MHz, sizeof(tbl_PVS5_2000MHz),     26000 },
 	[2][6] = { tbl_PVS6_2000MHz, sizeof(tbl_PVS6_2000MHz),     26000 },
->>>>>>> 18cfd01... 3rd time is a charm!! FINALLY CPU OC an UC!!
 
 	[14][0] = { tbl_PVS0_1512MHz, sizeof(tbl_PVS0_1512MHz),     0 },
 	[14][1] = { tbl_PVS1_1512MHz, sizeof(tbl_PVS1_1512MHz),     25000 },
