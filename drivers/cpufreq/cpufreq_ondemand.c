@@ -313,11 +313,9 @@ static void ondemand_powersave_bias_init_cpu(int cpu)
 
 static void ondemand_powersave_bias_init(void)
 {
-<<<<<<< HEAD
 	int i;
 	for_each_online_cpu(i) {
 		ondemand_powersave_bias_init_cpu(i);
-=======
 	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
 	struct cpufreq_policy *policy = dbs_info->cdbs.cur_policy;
 	struct dbs_data *dbs_data = policy->governor_data;
@@ -352,7 +350,6 @@ static void ondemand_powersave_bias_init(void)
 		freq_next = od_ops.powersave_bias_target(policy, freq_next,
 					CPUFREQ_RELATION_C);
 		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_C);
->>>>>>> 197930c... Currently, ondemand calculates the target frequency proportional to load using the formula:
 	}
 }
 
