@@ -1,0 +1,1 @@
+cmd_arch/arm/mach-msm/cpufreq_limit.ko := /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.02/bin/arm-cortex_a15-linux-gnueabihf-ld -EL -r  -T /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/scripts/module-common.lds --build-id  -o arch/arm/mach-msm/cpufreq_limit.ko arch/arm/mach-msm/cpufreq_limit.o arch/arm/mach-msm/cpufreq_limit.mod.o
