@@ -714,13 +714,10 @@ cpufreq_freq_attr_rw(scaling_min_freq);
 cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
-<<<<<<< HEAD
 #ifdef CONFIG_CPU_VOLTAGE_TABLE
 define_one_global_rw(vdd_levels);
 #endif
-=======
 cpufreq_freq_attr_rw(GPU_mV_table);
->>>>>>> 38d1b4f... GPU: Add Voltage control
 
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
