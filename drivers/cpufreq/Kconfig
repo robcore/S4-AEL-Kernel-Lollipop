@@ -250,6 +250,37 @@ config CPU_FREQ_DEFAULT_GOV_INTELLIDEMAND
 	  Use the CPUFreq governor 'intellidemand' as default. This is
 	  based on Ondemand with browsing detection based on GPU loading
 
+config CPU_FREQ_DEFAULT_GOV_ZZMOOVE
+	bool "zzmoove"
+	select CPU_FREQ_GOV_ZZMOOVE
+	help
+
+config CPU_FREQ_DEFAULT_GOV_IMPULSE
+	bool "impulse"
+	select CPU_FREQ_GOV_IMPULSE
+	help
+	  Use the CPUFreq governor 'impulse' as default.
+
+config CPU_FREQ_DEFAULT_GOV_OPTIMAX
+ 	bool "optimax"
+ 	select CPU_FREQ_GOV_OPTIMAX
+ 	select CPU_FREQ_GOV_PERFORMANCE
+ 	help
+ 	  Use the CPUFreq governor 'optimax' as default
+	 
+config CPU_FREQ_DEFAULT_GOV_PRESERVATIVE
+	bool "preservative"
+	select CPU_FREQ_GOV_PRESERVATIVE
+	select CPU_FREQ_GOV_PERFORMANCE
+	help
+	 Use the CPUFreq governor 'preservative' as default.
+
+config CPU_FREQ_DEFAULT_GOV_WAVE
+	bool "wave"
+	select CPU_FREQ_GOV_WAVE
+	help
+	 Use the CPUFreq governor 'wave' as default
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -480,9 +511,36 @@ config CPU_FREQ_GOV_ALUCARD
 	tristate "'alucard' cpufreq governor"
 	depends on CPU_FREQ
 
+config CPU_FREQ_GOV_ZZMOOVE
+	tristate "'zzmoove' cpufreq governor"
+	depends on CPU_FREQ
+
 config CPU_FREQ_GOV_INTERACTIVE_PRO
 	tristate "'interactive_pro' cpufreq governor"
 	depends on CPU_FREQ
+
+config CPU_FREQ_GOV_IMPULSE
+	tristate "'impulse' cpufreq policy governor"
+	help
+	  'impulse' - This driver adds a dynamic cpufreq policy governor
+	  designed for optimized balance between power and performance.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_OPTIMAX
+	tristate "'optimax' cpufreq policy governor"
+	depends on CPU_FREQ
+	  
+config CPU_FREQ_GOV_PRESERVATIVE
+	tristate "'preservative' cpufreq governor"
+	depends on CPU_FREQ
+
+config CPU_FREQ_GOV_WAVE
+	tristate "'wave' cpufreq governor"
+	depends on CPU_FREQ
+	help
+	'wave' - A conservative based governor
+	If in doubt, say N.
 
 config SEC_DVFS
 	bool "DVFS job"
