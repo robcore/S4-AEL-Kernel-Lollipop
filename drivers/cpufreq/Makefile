@@ -36,6 +36,8 @@ obj-$(CONFIG_CPU_FREQ_GOV_OPTIMAX) 		+= cpufreq_optimax.o
 obj-$(CONFIG_CPU_FREQ_GOV_PRESERVATIVE)	+= cpufreq_preservative.o
 //obj-$(CONFIG_CPU_FREQ_GOV_WAVE)			+= cpufreq_wave.o
 obj-$(CONFIG_CPU_FREQ_GOV_IMPULSE)	+= cpufreq_impulse.o
+obj-$(CONFIG_CPU_FREQ_GOV_MYTHX_PLUG)	+= cpufreq_mythx_plug.o
+obj-$(CONFIG_CPU_FREQ_GOV_BARRY_ALLEN)	+= cpufreq_barry_allen.o
 
 
 # CPUfreq cross-arch helpers
