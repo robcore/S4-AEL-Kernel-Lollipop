@@ -1,4 +1,4 @@
-cmd_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/scripts/gcc-wrapper.py /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.02/bin/arm-cortex_a15-linux-gnueabihf-gcc -Wp,-MD,arch/arm/mach-msm/qdsp6v2/.dsp_debug.o.d  -nostdinc -isystem /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.02/bin/../lib/gcc/arm-cortex_a15-linux-gnueabihf/4.9.3/include -I/home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include -Iarch/arm/include/generated -Iinclude  -include /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/include/linux/kconfig.h -D__KERNEL__ -mlittle-endian -Iarch/arm/mach-msm/include -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Werror-implicit-function-declaration -Wno-format-security -Wno-sizeof-pointer-memaccess -Wno-aggressive-loop-optimizations -fno-delete-null-pointer-checks -Os -Wno-maybe-uninitialized -marm -fno-dwarf2-cfi-asm -fstack-protector -mabi=aapcs-linux -mno-thumb-interwork -funwind-tables -D__LINUX_ARM_ARCH__=7 -mcpu=cortex-a15 -msoft-float -Uarm -Wframe-larger-than=1024 -Wno-unused-but-set-variable -fomit-frame-pointer -g -Wdeclaration-after-statement -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -DCC_HAVE_ASM_GOTO   -munaligned-access -mfpu=neon-vfpv4 -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(dsp_debug)"  -D"KBUILD_MODNAME=KBUILD_STR(dsp_debug)" -c -o arch/arm/mach-msm/qdsp6v2/.tmp_dsp_debug.o arch/arm/mach-msm/qdsp6v2/dsp_debug.c
+cmd_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/scripts/gcc-wrapper.py /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/bin/arm-eabi-gcc -Wp,-MD,arch/arm/mach-msm/qdsp6v2/.dsp_debug.o.d  -nostdinc -isystem /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/bin/../lib/gcc/arm-cortex_a15-linux-gnueabihf/4.9.3/include -I/home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include -Iarch/arm/include/generated -Iinclude  -include /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/include/linux/kconfig.h -D__KERNEL__ -mlittle-endian -Iarch/arm/mach-msm/include -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs -fno-strict-aliasing -fno-common -Wno-unused-value -Wno-format-security -Wno-sizeof-pointer-memaccess -Wno-aggressive-loop-optimizations -Werror-implicit-function-declaration -Wno-uninitialized -Wno-format-security -Wno-array-bounds -Wno-unused-variable -Wno-unused-function -fno-delete-null-pointer-checks -Wno-maybe-uninitialized -Os -Wno-maybe-uninitialized -marm -fno-dwarf2-cfi-asm -fstack-protector -mabi=aapcs-linux -mno-thumb-interwork -funwind-tables -D__LINUX_ARM_ARCH__=7 -mcpu=cortex-a15 -msoft-float -Uarm -Wframe-larger-than=1024 -Wno-unused-but-set-variable -fomit-frame-pointer -g -Wno-pointer-sign -fno-strict-overflow -fconserve-stack -DCC_HAVE_ASM_GOTO   -munaligned-access -mfpu=neon-vfpv4 -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR(dsp_debug)"  -D"KBUILD_MODNAME=KBUILD_STR(dsp_debug)" -c -o arch/arm/mach-msm/qdsp6v2/.tmp_dsp_debug.o arch/arm/mach-msm/qdsp6v2/dsp_debug.c
 
 source_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := arch/arm/mach-msm/qdsp6v2/dsp_debug.c
 
@@ -12,7 +12,7 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
     $(wildcard include/config/arch/dma/addr/t/64bit.h) \
     $(wildcard include/config/phys/addr/t/64bit.h) \
     $(wildcard include/config/64bit.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/types.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/types.h \
   include/asm-generic/int-ll64.h \
   arch/arm/include/generated/asm/bitsperlong.h \
   include/asm-generic/bitsperlong.h \
@@ -28,21 +28,21 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
     $(wildcard include/config/arch/supports/optimized/inlining.h) \
     $(wildcard include/config/optimize/inlining.h) \
   include/linux/compiler-gcc4.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/posix_types.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/posix_types.h \
   include/asm-generic/posix_types.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/io.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/io.h \
     $(wildcard include/config/arm/dma/mem/bufferable.h) \
     $(wildcard include/config/need/mach/io/h.h) \
     $(wildcard include/config/pcmcia/soc/common.h) \
     $(wildcard include/config/pci.h) \
     $(wildcard include/config/isa.h) \
     $(wildcard include/config/pccard.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/byteorder.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/byteorder.h \
   include/linux/byteorder/little_endian.h \
   include/linux/swab.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/swab.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/swab.h \
   include/linux/byteorder/generic.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/memory.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/memory.h \
     $(wildcard include/config/need/mach/memory/h.h) \
     $(wildcard include/config/page/offset.h) \
     $(wildcard include/config/thumb2/kernel.h) \
@@ -56,6 +56,8 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
   arch/arm/include/generated/asm/sizes.h \
   include/asm-generic/sizes.h \
   arch/arm/mach-msm/include/mach/memory.h \
+    $(wildcard include/config/have/end/mem.h) \
+    $(wildcard include/config/end/mem.h) \
     $(wildcard include/config/arch/msm7x30.h) \
     $(wildcard include/config/sparsemem.h) \
     $(wildcard include/config/vmsplit/3g.h) \
@@ -78,17 +80,17 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
     $(wildcard include/config/generic/pci/iomap.h) \
   arch/arm/mach-msm/include/mach/msm_rtb.h \
     $(wildcard include/config/msm/rtb.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/barrier.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/barrier.h \
     $(wildcard include/config/cpu/32v6k.h) \
     $(wildcard include/config/cpu/xsc3.h) \
     $(wildcard include/config/cpu/fa526.h) \
     $(wildcard include/config/arch/has/barriers.h) \
     $(wildcard include/config/smp.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/outercache.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/outercache.h \
     $(wildcard include/config/outer/cache/sync.h) \
     $(wildcard include/config/outer/cache.h) \
   arch/arm/mach-msm/include/mach/io.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/page.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/page.h \
     $(wildcard include/config/cpu/copy/v3.h) \
     $(wildcard include/config/cpu/copy/v4wt.h) \
     $(wildcard include/config/cpu/copy/v4wb.h) \
@@ -101,25 +103,25 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
     $(wildcard include/config/arm/lpae.h) \
     $(wildcard include/config/have/arch/pfn/valid.h) \
     $(wildcard include/config/memory/hotplug/sparse.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/glue.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/pgtable-2level-types.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/glue.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/pgtable-2level-types.h \
   include/asm-generic/getorder.h \
   include/linux/log2.h \
     $(wildcard include/config/arch/has/ilog2/u32.h) \
     $(wildcard include/config/arch/has/ilog2/u64.h) \
   include/linux/bitops.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/bitops.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/bitops.h \
   include/linux/irqflags.h \
     $(wildcard include/config/trace/irqflags.h) \
     $(wildcard include/config/irqsoff/tracer.h) \
     $(wildcard include/config/preempt/tracer.h) \
     $(wildcard include/config/trace/irqflags/support.h) \
   include/linux/typecheck.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/irqflags.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/ptrace.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/irqflags.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/ptrace.h \
     $(wildcard include/config/cpu/endian/be8.h) \
     $(wildcard include/config/arm/thumb.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/hwcap.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/hwcap.h \
   include/asm-generic/bitops/non-atomic.h \
   include/asm-generic/bitops/fls64.h \
   include/asm-generic/bitops/sched.h \
@@ -152,7 +154,7 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
   include/linux/blk_types.h \
     $(wildcard include/config/blk/dev/integrity.h) \
   include/linux/linkage.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/linkage.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/linkage.h \
   include/linux/wait.h \
     $(wildcard include/config/lockdep.h) \
   include/linux/list.h \
@@ -168,12 +170,12 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
     $(wildcard include/config/preempt/notifiers.h) \
   include/linux/thread_info.h \
     $(wildcard include/config/compat.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/thread_info.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/thread_info.h \
     $(wildcard include/config/arm/thumbee.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/fpstate.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/fpstate.h \
     $(wildcard include/config/vfpv3.h) \
     $(wildcard include/config/iwmmxt.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/domain.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/domain.h \
     $(wildcard include/config/verify/permission/fault.h) \
     $(wildcard include/config/io/36.h) \
     $(wildcard include/config/cpu/use/domains.h) \
@@ -189,7 +191,7 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
     $(wildcard include/config/compaction.h) \
     $(wildcard include/config/ftrace/mcount/record.h) \
   include/linux/sysinfo.h \
-  /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.02/lib/gcc/arm-cortex_a15-linux-gnueabihf/4.9.3/include/stdarg.h \
+  /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/lib/gcc/arm-cortex_a15-linux-gnueabihf/4.9.3/include/stdarg.h \
   include/linux/printk.h \
     $(wildcard include/config/sec/ssr/dump.h) \
     $(wildcard include/config/printk.h) \
@@ -198,9 +200,9 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
     $(wildcard include/config/modules.h) \
     $(wildcard include/config/hotplug.h) \
   include/linux/dynamic_debug.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/div64.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/compiler.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/bug.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/div64.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/compiler.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/bug.h \
     $(wildcard include/config/bug.h) \
     $(wildcard include/config/debug/bugverbose.h) \
   include/asm-generic/bug.h \
@@ -209,18 +211,18 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
   include/linux/stringify.h \
   include/linux/bottom_half.h \
   include/linux/spinlock_types.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/spinlock_types.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/spinlock_types.h \
   include/linux/lockdep.h \
     $(wildcard include/config/lock/stat.h) \
     $(wildcard include/config/prove/rcu.h) \
   include/linux/rwlock_types.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/spinlock.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/spinlock.h \
     $(wildcard include/config/msm/krait/wfe/fixup.h) \
     $(wildcard include/config/arm/ticket/locks.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/processor.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/processor.h \
     $(wildcard include/config/have/hw/breakpoint.h) \
     $(wildcard include/config/arm/errata/754327.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/hw_breakpoint.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/hw_breakpoint.h \
   include/linux/rwlock.h \
   include/linux/spinlock_api_smp.h \
     $(wildcard include/config/inline/spin/lock.h) \
@@ -255,13 +257,13 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
   include/linux/atomic.h \
     $(wildcard include/config/arch/has/atomic/or.h) \
     $(wildcard include/config/generic/atomic64.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/atomic.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/cmpxchg.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/atomic.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/cmpxchg.h \
     $(wildcard include/config/cpu/sa110.h) \
     $(wildcard include/config/cpu/v6.h) \
   include/asm-generic/cmpxchg-local.h \
   include/asm-generic/atomic-long.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/current.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/current.h \
   include/linux/kdev_t.h \
   include/linux/dcache.h \
   include/linux/rculist.h \
@@ -278,7 +280,7 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
     $(wildcard include/config/preempt/rt.h) \
   include/linux/cache.h \
     $(wildcard include/config/arch/has/cache/line/size.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/cache.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/cache.h \
     $(wildcard include/config/arm/l1/cache/shift.h) \
     $(wildcard include/config/aeabi.h) \
   include/linux/threads.h \
@@ -291,7 +293,7 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
   include/linux/bitmap.h \
   include/linux/string.h \
     $(wildcard include/config/binary/printf.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/string.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/string.h \
   include/linux/bug.h \
   include/linux/seqlock.h \
   include/linux/completion.h \
@@ -304,7 +306,7 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
   include/linux/bit_spinlock.h \
   include/linux/path.h \
   include/linux/stat.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/stat.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/stat.h \
   include/linux/time.h \
     $(wildcard include/config/arch/uses/gettimeoffset.h) \
   include/linux/math64.h \
@@ -332,7 +334,7 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
   include/linux/percpu_counter.h \
   include/linux/smp.h \
     $(wildcard include/config/use/generic/smp/helpers.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/smp.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/smp.h \
   include/linux/percpu.h \
     $(wildcard include/config/need/per/cpu/embed/first/chunk.h) \
     $(wildcard include/config/need/per/cpu/page/first/chunk.h) \
@@ -348,7 +350,7 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
   include/linux/dqblk_qtree.h \
   include/linux/nfs_fs_i.h \
   include/linux/fcntl.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/fcntl.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/fcntl.h \
   include/asm-generic/fcntl.h \
     $(wildcard include/config/scfs/lower/pagecache/invalidation.h) \
   include/linux/err.h \
@@ -396,13 +398,13 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
     $(wildcard include/config/have/arch/nodedata/extension.h) \
   include/linux/notifier.h \
   include/linux/srcu.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/sparsemem.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/sparsemem.h \
   include/linux/topology.h \
     $(wildcard include/config/sched/smt.h) \
     $(wildcard include/config/sched/mc.h) \
     $(wildcard include/config/sched/book.h) \
     $(wildcard include/config/use/percpu/numa/node/id.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/topology.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/topology.h \
     $(wildcard include/config/arm/cpu/topology.h) \
   include/asm-generic/topology.h \
   include/linux/mmdebug.h \
@@ -419,9 +421,9 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
   include/linux/jiffies.h \
   include/linux/timex.h \
   include/linux/param.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/param.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/param.h \
     $(wildcard include/config/hz.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/timex.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/timex.h \
   arch/arm/mach-msm/include/mach/timex.h \
     $(wildcard include/config/have/arch/has/current/timer.h) \
   include/linux/sysctl.h \
@@ -429,8 +431,8 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
   include/linux/rbtree.h \
   include/linux/elf.h \
   include/linux/elf-em.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/elf.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/user.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/elf.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/user.h \
   include/linux/kobject.h \
   include/linux/sysfs.h \
   include/linux/kobject_ns.h \
@@ -446,13 +448,13 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
   include/linux/export.h \
     $(wildcard include/config/symbol/prefix.h) \
     $(wildcard include/config/modversions.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/module.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/module.h \
     $(wildcard include/config/arm/unwind.h) \
   include/linux/miscdevice.h \
   include/linux/major.h \
   include/linux/uaccess.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/uaccess.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/unified.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/uaccess.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/unified.h \
     $(wildcard include/config/arm/asm/unified.h) \
   include/linux/sched.h \
     $(wildcard include/config/runtime/compcache.h) \
@@ -477,6 +479,7 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
     $(wildcard include/config/task/delay/acct.h) \
     $(wildcard include/config/fair/group/sched.h) \
     $(wildcard include/config/rt/group/sched.h) \
+    $(wildcard include/config/cgroup/sched.h) \
     $(wildcard include/config/blk/dev/io/trace.h) \
     $(wildcard include/config/rcu/boost.h) \
     $(wildcard include/config/compat/brk.h) \
@@ -496,12 +499,12 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
     $(wildcard include/config/cfs/bandwidth.h) \
     $(wildcard include/config/stack/growsup.h) \
     $(wildcard include/config/debug/stack/usage.h) \
-    $(wildcard include/config/cgroup/sched.h) \
     $(wildcard include/config/mm/owner.h) \
   include/linux/mm_types.h \
     $(wildcard include/config/split/ptlock/cpus.h) \
-    $(wildcard include/config/want/page/debug/flags.h) \
+    $(wildcard include/config/have/cmpxchg/double.h) \
     $(wildcard include/config/have/aligned/struct/page.h) \
+    $(wildcard include/config/want/page/debug/flags.h) \
     $(wildcard include/config/aio.h) \
     $(wildcard include/config/mmu/notifier.h) \
     $(wildcard include/config/transparent/hugepage.h) \
@@ -512,19 +515,19 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
     $(wildcard include/config/page/poisoning.h) \
     $(wildcard include/config/page/guard.h) \
     $(wildcard include/config/page/debug/something/else.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/mmu.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/mmu.h \
     $(wildcard include/config/cpu/has/asid.h) \
   arch/arm/include/generated/asm/cputime.h \
   include/asm-generic/cputime.h \
   include/linux/sem.h \
   include/linux/ipc.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/ipcbuf.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/ipcbuf.h \
   include/asm-generic/ipcbuf.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/sembuf.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/sembuf.h \
   include/linux/signal.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/signal.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/signal.h \
   include/asm-generic/signal-defs.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/sigcontext.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/sigcontext.h \
   arch/arm/include/generated/asm/siginfo.h \
   include/asm-generic/siginfo.h \
   include/linux/proportions.h \
@@ -556,7 +559,7 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
   include/linux/aio_abi.h \
   include/linux/uio.h \
   include/linux/delay.h \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/delay.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/delay.h \
   include/linux/platform_device.h \
     $(wildcard include/config/suspend.h) \
     $(wildcard include/config/hibernate/callbacks.h) \
@@ -571,7 +574,7 @@ deps_arch/arm/mach-msm/qdsp6v2/dsp_debug.o := \
     $(wildcard include/config/pm/runtime.h) \
     $(wildcard include/config/pm/clk.h) \
     $(wildcard include/config/pm/generic/domains.h) \
-  /home/friedrich420/kernel/s4/S4LOLLIPOPKERNEL/arch/arm/include/asm/device.h \
+  /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include/asm/device.h \
     $(wildcard include/config/dmabounce.h) \
     $(wildcard include/config/iommu/api.h) \
     $(wildcard include/config/arm/dma/use/iommu.h) \

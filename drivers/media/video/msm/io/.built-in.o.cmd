@@ -1,0 +1,1 @@
+cmd_drivers/media/video/msm/io/built-in.o :=  /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/bin/arm-eabi-ld -EL    -r -o drivers/media/video/msm/io/built-in.o drivers/media/video/msm/io/msm_camera_io_util.o drivers/media/video/msm/io/msm_camera_i2c.o drivers/media/video/msm/io/msm_camera_i2c_mux.o drivers/media/video/msm/io/msm_io_8960.o 

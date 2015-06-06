@@ -1,0 +1,1 @@
+cmd_drivers/gpu/ion/msm/built-in.o :=  /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/bin/arm-eabi-ld -EL    -r -o drivers/gpu/ion/msm/built-in.o drivers/gpu/ion/msm/msm_ion.o drivers/gpu/ion/msm/ion_cp_common.o 

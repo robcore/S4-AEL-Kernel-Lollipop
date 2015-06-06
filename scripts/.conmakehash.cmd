@@ -1,4 +1,4 @@
-cmd_scripts/conmakehash := gcc -Wp,-MD,scripts/.conmakehash.d -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer   -I/home/friedrich420/kernel/s4/OD7KERNELFORLINUX/tools/include  -o scripts/conmakehash scripts/conmakehash.c  
+cmd_scripts/conmakehash := gcc -Wp,-MD,scripts/.conmakehash.d -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer   -I/home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/tools/include  -o scripts/conmakehash scripts/conmakehash.c  
 
 source_scripts/conmakehash := scripts/conmakehash.c
 

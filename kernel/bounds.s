@@ -14,7 +14,7 @@
 @	compiled by GNU C version 4.9.1, GMP version 6.0.0, MPFR version 3.1.2, MPC version 1.0.2
 @ GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
 @ options passed:  -nostdinc
-@ -I /home/friedrich420/kernel/s4/OD7KERNELFORLINUX/arch/arm/include
+@ -I /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/arch/arm/include
 @ -I arch/arm/include/generated -I include -I arch/arm/mach-msm/include
 @ -iprefix /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/bin/../lib/gcc/arm-cortex_a15-linux-gnueabihf/4.9.3/
 @ -isysroot /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/bin/../arm-cortex_a15-linux-gnueabihf/sysroot
@@ -22,7 +22,7 @@
 @ -D KBUILD_STR(s)=#s -D KBUILD_BASENAME=KBUILD_STR(bounds)
 @ -D KBUILD_MODNAME=KBUILD_STR(bounds)
 @ -isystem /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/bin/../lib/gcc/arm-cortex_a15-linux-gnueabihf/4.9.3/include
-@ -include /home/friedrich420/kernel/s4/OD7KERNELFORLINUX/include/linux/kconfig.h
+@ -include /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/include/linux/kconfig.h
 @ -MD kernel/.bounds.s.d kernel/bounds.c -mlittle-endian -marm
 @ -mabi=aapcs-linux -mno-thumb-interwork -mcpu=cortex-a15 -mfloat-abi=soft
 @ -munaligned-access -mfpu=neon-vfpv4 -mtls-dialect=gnu
@@ -458,14 +458,14 @@ foo:
 	.section	.debug_line,"",%progbits
 .Ldebug_line0:
 	.section	.debug_str,"MS",%progbits,1
-.LASF49:
-	.ascii	"PCG_MIGRATION\000"
+.LASF53:
+	.ascii	"/home/friedrich420/kernel/s4/OD7KERNELFORLINUX2\000"
 .LASF37:
 	.ascii	"PG_fscache\000"
 .LASF33:
 	.ascii	"PG_scfslower\000"
-.LASF22:
-	.ascii	"PG_reserved\000"
+.LASF46:
+	.ascii	"__MAX_NR_ZONES\000"
 .LASF43:
 	.ascii	"ZONE_NORMAL\000"
 .LASF28:
@@ -480,8 +480,10 @@ foo:
 	.ascii	"PG_private\000"
 .LASF35:
 	.ascii	"__NR_PAGEFLAGS\000"
-.LASF46:
-	.ascii	"__MAX_NR_ZONES\000"
+.LASF49:
+	.ascii	"PCG_MIGRATION\000"
+.LASF22:
+	.ascii	"PG_reserved\000"
 .LASF14:
 	.ascii	"PG_referenced\000"
 .LASF27:
@@ -506,8 +508,8 @@ foo:
 	.ascii	"char\000"
 .LASF20:
 	.ascii	"PG_owner_priv_1\000"
-.LASF53:
-	.ascii	"/home/friedrich420/kernel/s4/OD7KERNELFORLINUX\000"
+.LASF34:
+	.ascii	"PG_nocache\000"
 .LASF41:
 	.ascii	"pageflags\000"
 .LASF47:
@@ -520,8 +522,6 @@ foo:
 	.ascii	"PG_error\000"
 .LASF6:
 	.ascii	"long long unsigned int\000"
-.LASF34:
-	.ascii	"PG_nocache\000"
 .LASF38:
 	.ascii	"PG_pinned\000"
 .LASF19:

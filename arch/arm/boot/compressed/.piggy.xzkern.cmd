@@ -1,1 +1,1 @@
-cmd_arch/arm/boot/compressed/piggy.xzkern := (cat arch/arm/boot/compressed/../Image | sh /home/friedrich420/kernel/s4/OD7KERNELFORLINUX/scripts/xz_wrap.sh && printf \314\032\030\001) > arch/arm/boot/compressed/piggy.xzkern || (rm -f arch/arm/boot/compressed/piggy.xzkern ; false)
+cmd_arch/arm/boot/compressed/piggy.xzkern := (cat arch/arm/boot/compressed/../Image | sh /home/friedrich420/kernel/s4/OD7KERNELFORLINUX2/scripts/xz_wrap.sh && printf \\104\\067\\027\\001) > arch/arm/boot/compressed/piggy.xzkern || (rm -f arch/arm/boot/compressed/piggy.xzkern ; false)

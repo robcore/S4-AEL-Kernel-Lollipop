@@ -1,0 +1,20 @@
+--- net/bluetooth/smp.c
++++ net/bluetooth/smp.c
+@@ -231,7 +233,7 @@
+ 		req->max_key_size = SMP_MAX_ENC_KEY_SIZE;
+ 		req->init_key_dist = 0;
+ 		req->resp_key_dist = dist_keys;
+-		req->auth_req = authreq;
++		req->auth_req = (authreq & AUTH_REQ_MASK);
+ 		return;
+ 	}
+ 
+@@ -240,7 +242,7 @@
+ 	rsp->max_key_size = SMP_MAX_ENC_KEY_SIZE;
+ 	rsp->init_key_dist = 0;
+ 	rsp->resp_key_dist = req->resp_key_dist & dist_keys;
+-	rsp->auth_req = authreq;
++	rsp->auth_req = (authreq & AUTH_REQ_MASK);
+ }
+ 
+ static u8 check_enc_key_size(struct l2cap_conn *conn, __u8 max_key_size)

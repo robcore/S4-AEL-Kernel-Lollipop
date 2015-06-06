@@ -1,0 +1,1 @@
+cmd_drivers/char/hw_random/built-in.o :=  /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/bin/arm-eabi-ld -EL    -r -o drivers/char/hw_random/built-in.o drivers/char/hw_random/rng-core.o drivers/char/hw_random/msm_rng.o 

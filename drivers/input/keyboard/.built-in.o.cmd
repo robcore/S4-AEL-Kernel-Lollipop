@@ -1,0 +1,1 @@
+cmd_drivers/input/keyboard/built-in.o :=  /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/bin/arm-eabi-ld -EL    -r -o drivers/input/keyboard/built-in.o drivers/input/keyboard/atkbd.o drivers/input/keyboard/gpio_keys.o drivers/input/keyboard/matrix_keypad.o drivers/input/keyboard/cypress_touchkey_236/built-in.o 
