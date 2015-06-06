@@ -621,6 +621,7 @@ static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
 	/* TODO: calling this function crash kernel,
 	   not calling this funct ion crash kernel inside f_hidg_write */
 	/* usb_ep_dequeue(hidg->in_ep, hidg->req); */
+
 	kfree(hidg->req->buf);
 	usb_ep_free_request(hidg->in_ep, hidg->req);
 
@@ -733,4 +734,3 @@ void ghid_cleanup(void)
 	class_destroy(hidg_class);
 	hidg_class = NULL;
 }
-
