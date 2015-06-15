@@ -1,1 +1,0 @@
-cmd_drivers/video/msm/msm_mipi.o := /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/bin/arm-eabi-ld -EL    -r -o drivers/video/msm/msm_mipi.o drivers/video/msm/mipi_dsi.o drivers/video/msm/mipi_dsi_host.o 

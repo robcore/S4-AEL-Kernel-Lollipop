@@ -295,6 +295,12 @@ config CPU_FREQ_DEFAULT_GOV_BARRY_ALLEN
 	  loading your cpufreq low-level hardware driver, using the
 	  'barry_allen' governor for latency-sensitive workloads.
 
+config CPU_FREQ_DEFAULT_GOV_SMARTASSH3
+	bool "smartassH3"
+	select CPU_FREQ_GOV_SMARTASSH3
+ 	help
+	  Use the CPUFreq governor 'smartassH3' as default.
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -576,6 +582,12 @@ config CPU_FREQ_GOV_BARRY_ALLEN
 	  For details, take a look at linux/Documentation/cpu-freq.
 
 	  If in doubt, say N.
+
+config CPU_FREQ_GOV_SMARTASSH3
+	tristate "'smartassH3' cpufreq governor"
+ 	depends on CPU_FREQ
+ 	help
+	  'smartassH3' - a "smart" governor
 
 config SEC_DVFS
 	bool "DVFS job"

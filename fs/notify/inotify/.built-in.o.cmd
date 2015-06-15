@@ -1,1 +1,0 @@
-cmd_fs/notify/inotify/built-in.o :=  /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/bin/arm-eabi-ld -EL    -r -o fs/notify/inotify/built-in.o fs/notify/inotify/inotify_fsnotify.o fs/notify/inotify/inotify_user.o 

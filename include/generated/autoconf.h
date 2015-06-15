@@ -1,7 +1,7 @@
 /*
  *
  * Automatically generated file; DO NOT EDIT.
- * Linux/arm 3.4.25 Kernel Configuration
+ * Linux/arm 3.4.107 Kernel Configuration
  *
  */
 #define CONFIG_RING_BUFFER 1
@@ -16,7 +16,6 @@
 #define CONFIG_CRC32 1
 #define CONFIG_I2C_BOARDINFO 1
 #define CONFIG_NF_NAT_PROTO_SCTP 1
-#define CONFIG_HAVE_AOUT 1
 #define CONFIG_VFP 1
 #define CONFIG_IR_JVC_DECODER 1
 #define CONFIG_EXT3_FS_XATTR 1
@@ -319,6 +318,7 @@
 #define CONFIG_MEDIA_TUNER_TDA18271 1
 #define CONFIG_IP6_NF_IPTABLES 1
 #define CONFIG_CPU_FREQ_GOV_USERSPACE 1
+#define CONFIG_BLK_DEV_DM_BUILTIN 1
 #define CONFIG_ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES 1
 #define CONFIG_INET_IPCOMP 1
 #define CONFIG_SEC_DEBUG_MDP 1

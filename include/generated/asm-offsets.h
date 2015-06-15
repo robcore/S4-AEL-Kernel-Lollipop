@@ -7,8 +7,8 @@
  *
  */
 
-#define TSK_ACTIVE_MM 248 /* offsetof(struct task_struct, active_mm)	@ */
-#define TSK_STACK_CANARY 308 /* offsetof(struct task_struct, stack_canary)	@ */
+#define TSK_ACTIVE_MM 252 /* offsetof(struct task_struct, active_mm)	@ */
+#define TSK_STACK_CANARY 316 /* offsetof(struct task_struct, stack_canary)	@ */
 
 #define TI_FLAGS 0 /* offsetof(struct thread_info, flags)	@ */
 #define TI_PREEMPT 4 /* offsetof(struct thread_info, preempt_count)	@ */
@@ -44,7 +44,7 @@
 #define S_OLD_R0 68 /* offsetof(struct pt_regs, ARM_ORIG_r0)	@ */
 #define S_FRAME_SIZE 72 /* sizeof(struct pt_regs)	@ */
 
-#define MM_CONTEXT_ID 376 /* offsetof(struct mm_struct, context.id)	@ */
+#define MM_CONTEXT_ID 384 /* offsetof(struct mm_struct, context.id)	@ */
 
 #define VMA_VM_MM 0 /* offsetof(struct vm_area_struct, vm_mm)	@ */
 #define VMA_VM_FLAGS 24 /* offsetof(struct vm_area_struct, vm_flags)	@ */

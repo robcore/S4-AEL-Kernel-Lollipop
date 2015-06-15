@@ -19,7 +19,7 @@ MODULE_INFO(intree, "Y");
 static const struct modversion_info ____versions[]
 __used
 __attribute__((section("__versions"))) = {
-	{ 0x1a8f3254, "module_layout" },
+	{ 0x3441e1a5, "module_layout" },
 	{ 0xefd6cf06, "__aeabi_unwind_cpp_pr0" },
 	{ 0x7e275ea8, "scsi_complete_async_scans" },
 	{ 0x4484a5a4, "wait_for_device_probe" },

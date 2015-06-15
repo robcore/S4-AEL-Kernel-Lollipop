@@ -1,1 +1,0 @@
-cmd_drivers/net/usb/rmnet_usb.o := /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/bin/arm-eabi-ld -EL    -r -o drivers/net/usb/rmnet_usb.o drivers/net/usb/rmnet_usb_ctrl.o drivers/net/usb/rmnet_usb_data.o 

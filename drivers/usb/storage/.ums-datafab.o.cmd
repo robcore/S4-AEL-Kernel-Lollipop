@@ -1,1 +1,0 @@
-cmd_drivers/usb/storage/ums-datafab.o := /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/bin/arm-eabi-ld -EL    -r -o drivers/usb/storage/ums-datafab.o drivers/usb/storage/datafab.o 

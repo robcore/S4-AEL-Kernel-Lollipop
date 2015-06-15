@@ -34,7 +34,8 @@
 @ -Wframe-larger-than=1024 -Wno-unused-but-set-variable -Wno-pointer-sign
 @ -fno-strict-aliasing -fno-common -fno-delete-null-pointer-checks
 @ -fno-dwarf2-cfi-asm -fstack-protector -funwind-tables
-@ -fomit-frame-pointer -fno-strict-overflow -fconserve-stack -fverbose-asm
+@ -fomit-frame-pointer -fno-var-tracking-assignments -fno-strict-overflow
+@ -fconserve-stack -fverbose-asm
 @ options enabled:  -faggressive-loop-optimizations -fauto-inc-dec
 @ -fbranch-count-reg -fcaller-saves -fcombine-stack-adjustments
 @ -fcompare-elim -fcprop-registers -fcrossjumping -fcse-follow-jumps
@@ -67,10 +68,10 @@
 @ -ftree-parallelize-loops= -ftree-phiprop -ftree-pre -ftree-pta
 @ -ftree-reassoc -ftree-scev-cprop -ftree-sink -ftree-slsr -ftree-sra
 @ -ftree-switch-conversion -ftree-tail-merge -ftree-ter -ftree-vrp
-@ -funit-at-a-time -funwind-tables -fvar-tracking
-@ -fvar-tracking-assignments -fverbose-asm -fzero-initialized-in-bss -marm
-@ -mglibc -mlittle-endian -mlra -mpic-data-is-text-relative -msched-prolog
-@ -munaligned-access -mvectorize-with-neon-quad
+@ -funit-at-a-time -funwind-tables -fvar-tracking -fverbose-asm
+@ -fzero-initialized-in-bss -marm -mglibc -mlittle-endian -mlra
+@ -mpic-data-is-text-relative -msched-prolog -munaligned-access
+@ -mvectorize-with-neon-quad
 
 	.text
 .Ltext0:
@@ -504,8 +505,6 @@ foo:
 	.ascii	"unsigned char\000"
 .LASF52:
 	.ascii	"kernel/bounds.c\000"
-.LASF9:
-	.ascii	"char\000"
 .LASF20:
 	.ascii	"PG_owner_priv_1\000"
 .LASF34:
@@ -536,6 +535,14 @@ foo:
 	.ascii	"long long int\000"
 .LASF17:
 	.ascii	"PG_lru\000"
+.LASF9:
+	.ascii	"char\000"
+.LASF31:
+	.ascii	"PG_unevictable\000"
+.LASF39:
+	.ascii	"PG_savepinned\000"
+.LASF2:
+	.ascii	"short int\000"
 .LASF51:
 	.ascii	"GNU C 4.9.3 20150311 (prerelease) -mlittle-endian -"
 	.ascii	"marm -mabi=aapcs-linux -mno-thumb-interwork -mcpu=c"
@@ -543,14 +550,8 @@ foo:
 	.ascii	"=neon-vfpv4 -mtls-dialect=gnu -g -Os -fno-strict-al"
 	.ascii	"iasing -fno-common -fno-delete-null-pointer-checks "
 	.ascii	"-fno-dwarf2-cfi-asm -fstack-protector -funwind-tabl"
-	.ascii	"es -fomit-frame-pointer -fno-strict-overflow -fcons"
-	.ascii	"erve-stack\000"
-.LASF31:
-	.ascii	"PG_unevictable\000"
-.LASF39:
-	.ascii	"PG_savepinned\000"
-.LASF2:
-	.ascii	"short int\000"
+	.ascii	"es -fomit-frame-pointer -fno-var-tracking-assignmen"
+	.ascii	"ts -fno-strict-overflow -fconserve-stack\000"
 .LASF48:
 	.ascii	"PCG_USED\000"
 .LASF21:

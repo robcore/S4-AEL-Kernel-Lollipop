@@ -1,1 +1,0 @@
-cmd_drivers/char/diag/built-in.o :=  /home/friedrich420/kernel/arm-cortex_a15-linux-gnueabihf-linaro_4.9.3-2015.03/bin/arm-eabi-ld -EL    -r -o drivers/char/diag/built-in.o drivers/char/diag/diagchar.o drivers/char/diag/diagfwd_bridge.o drivers/char/diag/diagfwd_hsic.o drivers/char/diag/diagfwd_smux.o 
