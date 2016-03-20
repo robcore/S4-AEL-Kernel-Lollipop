@@ -1,0 +1,11 @@
+--- arch/arm/configs/jf_defconfig
++++ arch/arm/configs/jf_defconfig
+@@ -741,8 +741,6 @@ CONFIG_SEC_GPIO_DVS=y
+ 
+ CONFIG_INPUT_KEYCHORD=y
+ 
+-CONFIG_TIMA_LOG=y
+-
+ CONFIG_IOSCHED_TEST=y
+ CONFIG_MSM_RESET_MODEM=y
+ CONFIG_MSM_DMA_TEST=y
