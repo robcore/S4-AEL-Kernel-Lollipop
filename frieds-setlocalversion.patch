@@ -1,0 +1,34 @@
+From 4aafc958c2a3e693450a2e49dd6c558a22ceb417 Mon Sep 17 00:00:00 2001
+From: HRTKernel <support@hacker-kernel.com>
+Date: Sun, 28 Feb 2016 03:23:48 +0100
+Subject: [PATCH] setlocalversion: clean it up credits @friedrich420
+
+---
+ scripts/setlocalversion | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/scripts/setlocalversion b/scripts/setlocalversion
+index 3ff659e..ca39cde 100755
+--- a/scripts/setlocalversion
++++ b/scripts/setlocalversion
+@@ -52,18 +52,10 @@ scm_version()
+ 			# If only the short version is requested, don't bother
+ 			# running further git commands
+ 			if $short; then
+-				echo "+"
++				echo ""
+ 				return
+ 			fi
+-			# If we are past a tagged commit (like
+-			# "v2.6.30-rc5-302-g72357d5"), we pretty print it.
+-			if atag="`git describe 2>/dev/null`"; then
+-				echo "$atag" | awk -F- '{printf("-%05d-%s", $(NF-1),$(NF))}'
+-
+-			# If we don't have a tag at all we print -g{commitish}.
+-			else
+-				printf '%s%s' -g $head
+-			fi
++			
+ 		fi
+ 
+ 		# Is this git on svn?

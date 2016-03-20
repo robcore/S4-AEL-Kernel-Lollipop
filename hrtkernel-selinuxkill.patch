@@ -1,0 +1,231 @@
+From c573b1f89c5a351c631f8829c7169f330a347af2 Mon Sep 17 00:00:00 2001
+From: HRTKernel <support@hacker-kernel.com>
+Date: Mon, 7 Mar 2016 09:14:31 +0100
+Subject: [PATCH] SELinux: force-set to permissive and return success on every
+ access
+
+---
+ security/selinux/avc.c         |  8 +----
+ security/selinux/hooks.c       | 17 ++--------
+ security/selinux/include/avc.h |  6 ++--
+ security/selinux/selinuxfs.c   | 73 +-----------------------------------------
+ security/selinux/ss/sidtab.c   |  4 +--
+ security/selinux/ss/status.c   |  2 +-
+ 6 files changed, 11 insertions(+), 99 deletions(-)
+
+diff --git a/security/selinux/avc.c b/security/selinux/avc.c
+index f3dbbc0..8cbf039 100644
+--- a/security/selinux/avc.c
++++ b/security/selinux/avc.c
+@@ -776,7 +776,7 @@ noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
+ 	sad.ssid = ssid;
+ 	sad.tsid = tsid;
+ 	sad.audited = audited;
+-	sad.denied = denied;
++	sad.denied = 0;
+ 	sad.result = result;
+ 
+ 	a->selinux_audit_data = &sad;
+@@ -997,12 +997,6 @@ static noinline int avc_denied(u32 ssid, u32 tsid,
+ 				u16 cmd, unsigned flags,
+ 				struct av_decision *avd)
+ {
+-	if (flags & AVC_STRICT)
+-		return -EACCES;
+-
+-	if (selinux_enforcing && !(avd->flags & AVD_FLAGS_PERMISSIVE))
+-		return -EACCES;
+-
+ 	avc_update_node(AVC_CALLBACK_GRANT, requested, cmd, ssid,
+ 				tsid, tclass, avd->seqno, NULL, flags);
+ 	return 0;
+diff --git a/security/selinux/hooks.c b/security/selinux/hooks.c
+index 355fcca..05951d7 100644
+--- a/security/selinux/hooks.c
++++ b/security/selinux/hooks.c
+@@ -177,18 +177,7 @@ extern struct security_operations *security_ops;
+ /* SECMARK reference count */
+ static atomic_t selinux_secmark_refcount = ATOMIC_INIT(0);
+ 
+-#ifdef CONFIG_SECURITY_SELINUX_DEVELOP
+-int selinux_enforcing;
+-
+-static int __init enforcing_setup(char *str)
+-{
+-	unsigned long enforcing;
+-	if (!strict_strtoul(str, 0, &enforcing))
+-		selinux_enforcing = enforcing ? 1 : 0;
+-	return 1;
+-}
+-__setup("enforcing=", enforcing_setup);
+-#endif
++int selinux_enforcing = 0;
+ 
+ #ifdef CONFIG_SECURITY_SELINUX_BOOTPARAM
+ int selinux_enabled = CONFIG_SECURITY_SELINUX_BOOTPARAM_VALUE;
+@@ -3048,7 +3037,7 @@ static noinline int audit_inode_permission(struct inode *inode,
+ 	ad.u.inode = inode;
+ 
+ 	rc = slow_avc_audit(current_sid(), isec->sid, isec->sclass, perms,
+-			    audited, denied, result, &ad, flags);
++			    audited, 0, result, &ad, flags);
+ 	if (rc)
+ 		return rc;
+ 	return 0;
+@@ -3093,7 +3082,7 @@ static int selinux_inode_permission(struct inode *inode, int mask)
+ 	if (likely(!audited))
+ 		return rc;
+ 
+-	rc2 = audit_inode_permission(inode, perms, audited, denied, rc, flags);
++	rc2 = audit_inode_permission(inode, perms, audited, 0, rc, flags);
+ 	if (rc2)
+ 		return rc2;
+ 	return rc;
+diff --git a/security/selinux/include/avc.h b/security/selinux/include/avc.h
+index 8109ad8..2d4005e 100644
+--- a/security/selinux/include/avc.h
++++ b/security/selinux/include/avc.h
+@@ -97,7 +97,7 @@ static inline u32 avc_audit_required(u32 requested,
+ 		audited = denied = requested;
+ 	else
+ 		audited = requested & avd->auditallow;
+-	*deniedp = denied;
++	*deniedp = 0;
+ 	return audited;
+ }
+ 
+@@ -137,11 +137,11 @@ static inline int avc_audit(u32 ssid, u32 tsid,
+ 	if (likely(!audited))
+ 		return 0;
+ 	return slow_avc_audit(ssid, tsid, tclass,
+-			      requested, audited, denied, result,
++			      requested, audited, 0, result,
+ 			      a, flags);
+ }
+ 
+-#define AVC_STRICT 1 /* Ignore permissive mode. */
++#define AVC_STRICT 0
+ #define AVC_OPERATION_CMD 2	/* ignore command when updating operations */
+ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
+ 			 u16 tclass, u32 requested,
+diff --git a/security/selinux/selinuxfs.c b/security/selinux/selinuxfs.c
+index 3bbf72e..e809a3b 100644
+--- a/security/selinux/selinuxfs.c
++++ b/security/selinux/selinuxfs.c
+@@ -140,80 +140,9 @@ static ssize_t sel_read_enforce(struct file *filp, char __user *buf,
+ 	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
+ }
+ 
+-#ifdef CONFIG_SECURITY_SELINUX_DEVELOP
+-static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
+-				 size_t count, loff_t *ppos)
+-
+-{
+-	char *page = NULL;
+-	ssize_t length;
+-	int new_value;
+-
+-	length = -ENOMEM;
+-	if (count >= PAGE_SIZE)
+-		goto out;
+-
+-	/* No partial writes. */
+-	length = -EINVAL;
+-	if (*ppos != 0)
+-		goto out;
+-
+-	length = -ENOMEM;
+-	page = (char *)get_zeroed_page(GFP_KERNEL);
+-	if (!page)
+-		goto out;
+-
+-	length = -EFAULT;
+-	if (copy_from_user(page, buf, count))
+-		goto out;
+-
+-	length = -EINVAL;
+-	if (sscanf(page, "%d", &new_value) != 1)
+-		goto out;
+-	
+-	new_value = new_value == 3 ? 1 : 0;
+-
+-	if (new_value != selinux_enforcing) {
+-		length = task_has_security(current, SECURITY__SETENFORCE);
+-		if (length)
+-			goto out;
+-		audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_STATUS,
+-			"enforcing=%d old_enforcing=%d auid=%u ses=%u",
+-			new_value, selinux_enforcing,
+-			from_kuid(&init_user_ns, audit_get_loginuid(current)),
+-			audit_get_sessionid(current));
+-		selinux_enforcing = new_value;
+-		if (selinux_enforcing)
+-			avc_ss_reset(0);
+-		selnl_notify_setenforce(selinux_enforcing);
+-		selinux_status_update_setenforce(selinux_enforcing);
+-	}
+-	length = count;
+-
+-#if defined(CONFIG_TZ_ICCC)
+-	if (selinux_enabled && selinux_enforcing) {
+-		if (0 != Iccc_SaveData_Kernel(SELINUX_STATUS,0x0)) {
+-			printk(KERN_ERR "%s: Iccc_SaveData_Kernel failed, type = %x, value =%x\n", __func__,SELINUX_STATUS,0x0);
+-		}
+-	}
+-	else {
+-		if (0 != Iccc_SaveData_Kernel(SELINUX_STATUS,0x1)) {
+-			printk(KERN_ERR "%s: Iccc_SaveData_Kernel failed, type = %x, value =%x\n", __func__,SELINUX_STATUS,0x1);
+-		}
+-	}
+-#endif
+-
+-out:
+-	free_page((unsigned long) page);
+-	return length;
+-}
+-#else
+-#define sel_write_enforce NULL
+-#endif
+-
+ static const struct file_operations sel_enforce_ops = {
+ 	.read		= sel_read_enforce,
+-	.write		= sel_write_enforce,
++	.write		= NULL,
+ 	.llseek		= generic_file_llseek,
+ };
+ 
+diff --git a/security/selinux/ss/sidtab.c b/security/selinux/ss/sidtab.c
+index 5840a35..602b9f6 100644
+--- a/security/selinux/ss/sidtab.c
++++ b/security/selinux/ss/sidtab.c
+@@ -202,7 +202,7 @@ int sidtab_context_to_sid(struct sidtab *s,
+ 	int ret = 0;
+ 	unsigned long flags;
+ 
+-	*out_sid = SECSID_NULL;
++	*out_sid = SECSID_WILD;
+ 
+ 	sid  = sidtab_search_cache(s, context);
+ 	if (!sid)
+@@ -221,7 +221,7 @@ int sidtab_context_to_sid(struct sidtab *s,
+ 		sid = s->next_sid++;
+ 		if (context->len)
+ 			printk(KERN_INFO
+-		       "SELinux:  Context %s is not valid (left unmapped).\n",
++		       "SELinux:  Context %s is not valid (left wildcarded).\n",
+ 			       context->str);
+ 		ret = sidtab_insert(s, sid, context);
+ 		if (ret)
+diff --git a/security/selinux/ss/status.c b/security/selinux/ss/status.c
+index d982365..3d691c6 100644
+--- a/security/selinux/ss/status.c
++++ b/security/selinux/ss/status.c
+@@ -66,7 +66,7 @@ struct page *selinux_kernel_status_page(void)
+ 			 * So, application can know it was updated.
+ 			 */
+ 			status->policyload = 0;
+-			status->deny_unknown = !security_get_allow_unknown();
++			status->deny_unknown = 0;
+ 		}
+ 	}
+ 	result = selinux_status_page;
