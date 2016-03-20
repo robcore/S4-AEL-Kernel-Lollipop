@@ -1,0 +1,280 @@
+From 67bc3775ab92af10f99bf4066dc74e6363013749 Mon Sep 17 00:00:00 2001
+From: Tommy-Geenexus <roboter972@gmail.com>
+Date: Fri, 20 Mar 2015 12:04:45 +0100
+Subject: [PATCH] arm: add generic apq_hotplug hotplug-driver
+
+---
+ arch/arm/Kconfig              |   7 ++
+ arch/arm/kernel/Makefile      |   1 +
+ arch/arm/kernel/apq_hotplug.c | 182 ++++++++++++++++++++++++++++++++++++++++++
+ arch/arm/mach-msm/Makefile    |   4 +-
+ include/linux/cpumask.h       |  15 ++++
+ 5 files changed, 207 insertions(+), 2 deletions(-)
+ create mode 100644 arch/arm/kernel/apq_hotplug.c
+
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index e48987c..1907bfd 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -1656,6 +1656,13 @@ config SCHED_MC
+ 	  making when dealing with multi-core CPU chips at a cost of slightly
+ 	  increased overhead in some places. If unsure say N here.
+ 
++config APQ_HOTPLUG
++	bool "Multicore hotplug driver"
++	depends on HAS_EARLYSUSPEND
++	default y
++	help
++	  Hotplug CPUs on suspend/resume
++
+ config SCHED_SMT
+ 	bool "SMT scheduler support"
+ 	depends on ARM_CPU_TOPOLOGY
+diff --git a/arch/arm/kernel/Makefile b/arch/arm/kernel/Makefile
+index 4408906..1cc26b9 100644
+--- a/arch/arm/kernel/Makefile
++++ b/arch/arm/kernel/Makefile
+@@ -32,6 +32,7 @@ obj-$(CONFIG_ISA_DMA)		+= dma-isa.o
+ obj-$(CONFIG_PCI)		+= bios32.o isa.o
+ obj-$(CONFIG_ARM_CPU_SUSPEND)	+= sleep.o suspend.o
+ obj-$(CONFIG_SMP)		+= smp.o smp_tlb.o
++obj-$(CONFIG_APQ_HOTPLUG) 	+= apq_hotplug.o
+ obj-$(CONFIG_HAVE_ARM_SCU)	+= smp_scu.o
+ obj-$(CONFIG_HAVE_ARM_TWD)	+= smp_twd.o
+ obj-$(CONFIG_ARM_ARCH_TIMER)	+= arch_timer.o
+diff --git a/arch/arm/kernel/apq_hotplug.c b/arch/arm/kernel/apq_hotplug.c
+new file mode 100644
+index 0000000..159e5d6
+--- /dev/null
++++ b/arch/arm/kernel/apq_hotplug.c
+@@ -0,0 +1,182 @@
++/*
++ * Copyright (C) 2015 Tom G. <roboter972@gmail.com>
++ *
++ * This software is licensed under the terms of the GNU General Public
++ * License version 2, as published by the Free Software Foundation, and
++ * may be copied, distributed, and modified under those terms.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#define pr_fmt(fmt) "apq_hotplug: " fmt
++
++#include <linux/cpu.h>
++#include <linux/cpumask.h>
++#include <linux/earlysuspend.h>
++#include <linux/init.h>
++#include <linux/kobject.h>
++#include <linux/stat.h>
++#include <linux/sysfs.h>
++#include <linux/workqueue.h>
++
++#define DEBUG	0
++
++enum hp {
++	SUSPEND_DELAY = (CONFIG_HZ * 2),
++	MAX_CPUS = CONFIG_NR_CPUS
++};
++
++static struct delayed_work offline_all_work;
++static struct work_struct online_all_work;
++static struct kobject *apq_hotplug_kobj;
++
++static unsigned int boot_flag = 0;
++static unsigned int suspend_delay = SUSPEND_DELAY;
++unsigned int apq_hp_max_online_cpus = MAX_CPUS;
++
++static inline void offline_all_fn(struct work_struct *work)
++{
++	unsigned int cpu;
++
++	for_each_online_cpu(cpu) {
++		if (cpu != 0) {
++			cpu_down(cpu);
++#if DEBUG
++			pr_info("CPU%u down.\n", cpu);
++			pr_info("CPU(s) running: %u\n", num_online_cpus());
++#endif
++		}
++	}
++}
++
++static inline void online_all_fn(struct work_struct *work)
++{
++	unsigned int cpu;
++
++	for_each_cpu_not_adj(cpu, cpu_online_mask) {
++		if (cpu == 0)
++			continue;
++		cpu_up(cpu);
++#if DEBUG
++		pr_info("CPU%u up.\n", cpu);
++		pr_info("CPU(s) running: %u\n", num_online_cpus());
++#endif
++	}
++}
++
++static void apq_hotplug_early_suspend(struct early_suspend *h)
++{
++	/*
++	 * Init new work on the first suspend call,
++	 * skip clearing workqueue as no work has been inited yet.
++	 */
++	switch (boot_flag) {
++	case 0:
++		cancel_work_sync(&online_all_work);
++		break;
++	case 1:
++		boot_flag = 0;
++		break;
++	}
++
++	schedule_delayed_work(&offline_all_work,
++					msecs_to_jiffies(suspend_delay));
++}
++
++static void apq_hotplug_late_resume(struct early_suspend *h)
++{
++	/* Clear the workqueue and init new work */
++	cancel_delayed_work_sync(&offline_all_work);
++
++	schedule_work(&online_all_work);
++}
++
++static struct early_suspend __refdata apq_hotplug_early_suspend_handler = {
++	.level = EARLY_SUSPEND_LEVEL_DISABLE_FB,
++	.suspend = apq_hotplug_early_suspend,
++	.resume = apq_hotplug_late_resume,
++};
++
++/******************************** SYSFS START ********************************/
++static ssize_t max_online_cpus_show(struct kobject *kobj,
++					struct kobj_attribute *attr,
++					char *buf)
++{
++	return sprintf(buf, "%u\n", apq_hp_max_online_cpus);
++}
++
++static ssize_t max_online_cpus_store(struct kobject *kobj,
++					struct kobj_attribute *attr,
++					const char *buf, size_t count)
++{
++	unsigned int val;
++	int ret;
++
++	ret = sscanf(buf, "%u", &val);
++
++	if (ret != 1 || val > MAX_CPUS)
++		return -EINVAL;
++
++	apq_hp_max_online_cpus = val;
++
++	return count;
++}
++
++static struct kobj_attribute max_online_cpus_attribute =
++	__ATTR(max_online_cpus, S_IRUGO | S_IWUSR, max_online_cpus_show,
++						max_online_cpus_store);
++
++static struct attribute *apq_hotplug_attrs[] = {
++	&max_online_cpus_attribute.attr,
++	NULL
++};
++
++static struct attribute_group apq_hotplug_attr_group = {
++	.attrs = apq_hotplug_attrs,
++};
++/********************************* SYSFS END *********************************/
++
++static int __init apq_hotplug_init(void)
++{
++	int rc;
++
++	INIT_DELAYED_WORK(&offline_all_work, offline_all_fn);
++	INIT_WORK(&online_all_work, online_all_fn);
++
++	apq_hotplug_kobj = kobject_create_and_add("apq_hotplug", kernel_kobj);
++	if (!apq_hotplug_kobj) {
++		pr_err("Failed to create apq_hotplug kobject!\n");
++		return -ENOMEM;
++	}
++
++	rc = sysfs_create_group(apq_hotplug_kobj, &apq_hotplug_attr_group);
++	if (rc) {
++		pr_err("Failed to create apq_hotplug sysfs entry!\n");
++		kobject_put(apq_hotplug_kobj);
++	}
++
++	register_early_suspend(&apq_hotplug_early_suspend_handler);
++
++	boot_flag = 1;
++
++	pr_info("initialized!\n");
++
++	return 0;
++}
++
++static void __exit apq_hotplug_exit(void)
++{
++	cancel_delayed_work_sync(&offline_all_work);
++	cancel_work_sync(&online_all_work);
++
++	sysfs_remove_group(apq_hotplug_kobj, &apq_hotplug_attr_group);
++	kobject_put(apq_hotplug_kobj);
++
++	unregister_early_suspend(&apq_hotplug_early_suspend_handler);
++}
++
++late_initcall(apq_hotplug_init);
++module_exit(apq_hotplug_exit);
+diff --git a/arch/arm/mach-msm/Makefile b/arch/arm/mach-msm/Makefile
+index 793fcfe..23e1d4e 100644
+--- a/arch/arm/mach-msm/Makefile
++++ b/arch/arm/mach-msm/Makefile
+@@ -384,8 +384,8 @@ obj-$(CONFIG_ARCH_MSM9625) += gpiomux-v2.o gpiomux.o
+ 
+ 
+ obj-$(CONFIG_MSM_SLEEP_STATS_DEVICE) += idle_stats_device.o
+-obj-$(CONFIG_MSM_DCVS) += msm_dcvs_scm.o msm_dcvs.o msm_mpdecision.o
+-obj-$(CONFIG_MSM_RUN_QUEUE_STATS) += msm_rq_stats.o
++obj-$(CONFIG_MSM_DCVS) += msm_dcvs_scm.o msm_dcvs.o
++#obj-$(CONFIG_MSM_RUN_QUEUE_STATS) += msm_rq_stats.o
+ obj-$(CONFIG_MSM_SHOW_RESUME_IRQ) += msm_show_resume_irq.o
+ obj-$(CONFIG_BT_MSM_PINTEST)  += btpintest.o
+ obj-$(CONFIG_MSM_FAKE_BATTERY) += fish_battery.o
+diff --git a/include/linux/cpumask.h b/include/linux/cpumask.h
+index a2c819d..3134965 100644
+--- a/include/linux/cpumask.h
++++ b/include/linux/cpumask.h
+@@ -11,6 +11,8 @@
+ #include <linux/bitmap.h>
+ #include <linux/bug.h>
+ 
++extern unsigned int apq_hp_max_online_cpus;
++
+ typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
+ 
+ /**
+@@ -218,6 +220,19 @@ int cpumask_any_but(const struct cpumask *mask, unsigned int cpu);
+ 		(cpu) < nr_cpu_ids;)
+ 
+ /**
++ * for_each_cpu_not_adj - iterate over every cpu in a complemented mask
++ * @cpu: the (optionally unsigned) integer iterator
++ * @mask: the cpumask pointer
++ *
++ * After the loop, cpu >= apq_hp_max_online_cpus.
++ */
++
++#define for_each_cpu_not_adj(cpu, mask)				\
++	for ((cpu) = -1;					\
++		(cpu) = cpumask_next_zero((cpu), (mask)),	\
++		(cpu) < apq_hp_max_online_cpus;)
++
++/**
+  * for_each_cpu_and - iterate over every cpu in both masks
+  * @cpu: the (optionally unsigned) integer iterator
+  * @mask: the first cpumask pointer
