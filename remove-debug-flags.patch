@@ -1,0 +1,89 @@
+From a402596b3ae91db52da4748d6706d8852e236020 Mon Sep 17 00:00:00 2001
+From: ktoonsez <ktoonsez@gmail.com>
+Date: Sun, 16 Mar 2014 09:10:49 -0700
+Subject: [PATCH] defconfig: Remove almost all debug flags, fix up sec_debug
+ issues in source files, add more zram flags, and remove DCVS flag
+
+---
+ arch/arm/mach-msm/msm_rtb.c         |  2 +
+ arch/arm/mach-msm/restart.c         |  4 +-
+ drivers/misc/sec_misc.c             |  5 +++
+ 3 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-msm/msm_rtb.c b/arch/arm/mach-msm/msm_rtb.c
+index 4d8923d..465852a 100644
+--- a/arch/arm/mach-msm/msm_rtb.c
++++ b/arch/arm/mach-msm/msm_rtb.c
+@@ -287,9 +287,11 @@ int msm_rtb_probe(struct platform_device *pdev)
+ 	atomic_set(&msm_rtb_idx, 0);
+ 	msm_rtb.step_size = 1;
+ #endif
++#ifdef CONFIG_SEC_DEBUG
+ 	if (kernel_sec_get_debug_level() != KERNEL_SEC_DEBUG_LEVEL_LOW) {
+ 		msm_rtb.filter = 1 << LOGK_READL | 1 << LOGK_WRITEL;
+ 	}
++#endif
+ 	atomic_notifier_chain_register(&panic_notifier_list,
+ 						&msm_rtb_panic_blk);
+ 	msm_rtb.initialized = 1;
+diff --git a/arch/arm/mach-msm/restart.c b/arch/arm/mach-msm/restart.c
+index cb6e37b..c8ab74d 100644
+--- a/arch/arm/mach-msm/restart.c
++++ b/arch/arm/mach-msm/restart.c
+@@ -62,8 +62,8 @@ static int ssr_magic_number = 0;
+ static int restart_mode;
+ #ifndef CONFIG_SEC_DEBUG
+ void *restart_reason;
+-#endif
+ int kernel_sec_get_debug_level(void);
++#endif
+ #define KERNEL_SEC_DEBUG_LEVEL_LOW      (0x574F4C44)
+ int pmic_reset_irq;
+ static void __iomem *msm_tmr0_base;
+@@ -383,7 +383,7 @@ static int __init msm_pmic_restart_init(void)
+ 
+ #if defined(CONFIG_MACH_JF_VZW) || defined(CONFIG_MACH_MELIUS)
+ 	return 0;
+-#else
++#elif defined(CONFIG_SEC_DEBUG)
+ 	if (kernel_sec_get_debug_level() != KERNEL_SEC_DEBUG_LEVEL_LOW)
+ 		return 0;
+ #endif
+diff --git a/drivers/misc/sec_misc.c b/drivers/misc/sec_misc.c
+index 591b7f4..63e3f1f 100644
+--- a/drivers/misc/sec_misc.c
++++ b/drivers/misc/sec_misc.c
+@@ -33,6 +33,7 @@
+ #include <mach/gpio.h>
+ #include <linux/sec_param.h>
+ #include <mach/sec_debug.h>
++#include <linux/sec_class.h>
+ #define MOVINAND_CHECKSUM
+ #define RORY_CONTROL
+ 
+@@ -132,6 +133,7 @@ static DEVICE_ATTR(rory_control, S_IRUGO | S_IWUSR ,
+ 		rory_control_show, rory_control_store);
+ #endif /*RORY_CONTROL*/
+ 
++#ifdef CONFIG_SEC_DEBUG
+ static unsigned int convert_debug_level_str(const char *str)
+ {
+ 	if (strncasecmp(str, "0xA0A0", 6) == 0)
+@@ -190,6 +192,7 @@ static ssize_t debug_level_store(struct device *dev,
+ 
+ static DEVICE_ATTR(debug_level, S_IRUGO | S_IWUSR ,
+ 		debug_level_show, debug_level_store);
++#endif
+ 
+ #if defined(CONFIG_MACH_APEXQ) || defined(CONFIG_MACH_AEGIS2)
+ static ssize_t slideCount_show
+@@ -223,7 +226,9 @@ static struct device_attribute *sec_misc_attrs[] = {
+ 	&dev_attr_emmc_checksum_done,
+ 	&dev_attr_emmc_checksum_pass,
+ 	&dev_attr_rory_control,
++#ifdef CONFIG_SEC_DEBUG
+ 	&dev_attr_debug_level,
++#endif
+ #if defined(CONFIG_MACH_APEXQ) || defined(CONFIG_MACH_AEGIS2)
+ 	&dev_attr_slideCount,
+ #endif
