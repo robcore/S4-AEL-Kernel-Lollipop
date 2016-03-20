@@ -1,0 +1,45 @@
+From 6e37fc9a7a2ef6d1effbdcf8d803afb810178aa6 Mon Sep 17 00:00:00 2001
+From: ausdim <koronaios@gmail.com>
+Date: Sat, 18 Oct 2014 08:15:12 +0300
+Subject: [PATCH] mmc: block: fix race in deferred resume
+
+The actual resume takes place when a request is received. In a
+situation when mmcqd and qseecomd(rpmb) both try to resume the
+device, a race is ensued. This is because mmcqd first resumes
+the device and then claims the host. Ideally, if resume is in
+progress in one context the resume in the other context should
+be cancelled.
+Claim the host before resuming the device in mmcqd context.
+
+Signed-off-by: Asutosh Das <asutoshd@codeaurora.org>
+[neo: Fix code format.]
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ drivers/mmc/card/block.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/mmc/card/block.c b/drivers/mmc/card/block.c
+index 9b1ac52..1512179 100644
+--- a/drivers/mmc/card/block.c
++++ b/drivers/mmc/card/block.c
+@@ -2259,6 +2259,10 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
+ 	struct mmc_host *host = card->host;
+ 	unsigned long flags;
+ 
++	if (req && !mq->mqrq_prev->req) {
++		/* claim host only for the first request */
++		mmc_claim_host(card->host);
++
+ #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
+ 	if (mmc_bus_needs_resume(card->host)) {
+ 		mmc_resume_bus(card->host);
+@@ -2266,9 +2270,6 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
+ 	}
+ #endif
+ 
+-	if (req && !mq->mqrq_prev->req) {
+-		/* claim host only for the first request */
+-		mmc_claim_host(card->host);
+ 		if (card->ext_csd.bkops_en)
+ 			mmc_stop_bkops(card);
+ 	}
