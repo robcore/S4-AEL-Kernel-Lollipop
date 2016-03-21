@@ -676,6 +676,26 @@ static int proc_read_status(char *page, char **start, off_t off, int count,
 }
 #endif
 
+void vfp_kmode_exception(void)
+{
+	/*
+	 * If we reach this point, a floating point exception has been raised
+	 * while running in kernel mode. If the NEON/VFP unit was enabled at the
+	 * time, it means a VFP instruction has been issued that requires
+	 * software assistance to complete, something which is not currently
+	 * supported in kernel mode.
+	 * If the NEON/VFP unit was disabled, and the location pointed to below
+	 * is properly preceded by a call to kernel_neon_begin(), something has
+	 * caused the task to be scheduled out and back in again. In this case,
+	 * rebuilding and running with CONFIG_DEBUG_ATOMIC_SLEEP enabled should
+	 * be helpful in localizing the problem.
+	 */
+	if (fmrx(FPEXC) & FPEXC_EN)
+		pr_crit("BUG: unsupported FP instruction in kernel mode\n");
+	else
+		pr_crit("BUG: FP instruction issued in kernel mode with FP unit disabled\n");
+}
+
 #ifdef CONFIG_KERNEL_MODE_NEON
 
 /*
@@ -796,16 +816,18 @@ static int __init vfp_init(void)
 			if ((fmrx(MVFR1) & 0x000fff00) == 0x00011100)
 				elf_hwcap |= HWCAP_NEON;
 #endif
+#ifdef CONFIG_VFPv3
 			if ((fmrx(MVFR1) & 0xf0000000) == 0x10000000 ||
 			    (read_cpuid_id() & 0xff00fc00) == 0x51000400)
 				elf_hwcap |= HWCAP_VFPv4;
+#endif
 		}
 	}
 	return 0;
 }
 
 static int __init vfp_rootfs_init(void)
-
+{
 #ifdef CONFIG_PROC_FS
 	static struct proc_dir_entry *procfs_entry;
 
@@ -816,8 +838,8 @@ static int __init vfp_rootfs_init(void)
 	else
 		pr_err("Failed to create procfs node for VFP bounce reporting\n");
 #endif
-
 	return 0;
 }
 
+core_initcall(vfp_init);
 rootfs_initcall(vfp_rootfs_init);
