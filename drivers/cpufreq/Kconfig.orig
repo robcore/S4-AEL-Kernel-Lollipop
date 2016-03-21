@@ -335,6 +335,11 @@ config CPU_FREQ_GOV_UBERDEMAND
 	  do fast frequency switching (i.e, very low latency frequency
 	  transitions).
 
+config CPU_FREQ_GOV_UBERDEMAND_SECOND_PHASE_FREQ
+        int "Second Phase Uberdemand Frequency"
+        default 1458000
+        depends on CPU_FREQ_GOV_UBERDEMAND
+
 config CPU_FREQ_GOV_PERFORMANCE
 	tristate "'performance' governor"
 	help
@@ -661,7 +666,7 @@ config INTELLI_MAX_ACTIVE_FREQ
 config INTELLI_MAX_INACTIVE_FREQ
 	int "Max Inactive Freq for Intellidemand"
 	depends on CPU_FREQ_GOV_INTELLIDEMAND
-	default	1134000
+	default	384000
 	help
 		Set default max inactive frequency for intellidemand
 
