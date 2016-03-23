@@ -1,0 +1,7048 @@
+From e998018fba54490580381750ad9ab1c0c24d7c62 Mon Sep 17 00:00:00 2001
+From: Tkkg1994 <luca.grifo@outlook.com>
+Date: Mon, 21 Mar 2016 19:52:03 +0100
+Subject: [PATCH] add all hotplugs with needed patches to my kernel source,
+ check history in Nova-Kernel
+
+---
+ arch/arm/mach-msm/Kconfig            |  103 +++
+ arch/arm/mach-msm/Makefile           |   10 +
+ arch/arm/mach-msm/alucard_hotplug.c  |  888 ++++++++++++++++++++++++
+ arch/arm/mach-msm/blu_plug.c         |  531 ++++++++++++++
+ arch/arm/mach-msm/bricked_hotplug.c  |  818 ++++++++++++++++++++++
+ arch/arm/mach-msm/intelli_hotplug.c  |  777 +++++++++++++++++++++
+ arch/arm/mach-msm/mako_hotplug.c     |  583 ++++++++++++++++
+ arch/arm/mach-msm/msm_hotplug.c      | 1257 ++++++++++++++++++++++++++++++++++
+ arch/arm/mach-msm/msm_rq_stats.c     |   24 +-
+ arch/arm/mach-msm/msm_sleeper.c      |  510 ++++++++++++++
+ arch/arm/mach-msm/msm_zen_decision.c |  350 ++++++++++
+ arch/arm/mach-msm/thunderplug.c      |  802 ++++++++++++++++++++++
+ drivers/cpufreq/cpufreq.c            |   24 +-
+ include/linux/cpufreq.h              |    5 +
+ include/linux/sched.h                |    4 +
+ kernel/sched/core.c                  |   58 ++
+ kernel/sched/sched.h                 |   69 ++
+ 17 files changed, 6807 insertions(+), 6 deletions(-)
+ create mode 100644 arch/arm/mach-msm/alucard_hotplug.c
+ create mode 100644 arch/arm/mach-msm/blu_plug.c
+ create mode 100644 arch/arm/mach-msm/bricked_hotplug.c
+ create mode 100644 arch/arm/mach-msm/intelli_hotplug.c
+ create mode 100644 arch/arm/mach-msm/mako_hotplug.c
+ create mode 100644 arch/arm/mach-msm/msm_hotplug.c
+ create mode 100644 arch/arm/mach-msm/msm_sleeper.c
+ create mode 100644 arch/arm/mach-msm/msm_zen_decision.c
+ create mode 100644 arch/arm/mach-msm/thunderplug.c
+
+diff --git a/arch/arm/mach-msm/Kconfig b/arch/arm/mach-msm/Kconfig
+index 42ba37d..f5c46ad 100755
+--- a/arch/arm/mach-msm/Kconfig
++++ b/arch/arm/mach-msm/Kconfig
+@@ -974,6 +974,39 @@ config MSM_DEVFREQ_CPUBW
+ 	  agnostic interface to so that some of the devfreq governors can be
+ 	  shared across SoCs.
+ 
++config ZEN_DECISION
++	bool "Zen Decision: MSM Userspace Handler"
++	depends on SMP && FB
++	default n
++	help
++	  MSM/Qcomm devices have multiple userspace applications that handle
++	  CPU hotplugging and frequency operations.
++
++	  ZenDecision is a "handler" to account for behavior caused by
++	  disabling some of these services.
++
++	  For example, If MPDecision is disabled and MSM-Thermal_Engine is 
++	  enabled in the userspace. Situations where CPUs go offline but never
++	  come back online occur. ZenDecision handles the situation of CPUs
++	  never coming online when they are supposed.
++  
++	  ZenDecision ensures all CPUs are online when they are supposed to be by:
++	  - Enable all CPUs when screen comes on after wake_wait_delay
++	  - Ignore all CPU_UP operations when battery level is <= 15% to respect
++	    decisions of MSMThermal.
++
++	  Userspace tunables for ZenDecision (/sys/kernel/zen_decision):
++	  - enabled (0 or 1): Enable or disable the driver.
++	  - wake_wait_time (0-60000): How long to wait before executing CPU_UP work.
++	  - bat_threshold_ignore (0-100, 0=disabled): Don't do any CPU_UP work up to
++	     this battery charge level.
++
++	  WARNING: ZenDecision is not a direct replacement for any of the MSM userspace
++	  services. It is simply designed to "handle" specific behaviors that are caused
++	  by disabling these services.
++
++	  If unsure, say N.
++
+ config MSM_AVS_HW
+ 	bool "Enable Adaptive Voltage Scaling (AVS)"
+ 	default n
+@@ -1807,6 +1840,76 @@ config SAMSUNG_PRODUCT_SHIP
+         bool "set up for product shipping"
+         default n
+ 
++config MSM_HOTPLUG
++	bool "MSM hotplug driver"
++	depends on HOTPLUG_CPU
++	default y
++	help
++	  The MSM hotplug driver controls on-/offlining of additional cores based
++	  on current cpu load.
++
++config BRICKED_HOTPLUG
++	bool "Enable kernel based mpdecision"
++	depends on MSM_RUN_QUEUE_STATS
++	default y
++	help
++	  This enables kernel based multi core control.
++	  (up/down hotplug based on load)
++
++config INTELLI_HOTPLUG
++	bool "Intelli hotplug driver"
++	depends on HOTPLUG_CPU
++	default y
++	help
++	  An intelligent cpu hotplug driver for
++	  Low Latency Frequency Transition capable processors.
++
++config ALUCARD_HOTPLUG
++	bool "Enable alucard-hotplug cpu hotplug driver"
++	default y
++	help
++	  Generic Alucard-hotplug cpu hotplug driver for ARM SOCs.
++
++config MAKO_HOTPLUG
++	bool "Mako hotplug driver"
++	depends on HOTPLUG_CPU
++	default y
++	help
++	  Generic hotplug driver for SMP devices.
++
++config MSM_LIMITER
++	bool "MSM Frequency Limiter Driver"
++	default y
++	help
++	  The MSM Frequency Limiter Driver controls max frequency limit for each CPU
++	  to desired value on suspend/resume
++
++config MSM_SLEEPER
++	bool "CPU hotplug driver"
++	default y
++	help
++	  CPU hotplug driver
++
++config BLU_PLUG
++	bool "Dynamic hotplug driver"
++	depends on HOTPLUG_CPU
++	default n
++	help
++	  The Dynamic hotplug driver automatically online/offline CPUs proportional to system load.
++
++config AUTOSMP
++	bool "Multi-core automatic hotplug support"
++	depends on SMP && HOTPLUG_CPU
++	default n
++	help
++	  Automatically hotplugs the multiple cpu cores on and off
++	  based on cpu load and suspend state
++
++config THUNDERPLUG_CONTROL
++	bool "Enable plugging down/up of cores based on load per core"
++	help
++	  This driver hotplugs cpu cores based on per-core load
++
+ config FORCE_FAST_CHARGE
+ 	bool "Force fast charging (AC/USB) by Yank555.lu"
+ 	default n
+diff --git a/arch/arm/mach-msm/Makefile b/arch/arm/mach-msm/Makefile
+index fb35dbc..cf42ccd 100755
+--- a/arch/arm/mach-msm/Makefile
++++ b/arch/arm/mach-msm/Makefile
+@@ -151,4 +151,14 @@ obj-$(CONFIG_SEC_THERMISTOR) += sec_thermistor.o apq8084-thermistor.o
+ obj-$(CONFIG_BT_BCM4358) += board-bluetooth-bcm4358.o
+ obj-$(CONFIG_GSM_MODEM_SPRD6500) += board-sprd6500-spi.o board-sprd6500-modems.o
+ 
++obj-$(CONFIG_MSM_HOTPLUG) += msm_hotplug.o
++obj-$(CONFIG_INTELLI_HOTPLUG) += intelli_hotplug.o
++obj-$(CONFIG_BRICKED_HOTPLUG) += bricked_hotplug.o
++obj-$(CONFIG_MSM_LIMITER) += msm_limiter.o
++obj-$(CONFIG_ZEN_DECISION) += msm_zen_decision.o
++obj-$(CONFIG_ALUCARD_HOTPLUG) += alucard_hotplug.o
++obj-$(CONFIG_MAKO_HOTPLUG) += mako_hotplug.o
++obj-$(CONFIG_MSM_SLEEPER) += msm_sleeper.o
++obj-$(CONFIG_BLU_PLUG) += blu_plug.o
++
+ obj-$(CONFIG_FORCE_FAST_CHARGE) += fastchg.o
+diff --git a/arch/arm/mach-msm/alucard_hotplug.c b/arch/arm/mach-msm/alucard_hotplug.c
+new file mode 100644
+index 0000000..55ad059
+--- /dev/null
++++ b/arch/arm/mach-msm/alucard_hotplug.c
+@@ -0,0 +1,888 @@
++/*
++ * Author: Alucard_24@XDA
++ *
++ * Copyright 2012 Alucard_24@XDA
++ *
++ * This software is licensed under the terms of the GNU General Public
++ * License version 2, as published by the Free Software Foundation, and
++ * may be copied, distributed, and modified under those terms.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ */
++#include <linux/cpu.h>
++#include <linux/cpufreq.h>
++#include <linux/jiffies.h>
++#include <linux/kernel_stat.h>
++#include <linux/tick.h>
++#include <linux/sched.h>
++#include <linux/mutex.h>
++#include <linux/module.h>
++#include <linux/slab.h>
++
++#ifdef CONFIG_STATE_NOTIFIER
++#include <linux/state_notifier.h>
++#endif
++
++#define MAX_FREQ_LIMIT 2880000
++#define MIN_FREQ_LIMIT	268800
++/*
++ * alucard_hotplug_mutex protects hotplug start/stop phase.
++ */
++static DEFINE_MUTEX(alucard_hotplug_mutex);
++
++struct hotplug_cpuinfo {
++	u64 prev_cpu_wall;
++	u64 prev_cpu_idle;
++	unsigned int prev_load;
++	ktime_t time_stamp;
++};
++
++static unsigned int last_online_cpus;
++
++struct hotplug_cpuparm {
++	unsigned int up_load;
++	unsigned int up_freq;
++	unsigned int up_rq;
++	unsigned int up_rate;
++	unsigned int cur_up_rate;
++	unsigned int down_load;
++	unsigned int down_freq;
++	unsigned int down_rq;
++	unsigned int down_rate;
++	unsigned int cur_down_rate;
++};
++
++static DEFINE_PER_CPU_SHARED_ALIGNED(struct hotplug_cpuinfo, ac_hp_cpuinfo);
++static DEFINE_PER_CPU(struct hotplug_cpuparm, ac_hp_cpuparm);
++
++static struct notifier_block notif;
++static struct delayed_work alucard_hotplug_work;
++static struct workqueue_struct *alucard_hp_wq;
++
++static struct hotplug_tuners {
++	unsigned int hotplug_sampling_rate;
++	unsigned int hotplug_enable;
++	unsigned int min_cpus_online;
++	unsigned int maxcoreslimit;
++	unsigned int maxcoreslimit_sleep;
++	unsigned int hotplug_suspend;
++	bool suspended;
++} hotplug_tuners_ins = {
++	.hotplug_sampling_rate = 50,
++	.hotplug_enable = 0,
++	.min_cpus_online = 1,
++	.maxcoreslimit = NR_CPUS,
++	.maxcoreslimit_sleep = 1,
++	.hotplug_suspend = 0,
++	.suspended = false,
++};
++
++#define DOWN_INDEX		(0)
++#define UP_INDEX		(1)
++
++static unsigned int adjust_avg_freq(unsigned int cpu, unsigned int tmp_freq)
++{
++	struct cpufreq_frequency_table *table = cpufreq_frequency_get_table(cpu);
++	unsigned int i = 0, target_freq = 0;
++
++	if (!table)
++		return 0;
++
++	for (i = 0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
++		unsigned int freq = table[i].frequency;
++
++		if (freq != CPUFREQ_ENTRY_INVALID) {
++			if (freq < tmp_freq) {
++				target_freq = freq;
++			} else if (freq >= tmp_freq) {
++				if (freq - tmp_freq < tmp_freq - target_freq) {
++					target_freq = freq;
++				}
++				break;
++			}
++		}
++	}
++
++	return target_freq;
++}
++
++static void reset_last_cur_cpu_rate(void)
++{
++	struct hotplug_cpuparm *pcpu_parm = NULL;
++
++	if (unlikely(!last_online_cpus))
++		return;
++	pcpu_parm = &per_cpu(ac_hp_cpuparm, last_online_cpus - 1);
++	pcpu_parm->cur_up_rate = 1;
++	pcpu_parm->cur_down_rate = 1;
++}
++
++static void __ref hotplug_work_fn(struct work_struct *work)
++{
++	struct hotplug_cpuparm *pcpu_parm = NULL;
++	unsigned int upmaxcoreslimit =
++		hotplug_tuners_ins.maxcoreslimit;
++	unsigned int min_cpus_online =
++		hotplug_tuners_ins.min_cpus_online;
++	unsigned int downcpu = 0;
++	unsigned int offcpu = NR_CPUS;
++	unsigned int cpu = 0;
++	unsigned int rq_avg = 0;
++	unsigned int min_freq = MAX_FREQ_LIMIT;
++	unsigned int avg_freq = 0;
++	unsigned int min_load = 100;
++	unsigned int avg_load = 0;
++	unsigned int n = 0;
++	unsigned int sum_load = 0, sum_freq = 0;
++	bool rq_avg_calc = true;
++	int online_cpus = 0, delay;
++	unsigned int sampling_rate =
++		hotplug_tuners_ins.hotplug_sampling_rate;
++	struct cpufreq_policy policy;
++
++	if (hotplug_tuners_ins.suspended) {
++		upmaxcoreslimit = hotplug_tuners_ins.maxcoreslimit_sleep;
++		rq_avg_calc = false;
++	}
++
++	for_each_online_cpu(cpu) {
++		struct hotplug_cpuinfo *pcpu_info =
++			&per_cpu(ac_hp_cpuinfo, cpu);
++		u64 cur_wall_time, cur_idle_time;
++		unsigned int wall_time, idle_time;
++		unsigned int cur_load = 0;
++		unsigned int cur_freq = 0;
++		ktime_t time_now = ktime_get();
++		s64 delta_us;
++
++		delta_us = ktime_us_delta(time_now, pcpu_info->time_stamp);
++		/* Do nothing if cpu recently has become online */
++		if (delta_us < (s64)(sampling_rate / 2)) {
++			continue;
++		}
++
++		cur_idle_time = get_cpu_idle_time(
++				cpu, &cur_wall_time,
++				0);
++
++		wall_time = (unsigned int)
++				(cur_wall_time -
++					pcpu_info->prev_cpu_wall);
++		pcpu_info->prev_cpu_wall = cur_wall_time;
++
++		idle_time = (unsigned int)
++				(cur_idle_time -
++					pcpu_info->prev_cpu_idle);
++		pcpu_info->prev_cpu_idle = cur_idle_time;
++
++		pcpu_info->time_stamp = time_now;
++
++		/* if wall_time < idle_time or wall_time == 0, evaluate cpu load next time */
++		if (unlikely(!wall_time || wall_time < idle_time))
++			continue;
++
++		/*
++		 * If the CPU had gone completely idle, and a task just woke up
++		 * on this CPU now, it would be unfair to calculate 'load' the
++		 * usual way for this elapsed time-window, because it will show
++		 * near-zero load, irrespective of how CPU intensive that task
++		 * actually is. This is undesirable for latency-sensitive bursty
++		 * workloads.
++		 *
++		 * To avoid this, we reuse the 'load' from the previous
++		 * time-window and give this task a chance to start with a
++		 * reasonably high CPU frequency. (However, we shouldn't over-do
++		 * this copy, lest we get stuck at a high load (high frequency)
++		 * for too long, even when the current system load has actually
++		 * dropped down. So we perform the copy only once, upon the
++		 * first wake-up from idle.)
++		 *
++		 * Detecting this situation is easy: the governor's deferrable
++		 * timer would not have fired during CPU-idle periods. Hence
++		 * an unusually large 'wall_time' (as compared to the sampling
++		 * rate) indicates this scenario.
++		 *
++		 * prev_load can be zero in two cases and we must recalculate it
++		 * for both cases:
++		 * - during long idle intervals
++		 * - explicitly set to zero
++		 */
++		if (unlikely(wall_time > (2 * sampling_rate) &&
++			     pcpu_info->prev_load)) {
++			cur_load = pcpu_info->prev_load;
++
++			/*
++			 * Perform a destructive copy, to ensure that we copy
++			 * the previous load only once, upon the first wake-up
++			 * from idle.
++			 */
++			pcpu_info->prev_load = 0;
++		} else {
++			cur_load = 100 * (wall_time - idle_time) / wall_time;
++			pcpu_info->prev_load = cur_load;
++		}
++
++		/* get the cpu current frequency */
++		cur_freq = cpufreq_quick_get(cpu);
++
++		if (cur_freq > 0) {
++			n++;
++			sum_load += cur_load;
++			sum_freq += cur_freq;
++			if (rq_avg_calc) {
++				rq_avg += (avg_cpu_nr_running(cpu) * 100) >> FSHIFT;
++				/*pr_info("cpu[%u], rq_avg[%u]\n", cpu, rq_avg);*/
++			}
++			if (cur_load < min_load 
++				 && cur_freq < min_freq
++				 && cpu > 0) {
++				min_load = cur_load;
++				min_freq = cur_freq;
++				downcpu = cpu;
++			}
++		}
++	}
++	if (unlikely(!sum_freq))
++		goto next_loop;
++
++	avg_freq = adjust_avg_freq(BOOT_CPU, (sum_freq / n));
++
++	if (avg_freq) {
++		avg_load = (sum_load / n);
++		/* get nr online cpus */
++		online_cpus = num_online_cpus();
++		if (online_cpus != last_online_cpus) {
++			reset_last_cur_cpu_rate();
++			last_online_cpus = online_cpus;
++		}
++		cpu = (online_cpus - 1);
++		pcpu_parm = &per_cpu(ac_hp_cpuparm, cpu);
++		/* get the first offline cpu */
++		offcpu = cpumask_next_zero(0, cpu_online_mask);
++		if (downcpu > 0	&& 
++			 online_cpus > upmaxcoreslimit) {
++				cpu_down(downcpu);
++		} else if (online_cpus < min_cpus_online
++					&& offcpu < upmaxcoreslimit) {
++					cpu_up(offcpu);
++		} else if (offcpu > 0
++			&& offcpu < upmaxcoreslimit
++			&& online_cpus < upmaxcoreslimit
++			&& avg_load >= pcpu_parm->up_load
++			&& avg_freq >= pcpu_parm->up_freq
++			&& (rq_avg > pcpu_parm->up_rq
++				 || rq_avg_calc == false)) {
++				if (pcpu_parm->cur_up_rate %
++						pcpu_parm->up_rate == 0) {
++	#if 0
++					pr_info("CPU[%u], \
++						avg_freq[%u], avg_load[%u], \
++						rq_avg[%u], up_rate[%u]\n",
++						offcpu, avg_freq,
++						avg_load, rq_avg,
++						pcpu_parm->cur_up_rate);
++	#endif
++					cpu_up(offcpu);
++				} else {
++					if (pcpu_parm->cur_up_rate < pcpu_parm->up_rate)
++						++pcpu_parm->cur_up_rate;
++					else
++						pcpu_parm->cur_up_rate = 1;
++				}
++		} else if (downcpu >= min_cpus_online && (
++				avg_load < pcpu_parm->down_load
++				|| (avg_freq <= pcpu_parm->down_freq
++				&& (rq_avg <= pcpu_parm->down_rq
++					 || rq_avg_calc == false)))) {
++					if (pcpu_parm->cur_down_rate %
++							pcpu_parm->down_rate == 0) {
++#if 0
++						pr_info("CPU[%u], \
++							avg_freq[%u], \
++							avg_load[%u], \
++							rq_avg[%u], \
++							down_rate[%u]\n",
++							downcpu, avg_freq,
++							avg_load, rq_avg,
++							pcpu_parm->
++							cur_down_rate);
++#endif
++						cpu_down(downcpu);
++					} else {
++						if (pcpu_parm->cur_down_rate < pcpu_parm->down_rate)
++							++pcpu_parm->cur_down_rate;
++						else
++							pcpu_parm->cur_down_rate = 1;
++					}
++		} else {
++			pcpu_parm->cur_up_rate = 1;
++			pcpu_parm->cur_down_rate = 1;
++		}
++	}
++
++next_loop:
++	delay = msecs_to_jiffies(sampling_rate);
++	/*
++	 * We want hotplug governor to do sampling
++	 * just one jiffy later on cpu governor sampling
++	*/
++	delay = delay - (jiffies % delay) + 1;
++
++	queue_delayed_work_on(BOOT_CPU, alucard_hp_wq,
++				&alucard_hotplug_work,
++				delay);
++}
++
++#ifdef CONFIG_STATE_NOTIFIER
++static void alucard_hotplug_suspend(void)
++{
++	if (hotplug_tuners_ins.hotplug_suspend == 1 &&
++				hotplug_tuners_ins.suspended == false) {
++			hotplug_tuners_ins.suspended = true;
++	}
++}
++
++static void alucard_hotplug_resume(void)
++{
++	if (hotplug_tuners_ins.suspended == true) {
++			hotplug_tuners_ins.suspended = false;
++	}
++}
++
++static int state_notifier_callback(struct notifier_block *this,
++				unsigned long event, void *data)
++{
++	if (hotplug_tuners_ins.hotplug_enable == 0)
++		return NOTIFY_OK;
++
++	switch (event) {
++		case STATE_NOTIFIER_ACTIVE:
++			alucard_hotplug_resume();
++			break;
++		case STATE_NOTIFIER_SUSPEND:
++			alucard_hotplug_suspend();
++			break;
++		default:
++			break;
++	}
++
++	return NOTIFY_OK;
++}
++#endif
++
++static int alucard_hotplug_callback(struct notifier_block *nb,
++			unsigned long action, void *data)
++{
++	unsigned int cpu = (unsigned long)data;
++	struct hotplug_cpuinfo *pcpu_info = NULL;
++	unsigned int prev_load;
++
++	switch (action) {
++	case CPU_ONLINE:
++		pcpu_info = &per_cpu(ac_hp_cpuinfo, cpu);
++		pcpu_info->prev_cpu_idle = get_cpu_idle_time(cpu,
++				&pcpu_info->prev_cpu_wall,
++				0);
++		pcpu_info->time_stamp = ktime_get();
++		prev_load = (unsigned int)
++				(pcpu_info->prev_cpu_wall - pcpu_info->prev_cpu_idle);
++		pcpu_info->prev_load = 100 * prev_load /
++				(unsigned int) pcpu_info->prev_cpu_wall;
++		break;
++	default:
++		break;
++	}
++
++	return NOTIFY_OK;
++}
++
++static struct notifier_block alucard_hotplug_nb =
++{
++   .notifier_call = alucard_hotplug_callback,
++};
++
++static int hotplug_start(void)
++{
++	unsigned int cpu;
++	int delay;
++
++	mutex_lock(&alucard_hotplug_mutex);
++	hotplug_tuners_ins.suspended = false;
++
++	alucard_hp_wq = alloc_workqueue("alu_hp_wq", WQ_HIGHPRI | 
++			WQ_MEM_RECLAIM | 
++			WQ_UNBOUND | 
++			__WQ_ORDERED, 0);
++	if (!alucard_hp_wq) {
++		printk(KERN_ERR "Failed to create alu_hp_wq workqueue\n");
++		mutex_unlock(&alucard_hotplug_mutex);
++		return -EINVAL;
++	}
++
++	get_online_cpus();
++	for_each_possible_cpu(cpu) {
++		struct hotplug_cpuinfo *pcpu_info = NULL;
++		struct hotplug_cpuparm *pcpu_parm =
++			&per_cpu(ac_hp_cpuparm, cpu);
++		unsigned int prev_load;
++
++		if (cpu_online(cpu)) {
++			pcpu_info = &per_cpu(ac_hp_cpuinfo, cpu);
++			pcpu_info->prev_cpu_idle = get_cpu_idle_time(cpu,
++					&pcpu_info->prev_cpu_wall,
++					0);
++			pcpu_info->time_stamp = ktime_get();
++			prev_load = (unsigned int)
++				(pcpu_info->prev_cpu_wall - pcpu_info->prev_cpu_idle);
++			pcpu_info->prev_load = 100 * prev_load /
++					(unsigned int) pcpu_info->prev_cpu_wall;
++		}
++		pcpu_parm->cur_up_rate = 1;
++		pcpu_parm->cur_down_rate = 1;
++	}
++	last_online_cpus = num_online_cpus();
++	register_hotcpu_notifier(&alucard_hotplug_nb);
++	put_online_cpus();
++
++	delay = msecs_to_jiffies(hotplug_tuners_ins.hotplug_sampling_rate);
++	/*
++	 * We want hotplug governor to do sampling
++	 * just one jiffy later on cpu governor sampling
++	*/
++	delay = delay - (jiffies % delay) + 1;
++
++	INIT_DEFERRABLE_WORK(&alucard_hotplug_work, hotplug_work_fn);
++	queue_delayed_work_on(BOOT_CPU, alucard_hp_wq,
++				&alucard_hotplug_work,
++				delay);
++
++#ifdef CONFIG_STATE_NOTIFIER
++	notif.notifier_call = state_notifier_callback;
++	if (state_register_client(&notif))
++		pr_err("Failed to register State notifier callback for Alucard Hotplug\n");
++#endif
++	mutex_unlock(&alucard_hotplug_mutex);
++
++	return 0;
++}
++
++static void hotplug_stop(void)
++{
++	mutex_lock(&alucard_hotplug_mutex);
++#ifdef CONFIG_STATE_NOTIFIER
++	state_unregister_client(&notif);
++	notif.notifier_call = NULL;
++#endif
++	cancel_delayed_work_sync(&alucard_hotplug_work);
++	get_online_cpus();
++	unregister_hotcpu_notifier(&alucard_hotplug_nb);
++	put_online_cpus();
++	destroy_workqueue(alucard_hp_wq);
++	mutex_unlock(&alucard_hotplug_mutex);
++}
++
++#define show_one(file_name, object)					\
++static ssize_t show_##file_name						\
++(struct kobject *kobj, struct attribute *attr, char *buf)		\
++{									\
++	return sprintf(buf, "%d\n",					\
++			hotplug_tuners_ins.object);			\
++}
++
++show_one(hotplug_sampling_rate, hotplug_sampling_rate);
++show_one(hotplug_enable, hotplug_enable);
++show_one(min_cpus_online, min_cpus_online);
++show_one(maxcoreslimit, maxcoreslimit);
++show_one(maxcoreslimit_sleep, maxcoreslimit_sleep);
++show_one(hotplug_suspend, hotplug_suspend);
++
++#define show_pcpu_param(file_name, var_name, num_core)			\
++static ssize_t show_##file_name						\
++(struct kobject *kobj, struct attribute *attr, char *buf)		\
++{									\
++	struct hotplug_cpuparm *pcpu_parm =				\
++			&per_cpu(ac_hp_cpuparm, num_core - 1);	\
++	return sprintf(buf, "%u\n",					\
++			pcpu_parm->var_name);				\
++}
++
++show_pcpu_param(hotplug_freq_1_1, up_freq, 1);
++show_pcpu_param(hotplug_freq_2_1, up_freq, 2);
++show_pcpu_param(hotplug_freq_3_1, up_freq, 3);
++show_pcpu_param(hotplug_freq_2_0, down_freq, 2);
++show_pcpu_param(hotplug_freq_3_0, down_freq, 3);
++show_pcpu_param(hotplug_freq_4_0, down_freq, 4);
++
++show_pcpu_param(hotplug_load_1_1, up_load, 1);
++show_pcpu_param(hotplug_load_2_1, up_load, 2);
++show_pcpu_param(hotplug_load_3_1, up_load, 3);
++show_pcpu_param(hotplug_load_2_0, down_load, 2);
++show_pcpu_param(hotplug_load_3_0, down_load, 3);
++show_pcpu_param(hotplug_load_4_0, down_load, 4);
++
++show_pcpu_param(hotplug_rq_1_1, up_rq, 1);
++show_pcpu_param(hotplug_rq_2_1, up_rq, 2);
++show_pcpu_param(hotplug_rq_3_1, up_rq, 3);
++show_pcpu_param(hotplug_rq_2_0, down_rq, 2);
++show_pcpu_param(hotplug_rq_3_0, down_rq, 3);
++show_pcpu_param(hotplug_rq_4_0, down_rq, 4);
++
++show_pcpu_param(hotplug_rate_1_1, up_rate, 1);
++show_pcpu_param(hotplug_rate_2_1, up_rate, 2);
++show_pcpu_param(hotplug_rate_3_1, up_rate, 3);
++show_pcpu_param(hotplug_rate_2_0, down_rate, 2);
++show_pcpu_param(hotplug_rate_3_0, down_rate, 3);
++show_pcpu_param(hotplug_rate_4_0, down_rate, 4);
++
++#define store_pcpu_param(file_name, var_name, num_core)			\
++static ssize_t store_##file_name					\
++(struct kobject *kobj, struct attribute *attr,				\
++	const char *buf, size_t count)					\
++{									\
++	unsigned int input;						\
++	struct hotplug_cpuparm *pcpu_parm;				\
++	int ret;							\
++									\
++	ret = sscanf(buf, "%u", &input);				\
++	if (ret != 1)							\
++		return -EINVAL;						\
++									\
++	pcpu_parm = &per_cpu(ac_hp_cpuparm, num_core - 1);		\
++									\
++	if (input == pcpu_parm->var_name) {				\
++		return count;						\
++	}								\
++									\
++	pcpu_parm->var_name = input;					\
++	return count;							\
++}
++
++store_pcpu_param(hotplug_freq_1_1, up_freq, 1);
++store_pcpu_param(hotplug_freq_2_1, up_freq, 2);
++store_pcpu_param(hotplug_freq_3_1, up_freq, 3);
++store_pcpu_param(hotplug_freq_2_0, down_freq, 2);
++store_pcpu_param(hotplug_freq_3_0, down_freq, 3);
++store_pcpu_param(hotplug_freq_4_0, down_freq, 4);
++
++store_pcpu_param(hotplug_load_1_1, up_load, 1);
++store_pcpu_param(hotplug_load_2_1, up_load, 2);
++store_pcpu_param(hotplug_load_3_1, up_load, 3);
++store_pcpu_param(hotplug_load_2_0, down_load, 2);
++store_pcpu_param(hotplug_load_3_0, down_load, 3);
++store_pcpu_param(hotplug_load_4_0, down_load, 4);
++
++store_pcpu_param(hotplug_rq_1_1, up_rq, 1);
++store_pcpu_param(hotplug_rq_2_1, up_rq, 2);
++store_pcpu_param(hotplug_rq_3_1, up_rq, 3);
++store_pcpu_param(hotplug_rq_2_0, down_rq, 2);
++store_pcpu_param(hotplug_rq_3_0, down_rq, 3);
++store_pcpu_param(hotplug_rq_4_0, down_rq, 4);
++
++store_pcpu_param(hotplug_rate_1_1, up_rate, 1);
++store_pcpu_param(hotplug_rate_2_1, up_rate, 2);
++store_pcpu_param(hotplug_rate_3_1, up_rate, 3);
++store_pcpu_param(hotplug_rate_2_0, down_rate, 2);
++store_pcpu_param(hotplug_rate_3_0, down_rate, 3);
++store_pcpu_param(hotplug_rate_4_0, down_rate, 4);
++
++define_one_global_rw(hotplug_freq_1_1);
++define_one_global_rw(hotplug_freq_2_0);
++define_one_global_rw(hotplug_freq_2_1);
++define_one_global_rw(hotplug_freq_3_0);
++define_one_global_rw(hotplug_freq_3_1);
++define_one_global_rw(hotplug_freq_4_0);
++
++define_one_global_rw(hotplug_load_1_1);
++define_one_global_rw(hotplug_load_2_0);
++define_one_global_rw(hotplug_load_2_1);
++define_one_global_rw(hotplug_load_3_0);
++define_one_global_rw(hotplug_load_3_1);
++define_one_global_rw(hotplug_load_4_0);
++
++define_one_global_rw(hotplug_rq_1_1);
++define_one_global_rw(hotplug_rq_2_0);
++define_one_global_rw(hotplug_rq_2_1);
++define_one_global_rw(hotplug_rq_3_0);
++define_one_global_rw(hotplug_rq_3_1);
++define_one_global_rw(hotplug_rq_4_0);
++
++define_one_global_rw(hotplug_rate_1_1);
++define_one_global_rw(hotplug_rate_2_0);
++define_one_global_rw(hotplug_rate_2_1);
++define_one_global_rw(hotplug_rate_3_0);
++define_one_global_rw(hotplug_rate_3_1);
++define_one_global_rw(hotplug_rate_4_0);
++
++static void cpus_hotplugging(int status)
++{
++	int ret = 0;
++
++	if (status) {
++		ret = hotplug_start();
++	} else {
++		hotplug_stop();
++	}
++
++	if (!ret)
++		hotplug_tuners_ins.hotplug_enable = status;
++}
++
++/* hotplug_sampling_rate */
++static ssize_t store_hotplug_sampling_rate(struct kobject *a,
++				struct attribute *b,
++				const char *buf, size_t count)
++{
++	int input;
++	int ret;
++
++	ret = sscanf(buf, "%u", &input);
++	if (ret != 1)
++		return -EINVAL;
++
++	input = max(input, 10);
++
++	if (input == hotplug_tuners_ins.hotplug_sampling_rate)
++		return count;
++
++	hotplug_tuners_ins.hotplug_sampling_rate = input;
++
++	return count;
++}
++
++/* hotplug_enable */
++static ssize_t store_hotplug_enable(struct kobject *a, struct attribute *b,
++				  const char *buf, size_t count)
++{
++	int input;
++	int ret;
++
++	ret = sscanf(buf, "%u", &input);
++	if (ret != 1)
++		return -EINVAL;
++
++	input = input > 0;
++
++	if (hotplug_tuners_ins.hotplug_enable == input)
++		return count;
++
++	if (input > 0)
++		cpus_hotplugging(1);
++	else
++		cpus_hotplugging(0);
++
++	return count;
++}
++
++/* min_cpus_online */
++static ssize_t store_min_cpus_online(struct kobject *a, struct attribute *b,
++				  const char *buf, size_t count)
++{
++	int input;
++	int ret;
++
++	ret = sscanf(buf, "%u", &input);
++	if (ret != 1)
++		return -EINVAL;
++
++	input = max(input > NR_CPUS ? NR_CPUS : input, 1);
++
++	if (hotplug_tuners_ins.min_cpus_online == input)
++		return count;
++
++	hotplug_tuners_ins.min_cpus_online = input;
++
++	return count;
++}
++
++/* maxcoreslimit */
++static ssize_t store_maxcoreslimit(struct kobject *a, struct attribute *b,
++				  const char *buf, size_t count)
++{
++	int input;
++	int ret;
++
++	ret = sscanf(buf, "%u", &input);
++	if (ret != 1)
++		return -EINVAL;
++
++	input = max(input > NR_CPUS ? NR_CPUS : input, 1);
++
++	if (hotplug_tuners_ins.maxcoreslimit == input)
++		return count;
++
++	hotplug_tuners_ins.maxcoreslimit = input;
++
++	return count;
++}
++
++/* maxcoreslimit_sleep */
++static ssize_t store_maxcoreslimit_sleep(struct kobject *a,
++				struct attribute *b,
++				const char *buf, size_t count)
++{
++	int input;
++	int ret;
++
++	ret = sscanf(buf, "%u", &input);
++	if (ret != 1)
++		return -EINVAL;
++
++	input = max(input > NR_CPUS ? NR_CPUS : input, 1);
++
++	if (hotplug_tuners_ins.maxcoreslimit_sleep == input)
++		return count;
++
++	hotplug_tuners_ins.maxcoreslimit_sleep = input;
++
++	return count;
++}
++
++/*
++ * hotplug_suspend control
++ * if set = 1 hotplug will sleep,
++ * if set = 0, then hoplug will be active all the time.
++ */
++static ssize_t store_hotplug_suspend(struct kobject *a,
++				struct attribute *b,
++				const char *buf, size_t count)
++{
++	int input;
++	int ret;
++
++	ret = sscanf(buf, "%u", &input);
++	if (ret != 1)
++		return -EINVAL;
++
++	input = input > 0;
++
++	if (hotplug_tuners_ins.hotplug_suspend == input)
++		return count;
++
++	if (input > 0)
++		hotplug_tuners_ins.hotplug_suspend = 1;
++	else
++		hotplug_tuners_ins.hotplug_suspend = 0;
++
++	return count;
++}
++
++define_one_global_rw(hotplug_sampling_rate);
++define_one_global_rw(hotplug_enable);
++define_one_global_rw(min_cpus_online);
++define_one_global_rw(maxcoreslimit);
++define_one_global_rw(maxcoreslimit_sleep);
++define_one_global_rw(hotplug_suspend);
++
++static struct attribute *alucard_hotplug_attributes[] = {
++	&hotplug_sampling_rate.attr,
++	&hotplug_enable.attr,
++	&hotplug_freq_1_1.attr,
++	&hotplug_freq_2_0.attr,
++	&hotplug_freq_2_1.attr,
++	&hotplug_freq_3_0.attr,
++	&hotplug_freq_3_1.attr,
++	&hotplug_freq_4_0.attr,
++	&hotplug_load_1_1.attr,
++	&hotplug_load_2_0.attr,
++	&hotplug_load_2_1.attr,
++	&hotplug_load_3_0.attr,
++	&hotplug_load_3_1.attr,
++	&hotplug_load_4_0.attr,
++	&hotplug_rq_1_1.attr,
++	&hotplug_rq_2_0.attr,
++	&hotplug_rq_2_1.attr,
++	&hotplug_rq_3_0.attr,
++	&hotplug_rq_3_1.attr,
++	&hotplug_rq_4_0.attr,
++	&hotplug_rate_1_1.attr,
++	&hotplug_rate_2_0.attr,
++	&hotplug_rate_2_1.attr,
++	&hotplug_rate_3_0.attr,
++	&hotplug_rate_3_1.attr,
++	&hotplug_rate_4_0.attr,
++	&min_cpus_online.attr,
++	&maxcoreslimit.attr,
++	&maxcoreslimit_sleep.attr,
++	&hotplug_suspend.attr,
++	NULL
++};
++
++static struct attribute_group alucard_hotplug_attr_group = {
++	.attrs = alucard_hotplug_attributes,
++	.name = "alucard_hotplug",
++};
++
++static int __init alucard_hotplug_init(void)
++{
++	struct hotplug_cpuparm *pcpu_parm = NULL;
++	unsigned int cpu;
++	int ret;
++	unsigned int hotplug_freq[NR_CPUS][2] = {
++		{0, 1242000},
++		{810000, 1242000},
++		{810000, 1242000},
++		{810000, 0}
++	};
++	unsigned int hotplug_load[NR_CPUS][2] = {
++		{0, 60},
++		{20, 60},
++		{20, 60},
++		{20, 0}
++	};
++	unsigned int hotplug_rq[NR_CPUS][2] = {
++		{0, 100},
++		{100, 150},
++		{150, 150},
++		{150, 0}
++	};
++	unsigned int hotplug_rate[NR_CPUS][2] = {
++		{0, 1},
++		{1, 2},
++		{2, 2},
++		{2, 0}
++	};
++
++	ret = sysfs_create_group(kernel_kobj, &alucard_hotplug_attr_group);
++	if (ret) {
++		printk(KERN_ERR "failed at(%d)\n", __LINE__);
++		return ret;
++	}
++
++	/* INITIALIZE PCPU VARS */
++	for_each_possible_cpu(cpu) {
++		pcpu_parm = &per_cpu(ac_hp_cpuparm, cpu);
++		pcpu_parm->up_freq = hotplug_freq[cpu][UP_INDEX];
++		pcpu_parm->down_freq = hotplug_freq[cpu][DOWN_INDEX];
++		pcpu_parm->up_load = hotplug_load[cpu][UP_INDEX];
++		pcpu_parm->down_load = hotplug_load[cpu][DOWN_INDEX];
++		pcpu_parm->up_rq = hotplug_rq[cpu][UP_INDEX];
++		pcpu_parm->down_rq = hotplug_rq[cpu][DOWN_INDEX];
++		pcpu_parm->up_rate = hotplug_rate[cpu][UP_INDEX];
++		pcpu_parm->down_rate = hotplug_rate[cpu][DOWN_INDEX];
++	}
++
++	if (hotplug_tuners_ins.hotplug_enable > 0) {
++		hotplug_start();
++	}
++
++	return ret;
++}
++
++static void __exit alucard_hotplug_exit(void)
++{
++	if (hotplug_tuners_ins.hotplug_enable > 0) {
++		hotplug_stop();
++	}
++
++	sysfs_remove_group(kernel_kobj, &alucard_hotplug_attr_group);
++}
++MODULE_AUTHOR("Alucard_24@XDA");
++MODULE_DESCRIPTION("'alucard_hotplug' - A cpu hotplug driver for "
++	"capable processors");
++MODULE_LICENSE("GPL");
++
++late_initcall(alucard_hotplug_init);
+diff --git a/arch/arm/mach-msm/blu_plug.c b/arch/arm/mach-msm/blu_plug.c
+new file mode 100644
+index 0000000..f6c68d3
+--- /dev/null
++++ b/arch/arm/mach-msm/blu_plug.c
+@@ -0,0 +1,531 @@
++/*
++ * Dynamic Hotplug for mako / hammerhead / shamu
++ *
++ * Copyright (C) 2013 Stratos Karafotis <stratosk@semaphore.gr> (dyn_hotplug for mako)
++ *
++ * Copyright (C) 2015 engstk <eng.stk@sapo.pt> (hammerhead & shamu implementation, fixes and changes to blu_plug)
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ */
++
++#define DEBUG 0
++#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
++
++#include <linux/kernel.h>
++#include <linux/module.h>
++#include <linux/init.h>
++#include <linux/cpu.h>
++#include <linux/workqueue.h>
++#include <linux/sched.h>
++#include <linux/timer.h>
++#include <linux/fb.h>
++#include <linux/cpufreq.h>
++#include <linux/delay.h>
++#include <linux/slab.h>
++
++#define INIT_DELAY		(60 * HZ) /* Initial delay to 60 sec, 4 cores while boot */
++#define DELAY			(HZ / 2)
++#define UP_THRESHOLD		(80)
++#define MIN_ONLINE		(1)
++#define MAX_ONLINE		(4)
++#define DEF_DOWN_TIMER_CNT	(6)	/* 3 secs */
++#define DEF_UP_TIMER_CNT	(2)	/* 1 sec */
++#define MAX_CORES_SCREENOFF     (1)
++#define MAX_FREQ_SCREENOFF      (0)
++#define MAX_FREQ_PLUG           (2649600)
++#define DEF_PLUG_THRESHOLD      (70)
++#define BLU_PLUG_ENABLED	(0)
++
++static unsigned int blu_plug_enabled = BLU_PLUG_ENABLED;
++
++static unsigned int up_threshold = UP_THRESHOLD;
++static unsigned int delay = DELAY;
++static unsigned int min_online = MIN_ONLINE;
++static unsigned int max_online = MAX_ONLINE;
++static unsigned int down_timer;
++static unsigned int up_timer;
++static unsigned int down_timer_cnt = DEF_DOWN_TIMER_CNT;
++static unsigned int up_timer_cnt = DEF_UP_TIMER_CNT;
++static unsigned int max_cores_screenoff = MAX_CORES_SCREENOFF;
++static unsigned int max_freq_screenoff = MAX_FREQ_SCREENOFF;
++static unsigned int max_freq_plug = MAX_FREQ_PLUG;
++static unsigned int plug_threshold[MAX_ONLINE] = {[0 ... MAX_ONLINE-1] = DEF_PLUG_THRESHOLD};
++
++static struct delayed_work dyn_work;
++static struct workqueue_struct *dyn_workq;
++static struct work_struct suspend, resume;
++static struct notifier_block notify;
++
++
++/* Bring online each possible CPU up to max_online cores */
++static inline void up_all(void)
++{
++	unsigned int cpu;
++
++	for_each_possible_cpu(cpu)
++		if (cpu_is_offline(cpu) && num_online_cpus() < max_online)
++			cpu_up(cpu);
++
++	down_timer = 0;
++}
++
++/* Put offline each possible CPU down to min_online threshold */
++static inline void down_all(void)
++{
++	unsigned int cpu;
++
++	for_each_online_cpu(cpu)
++		if (cpu && num_online_cpus() > min_online)
++			cpu_down(cpu);
++}
++
++/* Iterate through possible CPUs and bring online the first offline found */
++static inline void up_one(void)
++{
++	unsigned int cpu;
++
++	/* All CPUs are online, return */
++	if (num_online_cpus() == max_online)
++		goto out;
++
++	cpu = cpumask_next_zero(0, cpu_online_mask);
++	if (cpu < nr_cpu_ids)
++		cpu_up(cpu);
++out:
++	down_timer = 0;
++	up_timer = 0;
++}
++
++/* Iterate through online CPUs and take offline the lowest loaded one */
++static inline void down_one(void)
++{
++	unsigned int cpu;
++	unsigned int l_cpu = 0;
++	unsigned int l_freq = ~0;
++	unsigned int p_cpu = 0;
++	unsigned int p_thres = 0;
++	bool all_equal = false;
++
++	/* Min online CPUs, return */
++	if (num_online_cpus() == min_online)
++		goto out;
++
++	get_online_cpus();
++
++	for_each_online_cpu(cpu) {
++		unsigned int thres = plug_threshold[cpu];
++		
++		if (!cpu || thres == p_thres) {
++			p_thres = thres;
++			p_cpu = cpu;
++			all_equal = true;
++		} else if (thres > p_thres) {
++			p_thres = thres;
++			p_cpu = cpu;
++			all_equal = false;
++		}
++		
++		if (cpu) {
++			unsigned int cur = cpufreq_quick_get(cpu);
++
++			if (l_freq > cur) {
++				l_freq = cur;
++				l_cpu = cpu;
++			}
++		}
++	}
++
++	put_online_cpus();
++
++	if (all_equal)
++		cpu_down(l_cpu);
++	else
++		cpu_down(p_cpu);
++out:
++	down_timer = 0;
++	up_timer = 0;
++}
++
++/*
++ * Every DELAY, check the average load of online CPUs. If the average load
++ * is above up_threshold bring online one more CPU if up_timer has expired.
++ * If the average load is below up_threshold offline one more CPU if the
++ * down_timer has expired.
++ */
++static __ref void load_timer(struct work_struct *work)
++{
++	unsigned int cpu;
++	unsigned int avg_load = 0;
++	
++	if (down_timer < down_timer_cnt)
++		down_timer++;
++
++	if (up_timer < up_timer_cnt)
++		up_timer++;
++	
++	for_each_online_cpu(cpu)
++		avg_load += cpufreq_quick_get_util(cpu);
++		
++	avg_load /= num_online_cpus();
++	
++#if DEBUG
++	pr_debug("%s: avg_load: %u, num_online_cpus: %u\n", __func__, avg_load, num_online_cpus());
++	pr_debug("%s: up_timer: %u, down_timer: %u\n", __func__, up_timer, down_timer);
++#endif
++
++	if (avg_load >= up_threshold && up_timer >= up_timer_cnt)
++		up_one();
++	else if (down_timer >= down_timer_cnt)
++		down_one();
++
++	queue_delayed_work_on(0, dyn_workq, &dyn_work, delay);
++}
++
++/* 
++ * Manages driver behavior on screenoff mode
++ * It sets max online CPUs to max_cores_screenoff and freq to max_freq_screenoff
++ * Restores previous values on resume work
++ *
++ */
++static __ref void max_screenoff(bool screenoff)
++{
++	uint32_t cpu, freq;
++	
++	if (screenoff) {
++		max_freq_plug = cpufreq_quick_get_max(0);
++		freq = min(max_freq_screenoff, max_freq_plug);
++
++		cancel_delayed_work_sync(&dyn_work);
++		
++		for_each_possible_cpu(cpu) {
++//			msm_cpufreq_set_freq_limits(cpu, MSM_CPUFREQ_NO_LIMIT, freq);
++			
++			if (cpu && num_online_cpus() > max_cores_screenoff)
++				cpu_down(cpu);
++		}
++		cpufreq_update_policy(cpu);
++	}
++	else {
++		freq = max_freq_plug;
++		
++		up_all();
++		
++		for_each_possible_cpu(cpu) {
++//			msm_cpufreq_set_freq_limits(cpu, MSM_CPUFREQ_NO_LIMIT, freq);
++		}
++		cpufreq_update_policy(cpu);
++		
++		queue_delayed_work_on(0, dyn_workq, &dyn_work, delay);
++	}
++	
++#if DEBUG
++	pr_debug("%s: num_online_cpus: %u, freq_online_cpus: %u\n", __func__, num_online_cpus(), freq);
++#endif
++}
++
++/* On suspend put offline all cores except cpu0*/
++static void dyn_lcd_suspend(struct work_struct *work)
++{	
++	max_screenoff(true);
++}
++
++/* On resume bring online CPUs until max_online to prevent lags */
++static void dyn_lcd_resume(struct work_struct *work)
++{
++	max_screenoff(false);
++}
++
++static int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
++{
++	struct fb_event *evdata = data;
++	int *blank;
++
++	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
++		blank = evdata->data;
++		switch (*blank) {
++			case FB_BLANK_UNBLANK:
++				//display on
++				queue_work_on(0, dyn_workq, &resume);
++				break;
++			case FB_BLANK_POWERDOWN:
++			case FB_BLANK_HSYNC_SUSPEND:
++			case FB_BLANK_VSYNC_SUSPEND:
++			case FB_BLANK_NORMAL:
++				//display off
++				queue_work_on(0, dyn_workq, &suspend);
++				break;
++		}
++	}
++
++	return 0;
++}
++
++/******************** Module parameters *********************/
++
++/* up_threshold */
++static int set_up_threshold(const char *val, const struct kernel_param *kp)
++{
++	int ret = 0;
++	unsigned int i;
++
++	ret = kstrtouint(val, 10, &i);
++	if (ret)
++		return -EINVAL;
++	if (i < 1 || i > 100)
++		return -EINVAL;
++
++	ret = param_set_uint(val, kp);
++
++	return ret;
++}
++
++static struct kernel_param_ops up_threshold_ops = {
++	.set = set_up_threshold,
++	.get = param_get_uint,
++};
++
++module_param_cb(up_threshold, &up_threshold_ops, &up_threshold, 0644);
++
++/* min_online */
++static __ref int set_min_online(const char *val, const struct kernel_param *kp)
++{
++	int ret = 0;
++	unsigned int i;
++
++	ret = kstrtouint(val, 10, &i);
++	if (ret)
++		return -EINVAL;
++	if (i < 1 || i > max_online || i > num_possible_cpus())
++		return -EINVAL;
++
++	ret = param_set_uint(val, kp);
++	
++	if (ret == 0) {
++			up_all();
++	}
++	
++	return ret;
++}
++
++static struct kernel_param_ops min_online_ops = {
++	.set = set_min_online,
++	.get = param_get_uint,
++};
++
++module_param_cb(min_online, &min_online_ops, &min_online, 0644);
++
++/* max_online */
++static __ref int set_max_online(const char *val, const struct kernel_param *kp)
++{
++	int ret = 0;
++	unsigned int i;
++
++	ret = kstrtouint(val, 10, &i);
++	if (ret)
++		return -EINVAL;
++	if (i < 1 || i < min_online || i > num_possible_cpus())
++		return -EINVAL;
++
++	ret = param_set_uint(val, kp);
++	
++	if (ret == 0) {
++		down_all();
++		up_all();
++	}
++	
++	return ret;
++}
++
++static struct kernel_param_ops max_online_ops = {
++	.set = set_max_online,
++	.get = param_get_uint,
++};
++
++module_param_cb(max_online, &max_online_ops, &max_online, 0644);
++
++/* max_cores_screenoff */
++static __ref int set_max_cores_screenoff(const char *val, const struct kernel_param *kp)
++{
++	int ret = 0;
++	unsigned int i;
++
++	ret = kstrtouint(val, 10, &i);
++	if (ret)
++		return -EINVAL;
++	if (i < 1 || i > max_online || i > num_possible_cpus())
++		return -EINVAL;
++	if (i > max_online)
++		max_cores_screenoff = max_online;
++
++	ret = param_set_uint(val, kp);
++	
++	if (ret == 0) {
++		down_all();
++		up_all();
++	}
++	
++	return ret;
++}
++
++static struct kernel_param_ops max_cores_screenoff_ops = {
++	.set = set_max_cores_screenoff,
++	.get = param_get_uint,
++};
++
++module_param_cb(max_cores_screenoff, &max_cores_screenoff_ops, &max_cores_screenoff, 0644);
++
++/* max_freq_screenoff */
++static int set_max_freq_screenoff(const char *val, const struct kernel_param *kp)
++{
++	int ret = MAX_FREQ_SCREENOFF;
++	unsigned int i;
++
++	ret = kstrtouint(val, 10, &i);
++	if (ret)
++		return -EINVAL;
++	if (i < 300000 || i > 2649600)
++		return -EINVAL;
++
++	ret = param_set_uint(val, kp);
++	
++	return ret;
++}
++
++static struct kernel_param_ops max_freq_screenoff_ops = {
++	.set = set_max_freq_screenoff,
++	.get = param_get_uint,
++};
++
++module_param_cb(max_freq_screenoff, &max_freq_screenoff_ops, &max_freq_screenoff, 0644);
++
++/* down_timer_cnt */
++static int set_down_timer_cnt(const char *val, const struct kernel_param *kp)
++{
++	int ret = 0;
++	unsigned int i;
++
++	ret = kstrtouint(val, 10, &i);
++	if (ret)
++		return -EINVAL;
++	if (i < 1 || i > 50)
++		return -EINVAL;
++		
++	if (i < up_timer_cnt)
++		down_timer_cnt = up_timer_cnt;
++
++	ret = param_set_uint(val, kp);
++	
++	return ret;
++}
++
++static struct kernel_param_ops down_timer_cnt_ops = {
++	.set = set_down_timer_cnt,
++	.get = param_get_uint,
++};
++
++module_param_cb(down_timer_cnt, &down_timer_cnt_ops, &down_timer_cnt, 0644);
++
++/* up_timer_cnt */
++static int set_up_timer_cnt(const char *val, const struct kernel_param *kp)
++{
++	int ret = 0;
++	unsigned int i;
++
++	ret = kstrtouint(val, 10, &i);
++	if (ret)
++		return -EINVAL;
++	if (i < 1 || i > 50)
++		return -EINVAL;
++
++	ret = param_set_uint(val, kp);
++
++	return ret;
++}
++
++static struct kernel_param_ops up_timer_cnt_ops = {
++	.set = set_up_timer_cnt,
++	.get = param_get_uint,
++};
++
++module_param_cb(up_timer_cnt, &up_timer_cnt_ops, &up_timer_cnt, 0644);
++
++/* plug_threshold */
++module_param_array(plug_threshold, uint, NULL, 0644);
++
++/***************** end of module parameters *****************/
++
++static int dyn_hp_init(void)
++{
++	if (!blu_plug_enabled) {
++		return 0;
++	}
++	notify.notifier_call = fb_notifier_callback;
++	if (fb_register_client(&notify) != 0)
++		pr_info("%s: Failed to register FB notifier callback\n", __func__);
++	
++	dyn_workq = alloc_workqueue("dyn_hotplug_workqueue", WQ_HIGHPRI | WQ_FREEZABLE, 0);
++	if (!dyn_workq)
++		return -ENOMEM;
++
++	INIT_WORK(&resume, dyn_lcd_resume);
++	INIT_WORK(&suspend, dyn_lcd_suspend);
++	INIT_DELAYED_WORK(&dyn_work, load_timer);
++	queue_delayed_work_on(0, dyn_workq, &dyn_work, INIT_DELAY);
++
++	pr_info("%s: activated\n", __func__);
++
++	return 0;
++}
++
++static void dyn_hp_exit(void)
++{
++	cancel_delayed_work_sync(&dyn_work);
++	fb_unregister_client(&notify);
++	destroy_workqueue(dyn_workq);
++	
++	pr_info("%s: deactivated\n", __func__);
++}
++
++
++/* enabled */
++static int set_enabled(const char *val, const struct kernel_param *kp)
++{
++	int ret = 0;
++	unsigned int i;
++	int blu = 0;
++
++	ret = kstrtouint(val, 10, &i);
++	if (ret)
++		return -EINVAL;
++	if (i < 0 || i > 1)
++		return 0;
++		
++	if (i == blu_plug_enabled)
++		return i;
++
++	ret = param_set_uint(val, kp);
++	blu_plug_enabled = i;
++	if ((blu_plug_enabled == 1))
++		blu = dyn_hp_init();
++	if ((blu_plug_enabled == 0))
++		dyn_hp_exit();
++	return i;
++}
++
++static struct kernel_param_ops enabled_ops = {
++	.set = set_enabled,
++	.get = param_get_uint,
++};
++
++module_param_cb(enabled, &enabled_ops, &blu_plug_enabled, 0644);
++
++MODULE_AUTHOR("Stratos Karafotis <stratosk@semaphore.gr");
++MODULE_AUTHOR("engstk <eng.stk@sapo.pt>");
++MODULE_DESCRIPTION("'dyn_hotplug' - A dynamic hotplug driver for mako / hammerhead / shamu (blu_plug)");
++MODULE_LICENSE("GPLv2");
++
++late_initcall(dyn_hp_init);
++module_exit(dyn_hp_exit);
+diff --git a/arch/arm/mach-msm/bricked_hotplug.c b/arch/arm/mach-msm/bricked_hotplug.c
+new file mode 100644
+index 0000000..36d0628
+--- /dev/null
++++ b/arch/arm/mach-msm/bricked_hotplug.c
+@@ -0,0 +1,818 @@
++/*
++ * Bricked Hotplug Driver
++ *
++ * Copyright (c) 2013-2014, Dennis Rassmann <showp1984@gmail.com>
++ * Copyright (c) 2013-2014, Pranav Vashi <neobuddy89@gmail.com>
++ * Copyright (c) 2010-2014, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ */
++
++#include <linux/init.h>
++#include <linux/cpufreq.h>
++#include <linux/workqueue.h>
++#include <linux/completion.h>
++#include <linux/cpu.h>
++#include <linux/cpumask.h>
++#include <asm-generic/cputime.h>
++#include <linux/hrtimer.h>
++#include <linux/delay.h>
++#include <linux/platform_device.h>
++#include <linux/module.h>
++#include <linux/device.h>
++#ifdef CONFIG_STATE_NOTIFIER
++#include <linux/state_notifier.h>
++#endif
++
++#define DEBUG 0
++
++#define MPDEC_TAG			"bricked_hotplug"
++#define HOTPLUG_ENABLED			0
++#define MSM_MPDEC_STARTDELAY		20000
++#define MSM_MPDEC_DELAY			130
++#define DEFAULT_MIN_CPUS_ONLINE		1
++#define DEFAULT_MAX_CPUS_ONLINE		NR_CPUS
++#define DEFAULT_MAX_CPUS_ONLINE_SUSP	2
++#define DEFAULT_SUSPEND_DEFER_TIME	10
++#define DEFAULT_DOWN_LOCK_DUR		500
++
++#define MSM_MPDEC_IDLE_FREQ		499200
++
++enum {
++	MSM_MPDEC_DISABLED = 0,
++	MSM_MPDEC_IDLE,
++	MSM_MPDEC_DOWN,
++	MSM_MPDEC_UP,
++};
++
++static struct notifier_block notif;
++static struct delayed_work hotplug_work;
++static struct workqueue_struct *hotplug_wq;
++
++static struct cpu_hotplug {
++	unsigned int startdelay;
++	unsigned int suspended;
++	unsigned int suspend_defer_time;
++	unsigned int min_cpus_online_res;
++	unsigned int max_cpus_online_res;
++	unsigned int max_cpus_online_susp;
++	unsigned int delay;
++	unsigned int down_lock_dur;
++	unsigned long int idle_freq;
++	unsigned int max_cpus_online;
++	unsigned int min_cpus_online;
++	unsigned int bricked_enabled;
++	struct mutex bricked_hotplug_mutex;
++	struct mutex bricked_cpu_mutex;
++} hotplug = {
++	.startdelay = MSM_MPDEC_STARTDELAY,
++	.suspended = 0,
++	.suspend_defer_time = DEFAULT_SUSPEND_DEFER_TIME,
++	.min_cpus_online_res = DEFAULT_MIN_CPUS_ONLINE,
++	.max_cpus_online_res = DEFAULT_MAX_CPUS_ONLINE,
++	.max_cpus_online_susp = DEFAULT_MAX_CPUS_ONLINE_SUSP,
++	.delay = MSM_MPDEC_DELAY,
++	.down_lock_dur = DEFAULT_DOWN_LOCK_DUR,
++	.idle_freq = MSM_MPDEC_IDLE_FREQ,
++	.max_cpus_online = DEFAULT_MAX_CPUS_ONLINE,
++	.min_cpus_online = DEFAULT_MIN_CPUS_ONLINE,
++	.bricked_enabled = HOTPLUG_ENABLED,
++};
++
++static unsigned int NwNs_Threshold[8] = {12, 0, 25, 7, 30, 10, 0, 18};
++static unsigned int TwTs_Threshold[8] = {140, 0, 140, 190, 140, 190, 0, 190};
++
++struct down_lock {
++	unsigned int locked;
++	struct delayed_work lock_rem;
++};
++static DEFINE_PER_CPU(struct down_lock, lock_info);
++
++static void apply_down_lock(unsigned int cpu)
++{
++	struct down_lock *dl = &per_cpu(lock_info, cpu);
++
++	dl->locked = 1;
++	queue_delayed_work_on(0, hotplug_wq, &dl->lock_rem,
++			      msecs_to_jiffies(hotplug.down_lock_dur));
++}
++
++static void remove_down_lock(struct work_struct *work)
++{
++	struct down_lock *dl = container_of(work, struct down_lock,
++					    lock_rem.work);
++	dl->locked = 0;
++}
++
++static int check_down_lock(unsigned int cpu)
++{
++	struct down_lock *dl = &per_cpu(lock_info, cpu);
++	return dl->locked;
++}
++
++extern unsigned int get_rq_info(void);
++
++unsigned int state = MSM_MPDEC_DISABLED;
++
++static int get_slowest_cpu(void) {
++	unsigned int cpu, slow_cpu = 0, rate, slow_rate = 0;
++
++	for_each_online_cpu(cpu) {
++		if (cpu == 0)
++			continue;
++		rate = cpufreq_quick_get(cpu);
++		if (rate > 0 && slow_rate <= rate) {
++			slow_rate = rate;
++			slow_cpu = cpu;
++		}
++	}
++
++	return slow_cpu;
++}
++
++static unsigned int get_slowest_cpu_rate(void) {
++	unsigned int cpu, rate, slow_rate = 0;
++
++	for_each_online_cpu(cpu) {
++		rate = cpufreq_quick_get(cpu);
++		if (rate > 0 && slow_rate <= rate)
++			slow_rate = rate;
++	}
++
++	return slow_rate;
++}
++
++static int mp_decision(void) {
++	static bool first_call = true;
++	int new_state = MSM_MPDEC_IDLE;
++	int nr_cpu_online;
++	int index;
++	unsigned int rq_depth;
++	static cputime64_t total_time = 0;
++	static cputime64_t last_time;
++	cputime64_t current_time;
++	cputime64_t this_time = 0;
++
++	if (!hotplug.bricked_enabled)
++		return MSM_MPDEC_DISABLED;
++
++	current_time = ktime_to_ms(ktime_get());
++
++	if (first_call) {
++		first_call = false;
++	} else {
++		this_time = current_time - last_time;
++	}
++	total_time += this_time;
++
++	rq_depth = get_rq_info();
++	nr_cpu_online = num_online_cpus();
++
++	index = (nr_cpu_online - 1) * 2;
++	if ((nr_cpu_online < DEFAULT_MAX_CPUS_ONLINE) && (rq_depth >= NwNs_Threshold[index])) {
++		if ((total_time >= TwTs_Threshold[index]) &&
++			(nr_cpu_online < hotplug.max_cpus_online)) {
++			new_state = MSM_MPDEC_UP;
++			if (get_slowest_cpu_rate() <=  hotplug.idle_freq)
++				new_state = MSM_MPDEC_IDLE;
++		}
++	} else if ((nr_cpu_online > 1) && (rq_depth <= NwNs_Threshold[index+1])) {
++		if ((total_time >= TwTs_Threshold[index+1]) &&
++			(nr_cpu_online > hotplug.min_cpus_online)) {
++			new_state = MSM_MPDEC_DOWN;
++			if (get_slowest_cpu_rate() > hotplug.idle_freq)
++				new_state = MSM_MPDEC_IDLE;
++		}
++	} else {
++		new_state = MSM_MPDEC_IDLE;
++		total_time = 0;
++	}
++
++	if (new_state != MSM_MPDEC_IDLE) {
++		total_time = 0;
++	}
++
++	last_time = ktime_to_ms(ktime_get());
++#if DEBUG
++	pr_info(MPDEC_TAG"[DEBUG] rq: %u, new_state: %i | Mask=[%d%d%d%d]\n",
++			rq_depth, new_state, cpu_online(0), cpu_online(1), cpu_online(2), cpu_online(3));
++#endif
++	return new_state;
++}
++
++static void __ref bricked_hotplug_work(struct work_struct *work) {
++	unsigned int cpu;
++
++	if (hotplug.suspended && hotplug.max_cpus_online_susp <= 1)
++		goto out;
++
++	if (!mutex_trylock(&hotplug.bricked_cpu_mutex))
++		goto out;
++
++	state = mp_decision();
++	switch (state) {
++	case MSM_MPDEC_DISABLED:
++	case MSM_MPDEC_IDLE:
++		break;
++	case MSM_MPDEC_DOWN:
++		cpu = get_slowest_cpu();
++		if (cpu > 0) {
++			if (cpu_online(cpu) && !check_cpuboost(cpu)
++					&& !check_down_lock(cpu))
++				cpu_down(cpu);
++		}
++		break;
++	case MSM_MPDEC_UP:
++		cpu = cpumask_next_zero(0, cpu_online_mask);
++		if (cpu < DEFAULT_MAX_CPUS_ONLINE) {
++			if (!cpu_online(cpu)) {
++				cpu_up(cpu);
++				apply_down_lock(cpu);
++			}
++		}
++		break;
++	default:
++		pr_err(MPDEC_TAG": %s: invalid mpdec hotplug state %d\n",
++			__func__, state);
++	}
++	mutex_unlock(&hotplug.bricked_cpu_mutex);
++
++out:
++	if (hotplug.bricked_enabled)
++		queue_delayed_work(hotplug_wq, &hotplug_work,
++					msecs_to_jiffies(hotplug.delay));
++	return;
++}
++
++static void bricked_hotplug_suspend(void)
++{
++	int cpu;
++
++	mutex_lock(&hotplug.bricked_hotplug_mutex);
++	hotplug.suspended = 1;
++	hotplug.min_cpus_online_res = hotplug.min_cpus_online;
++	hotplug.min_cpus_online = 1;
++	hotplug.max_cpus_online_res = hotplug.max_cpus_online;
++	hotplug.max_cpus_online = hotplug.max_cpus_online_susp;
++	mutex_unlock(&hotplug.bricked_hotplug_mutex);
++
++	if (hotplug.max_cpus_online_susp > 1) {
++		pr_info(MPDEC_TAG": Screen -> off\n");
++		return;
++	}
++
++	/* main work thread can sleep now */
++	cancel_delayed_work_sync(&hotplug_work);
++
++	for_each_possible_cpu(cpu) {
++		if ((cpu >= 1) && (cpu_online(cpu)))
++			cpu_down(cpu);
++	}
++
++	pr_info(MPDEC_TAG": Screen -> off. Deactivated bricked hotplug. | Mask=[%d%d%d%d]\n",
++			cpu_online(0), cpu_online(1), cpu_online(2), cpu_online(3));
++}
++
++static void __ref bricked_hotplug_resume(void)
++{
++	int cpu, required_reschedule = 0, required_wakeup = 0;
++
++	if (hotplug.suspended) {
++		mutex_lock(&hotplug.bricked_hotplug_mutex);
++		hotplug.suspended = 0;
++		hotplug.min_cpus_online = hotplug.min_cpus_online_res;
++		hotplug.max_cpus_online = hotplug.max_cpus_online_res;
++		mutex_unlock(&hotplug.bricked_hotplug_mutex);
++		required_wakeup = 1;
++		/* Initiate hotplug work if it was cancelled */
++		if (hotplug.max_cpus_online_susp <= 1) {
++			required_reschedule = 1;
++			INIT_DELAYED_WORK(&hotplug_work, bricked_hotplug_work);
++		}
++	}
++
++	if (wakeup_boost || required_wakeup) {
++		/* Fire up all CPUs */
++		for_each_cpu_not(cpu, cpu_online_mask) {
++			if (cpu == 0)
++				continue;
++			cpu_up(cpu);
++			apply_down_lock(cpu);
++		}
++	}
++
++	/* Resume hotplug workqueue if required */
++	if (required_reschedule) {
++		queue_delayed_work(hotplug_wq, &hotplug_work, 0);
++		pr_info(MPDEC_TAG": Screen -> on. Activated bricked hotplug. | Mask=[%d%d%d%d]\n",
++				cpu_online(0), cpu_online(1), cpu_online(2), cpu_online(3));
++	}
++}
++
++#ifdef CONFIG_STATE_NOTIFIER
++static int state_notifier_callback(struct notifier_block *this,
++				unsigned long event, void *data)
++{
++	if (!hotplug.bricked_enabled)
++		return NOTIFY_OK;
++
++	switch (event) {
++		case STATE_NOTIFIER_ACTIVE:
++			bricked_hotplug_resume();
++			break;
++		case STATE_NOTIFIER_SUSPEND:
++			bricked_hotplug_suspend();
++			break;
++		default:
++			break;
++	}
++
++	return NOTIFY_OK;
++}
++#endif
++
++static int bricked_hotplug_start(void)
++{
++	int cpu, ret = 0;
++	struct down_lock *dl;
++
++	hotplug_wq = alloc_workqueue("bricked_hotplug", WQ_HIGHPRI | WQ_FREEZABLE, 0);
++	if (!hotplug_wq) {
++		ret = -ENOMEM;
++		goto err_out;
++	}
++
++#ifdef CONFIG_STATE_NOTIFIER
++	notif.notifier_call = state_notifier_callback;
++	if (state_register_client(&notif)) {
++		pr_err("%s: Failed to register State notifier callback\n",
++			MPDEC_TAG);
++		goto err_dev;
++	}
++#endif
++
++	mutex_init(&hotplug.bricked_cpu_mutex);
++	mutex_init(&hotplug.bricked_hotplug_mutex);
++
++	INIT_DELAYED_WORK(&hotplug_work, bricked_hotplug_work);
++
++	for_each_possible_cpu(cpu) {
++		dl = &per_cpu(lock_info, cpu);
++		INIT_DELAYED_WORK(&dl->lock_rem, remove_down_lock);
++	}
++
++	if (hotplug.bricked_enabled)
++		queue_delayed_work(hotplug_wq, &hotplug_work,
++					msecs_to_jiffies(hotplug.startdelay));
++
++	return ret;
++#ifdef CONFIG_STATE_NOTIFIER
++err_dev:
++	destroy_workqueue(hotplug_wq);
++#endif
++err_out:
++	hotplug.bricked_enabled = 0;
++	return ret;
++}
++
++static void bricked_hotplug_stop(void)
++{
++	int cpu;
++	struct down_lock *dl;
++
++	for_each_possible_cpu(cpu) {
++		dl = &per_cpu(lock_info, cpu);
++		cancel_delayed_work_sync(&dl->lock_rem);
++	}
++
++	cancel_delayed_work_sync(&hotplug_work);
++	mutex_destroy(&hotplug.bricked_hotplug_mutex);
++	mutex_destroy(&hotplug.bricked_cpu_mutex);
++#ifdef CONFIG_STATE_NOTIFIER
++	state_unregister_client(&notif);
++#endif
++	notif.notifier_call = NULL;
++	destroy_workqueue(hotplug_wq);
++
++	/* Put all sibling cores to sleep */
++	for_each_online_cpu(cpu) {
++		if (cpu == 0)
++			continue;
++		cpu_down(cpu);
++	}
++}
++
++/**************************** SYSFS START ****************************/
++
++#define show_one(file_name, object)					\
++static ssize_t show_##file_name						\
++(struct device *dev, struct device_attribute *bricked_hotplug_attrs,	\
++ char *buf)								\
++{									\
++	return sprintf(buf, "%u\n", hotplug.object);			\
++}
++
++show_one(startdelay, startdelay);
++show_one(delay, delay);
++show_one(down_lock_duration, down_lock_dur);
++show_one(min_cpus_online, min_cpus_online);
++show_one(max_cpus_online, max_cpus_online);
++show_one(max_cpus_online_susp, max_cpus_online_susp);
++show_one(suspend_defer_time, suspend_defer_time);
++show_one(bricked_enabled, bricked_enabled);
++
++#define define_one_twts(file_name, arraypos)				\
++static ssize_t show_##file_name						\
++(struct device *dev, struct device_attribute *bricked_hotplug_attrs,	\
++ char *buf)								\
++{									\
++	return sprintf(buf, "%u\n", TwTs_Threshold[arraypos]);		\
++}									\
++static ssize_t store_##file_name					\
++(struct device *dev, struct device_attribute *bricked_hotplug_attrs,	\
++ const char *buf, size_t count)						\
++{									\
++	unsigned int input;						\
++	int ret;							\
++	ret = sscanf(buf, "%u", &input);				\
++	if (ret != 1)							\
++		return -EINVAL;						\
++	TwTs_Threshold[arraypos] = input;				\
++	return count;							\
++}									\
++static DEVICE_ATTR(file_name, 644, show_##file_name, store_##file_name);
++define_one_twts(twts_threshold_0, 0);
++define_one_twts(twts_threshold_1, 1);
++define_one_twts(twts_threshold_2, 2);
++define_one_twts(twts_threshold_3, 3);
++define_one_twts(twts_threshold_4, 4);
++define_one_twts(twts_threshold_5, 5);
++define_one_twts(twts_threshold_6, 6);
++define_one_twts(twts_threshold_7, 7);
++
++#define define_one_nwns(file_name, arraypos)				\
++static ssize_t show_##file_name						\
++(struct device *dev, struct device_attribute *bricked_hotplug_attrs,	\
++ char *buf)								\
++{									\
++	return sprintf(buf, "%u\n", NwNs_Threshold[arraypos]);		\
++}									\
++static ssize_t store_##file_name					\
++(struct device *dev, struct device_attribute *bricked_hotplug_attrs,	\
++ const char *buf, size_t count)						\
++{									\
++	unsigned int input;						\
++	int ret;							\
++	ret = sscanf(buf, "%u", &input);				\
++	if (ret != 1)							\
++		return -EINVAL;						\
++	NwNs_Threshold[arraypos] = input;				\
++	return count;							\
++}									\
++static DEVICE_ATTR(file_name, 644, show_##file_name, store_##file_name);
++define_one_nwns(nwns_threshold_0, 0);
++define_one_nwns(nwns_threshold_1, 1);
++define_one_nwns(nwns_threshold_2, 2);
++define_one_nwns(nwns_threshold_3, 3);
++define_one_nwns(nwns_threshold_4, 4);
++define_one_nwns(nwns_threshold_5, 5);
++define_one_nwns(nwns_threshold_6, 6);
++define_one_nwns(nwns_threshold_7, 7);
++
++static ssize_t show_idle_freq (struct device *dev,
++				struct device_attribute *bricked_hotplug_attrs,
++				char *buf)
++{
++	return sprintf(buf, "%lu\n", hotplug.idle_freq);
++}
++
++static ssize_t store_startdelay(struct device *dev,
++				struct device_attribute *bricked_hotplug_attrs,
++				const char *buf, size_t count)
++{
++	unsigned int input;
++	int ret;
++	ret = sscanf(buf, "%u", &input);
++	if (ret != 1)
++		return -EINVAL;
++
++	hotplug.startdelay = input;
++
++	return count;
++}
++
++static ssize_t store_delay(struct device *dev,
++				struct device_attribute *bricked_hotplug_attrs,
++				const char *buf, size_t count)
++{
++	unsigned int input;
++	int ret;
++	ret = sscanf(buf, "%u", &input);
++	if (ret != 1)
++		return -EINVAL;
++
++	hotplug.delay = input;
++
++	return count;
++}
++
++static ssize_t store_down_lock_duration(struct device *dev,
++				struct device_attribute *bricked_hotplug_attrs,
++				const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1)
++		return -EINVAL;
++
++	hotplug.down_lock_dur = val;
++
++	return count;
++}
++
++static ssize_t store_idle_freq(struct device *dev,
++				struct device_attribute *bricked_hotplug_attrs,
++				const char *buf, size_t count)
++{
++	long unsigned int input;
++	int ret;
++	ret = sscanf(buf, "%lu", &input);
++	if (ret != 1)
++		return -EINVAL;
++
++	hotplug.idle_freq = input;
++
++	return count;
++}
++
++static ssize_t __ref store_min_cpus_online(struct device *dev,
++				struct device_attribute *bricked_hotplug_attrs,
++				const char *buf, size_t count)
++{
++	unsigned int input, cpu;
++	int ret;
++	ret = sscanf(buf, "%u", &input);
++	if ((ret != 1) || input < 1 || input > DEFAULT_MAX_CPUS_ONLINE)
++		return -EINVAL;
++
++	if (hotplug.max_cpus_online < input)
++		hotplug.max_cpus_online = input;
++
++	hotplug.min_cpus_online = input;
++
++	if (!hotplug.bricked_enabled)
++		return count;
++
++	if (num_online_cpus() < hotplug.min_cpus_online) {
++		for (cpu = 1; cpu < DEFAULT_MAX_CPUS_ONLINE; cpu++) {
++			if (num_online_cpus() >= hotplug.min_cpus_online)
++				break;
++			if (cpu_online(cpu))
++				continue;
++			cpu_up(cpu);
++		}
++		pr_info(MPDEC_TAG": min_cpus_online set to %u. Affected CPUs were hotplugged!\n", input);
++	}
++
++	return count;
++}
++
++static ssize_t store_max_cpus_online(struct device *dev,
++				struct device_attribute *bricked_hotplug_attrs,
++				const char *buf, size_t count)
++{
++	unsigned int input, cpu;
++	int ret;
++	ret = sscanf(buf, "%u", &input);
++	if ((ret != 1) || input < 1 || input > DEFAULT_MAX_CPUS_ONLINE)
++			return -EINVAL;
++
++	if (hotplug.min_cpus_online > input)
++		hotplug.min_cpus_online = input;
++
++	hotplug.max_cpus_online = input;
++
++	if (!hotplug.bricked_enabled)
++		return count;
++
++	if (num_online_cpus() > hotplug.max_cpus_online) {
++		for (cpu = DEFAULT_MAX_CPUS_ONLINE; cpu > 0; cpu--) {
++			if (num_online_cpus() <= hotplug.max_cpus_online)
++				break;
++			if (!cpu_online(cpu))
++				continue;
++			cpu_down(cpu);
++		}
++		pr_info(MPDEC_TAG": max_cpus set to %u. Affected CPUs were unplugged!\n", input);
++	}
++
++	return count;
++}
++
++static ssize_t store_max_cpus_online_susp(struct device *dev,
++				struct device_attribute *bricked_hotplug_attrs,
++				const char *buf, size_t count)
++{
++	unsigned int input;
++	int ret;
++	ret = sscanf(buf, "%u", &input);
++	if ((ret != 1) || input < 1 || input > DEFAULT_MAX_CPUS_ONLINE)
++			return -EINVAL;
++
++	hotplug.max_cpus_online_susp = input;
++
++	return count;
++}
++
++static ssize_t store_suspend_defer_time(struct device *dev,
++				    struct device_attribute *bricked_hotplug_attrs,
++				    const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1)
++		return -EINVAL;
++
++	hotplug.suspend_defer_time = val;
++
++	return count;
++}
++
++static ssize_t store_bricked_enabled(struct device *dev,
++				struct device_attribute *bricked_hotplug_attrs,
++				const char *buf, size_t count)
++{
++	unsigned int input;
++	int ret;
++	ret = sscanf(buf, "%u", &input);
++	if (ret != 1)
++		return -EINVAL;
++
++	if (input > 1)
++		input = 1;
++
++	if (input == hotplug.bricked_enabled)
++		return count;
++
++	hotplug.bricked_enabled = input;
++
++	if (!hotplug.bricked_enabled) {
++		state = MSM_MPDEC_DISABLED;
++		bricked_hotplug_stop();
++		pr_info(MPDEC_TAG": Disabled\n");
++	} else {
++		state = MSM_MPDEC_IDLE;
++		bricked_hotplug_start();
++		pr_info(MPDEC_TAG": Enabled\n");
++	}
++
++	return count;
++}
++
++static DEVICE_ATTR(startdelay, 644, show_startdelay, store_startdelay);
++static DEVICE_ATTR(delay, 644, show_delay, store_delay);
++static DEVICE_ATTR(down_lock_duration, 644, show_down_lock_duration, store_down_lock_duration);
++static DEVICE_ATTR(idle_freq, 644, show_idle_freq, store_idle_freq);
++static DEVICE_ATTR(min_cpus, 644, show_min_cpus_online, store_min_cpus_online);
++static DEVICE_ATTR(max_cpus, 644, show_max_cpus_online, store_max_cpus_online);
++static DEVICE_ATTR(min_cpus_online, 644, show_min_cpus_online, store_min_cpus_online);
++static DEVICE_ATTR(max_cpus_online, 644, show_max_cpus_online, store_max_cpus_online);
++static DEVICE_ATTR(max_cpus_online_susp, 644, show_max_cpus_online_susp, store_max_cpus_online_susp);
++static DEVICE_ATTR(suspend_defer_time, 644, show_suspend_defer_time, store_suspend_defer_time);
++static DEVICE_ATTR(enabled, 644, show_bricked_enabled, store_bricked_enabled);
++
++static struct attribute *bricked_hotplug_attrs[] = {
++	&dev_attr_startdelay.attr,
++	&dev_attr_delay.attr,
++	&dev_attr_down_lock_duration.attr,
++	&dev_attr_idle_freq.attr,
++	&dev_attr_min_cpus.attr,
++	&dev_attr_max_cpus.attr,
++	&dev_attr_min_cpus_online.attr,
++	&dev_attr_max_cpus_online.attr,
++	&dev_attr_max_cpus_online_susp.attr,
++	&dev_attr_suspend_defer_time.attr,
++	&dev_attr_enabled.attr,
++	&dev_attr_twts_threshold_0.attr,
++	&dev_attr_twts_threshold_1.attr,
++	&dev_attr_twts_threshold_2.attr,
++	&dev_attr_twts_threshold_3.attr,
++	&dev_attr_twts_threshold_4.attr,
++	&dev_attr_twts_threshold_5.attr,
++	&dev_attr_twts_threshold_6.attr,
++	&dev_attr_twts_threshold_7.attr,
++	&dev_attr_nwns_threshold_0.attr,
++	&dev_attr_nwns_threshold_1.attr,
++	&dev_attr_nwns_threshold_2.attr,
++	&dev_attr_nwns_threshold_3.attr,
++	&dev_attr_nwns_threshold_4.attr,
++	&dev_attr_nwns_threshold_5.attr,
++	&dev_attr_nwns_threshold_6.attr,
++	&dev_attr_nwns_threshold_7.attr,
++	NULL,
++};
++
++static struct attribute_group attr_group = {
++	.attrs = bricked_hotplug_attrs,
++	.name = "conf",
++};
++
++/**************************** SYSFS END ****************************/
++
++static int bricked_hotplug_probe(struct platform_device *pdev)
++{
++	int ret = 0;
++	struct kobject *bricked_kobj;
++
++	bricked_kobj =
++		kobject_create_and_add("msm_mpdecision", kernel_kobj);
++	if (!bricked_kobj) {
++		pr_err("%s kobject create failed!\n",
++			__func__);
++		return -ENOMEM;
++        }
++
++	ret = sysfs_create_group(bricked_kobj,
++			&attr_group);
++
++        if (ret) {
++		pr_err("%s bricked_kobj create failed!\n",
++			__func__);
++		goto err_dev;
++	}
++
++	if (hotplug.bricked_enabled) {
++		ret = bricked_hotplug_start();
++		if (ret != 0)
++			goto err_dev;
++	}
++
++	return ret;
++err_dev:
++	if (bricked_kobj != NULL)
++		kobject_put(bricked_kobj);
++	return ret;
++}
++
++static struct platform_device bricked_hotplug_device = {
++	.name = MPDEC_TAG,
++	.id = -1,
++};
++
++static int bricked_hotplug_remove(struct platform_device *pdev)
++{
++	if (hotplug.bricked_enabled)
++		bricked_hotplug_stop();
++
++	return 0;
++}
++
++static struct platform_driver bricked_hotplug_driver = {
++	.probe = bricked_hotplug_probe,
++	.remove = bricked_hotplug_remove,
++	.driver = {
++		.name = MPDEC_TAG,
++		.owner = THIS_MODULE,
++	},
++};
++
++static int __init msm_mpdec_init(void)
++{
++	int ret = 0;
++
++	ret = platform_driver_register(&bricked_hotplug_driver);
++	if (ret) {
++		pr_err("%s: Driver register failed: %d\n", MPDEC_TAG, ret);
++		return ret;
++	}
++
++	ret = platform_device_register(&bricked_hotplug_device);
++	if (ret) {
++		pr_err("%s: Device register failed: %d\n", MPDEC_TAG, ret);
++		return ret;
++	}
++
++	pr_info(MPDEC_TAG": %s init complete.", __func__);
++
++	return ret;
++}
++
++void msm_mpdec_exit(void)
++{
++	platform_device_unregister(&bricked_hotplug_device);
++	platform_driver_unregister(&bricked_hotplug_driver);
++}
++
++late_initcall(msm_mpdec_init);
++module_exit(msm_mpdec_exit);
++
++MODULE_AUTHOR("Pranav Vashi <neobuddy89@gmail.com>");
++MODULE_DESCRIPTION("Bricked Hotplug Driver");
++MODULE_LICENSE("GPLv2");
+diff --git a/arch/arm/mach-msm/intelli_hotplug.c b/arch/arm/mach-msm/intelli_hotplug.c
+new file mode 100644
+index 0000000..29d5fc2
+--- /dev/null
++++ b/arch/arm/mach-msm/intelli_hotplug.c
+@@ -0,0 +1,777 @@
++/*
++ * Intelli Hotplug Driver
++ *
++ * Copyright (c) 2013-2014, Paul Reioux <reioux@gmail.com>
++ * Copyright (c) 2010-2014, The Linux Foundation. All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ */
++
++#include <linux/workqueue.h>
++#include <linux/cpu.h>
++#include <linux/sched.h>
++#include <linux/mutex.h>
++#include <linux/module.h>
++#include <linux/slab.h>
++#include <linux/input.h>
++#include <linux/kobject.h>
++#ifdef CONFIG_STATE_NOTIFIER
++#include <linux/state_notifier.h>
++#endif
++#include <linux/cpufreq.h>
++
++#define INTELLI_PLUG			"intelli_plug"
++#define INTELLI_PLUG_MAJOR_VERSION	5
++#define INTELLI_PLUG_MINOR_VERSION	1
++
++#define DEF_SAMPLING_MS			268
++#define RESUME_SAMPLING_MS		HZ / 10
++#define START_DELAY_MS			HZ * 20
++#define MIN_INPUT_INTERVAL		150 * 1000L
++#define BOOST_LOCK_DUR			2500 * 1000L
++#define DEFAULT_NR_CPUS_BOOSTED		2
++#define DEFAULT_MIN_CPUS_ONLINE		1
++#define DEFAULT_MAX_CPUS_ONLINE		NR_CPUS
++#define DEFAULT_NR_FSHIFT		DEFAULT_MAX_CPUS_ONLINE - 1
++#define DEFAULT_DOWN_LOCK_DUR		2500
++#define DEFAULT_MAX_CPUS_ONLINE_SUSP	1
++
++#define CAPACITY_RESERVE		50
++#if defined(CONFIG_ARCH_APQ8084) || defined(CONFIG_ARM64)
++#define THREAD_CAPACITY (430 - CAPACITY_RESERVE)
++#elif defined(CONFIG_ARCH_MSM8960) || defined(CONFIG_ARCH_APQ8064) || \
++defined(CONFIG_ARCH_MSM8974)
++#define THREAD_CAPACITY			(339 - CAPACITY_RESERVE)
++#elif defined(CONFIG_ARCH_MSM8226) || defined (CONFIG_ARCH_MSM8926) || \
++defined (CONFIG_ARCH_MSM8610) || defined (CONFIG_ARCH_MSM8228)
++#define THREAD_CAPACITY			(190 - CAPACITY_RESERVE)
++#else
++#define THREAD_CAPACITY			(250 - CAPACITY_RESERVE)
++#endif
++#define CPU_NR_THRESHOLD		((THREAD_CAPACITY << 1) + (THREAD_CAPACITY / 2))
++#define MULT_FACTOR			4
++#define DIV_FACTOR			100000
++
++static u64 last_boost_time, last_input;
++
++static struct delayed_work intelli_plug_work;
++static struct work_struct up_down_work;
++static struct workqueue_struct *intelliplug_wq;
++static struct mutex intelli_plug_mutex;
++static struct notifier_block notif;
++
++struct ip_cpu_info {
++	unsigned long cpu_nr_running;
++};
++static DEFINE_PER_CPU(struct ip_cpu_info, ip_info);
++
++/* HotPlug Driver controls */
++static atomic_t intelli_plug_active = ATOMIC_INIT(0);
++static unsigned int cpus_boosted = DEFAULT_NR_CPUS_BOOSTED;
++static unsigned int min_cpus_online = DEFAULT_MIN_CPUS_ONLINE;
++static unsigned int max_cpus_online = DEFAULT_MAX_CPUS_ONLINE;
++static unsigned int full_mode_profile = 0;
++static unsigned int cpu_nr_run_threshold = CPU_NR_THRESHOLD;
++
++static bool hotplug_suspended = false;
++static unsigned int min_cpus_online_res = DEFAULT_MIN_CPUS_ONLINE;
++static unsigned int max_cpus_online_res = DEFAULT_MAX_CPUS_ONLINE;
++static unsigned int max_cpus_online_susp = DEFAULT_MAX_CPUS_ONLINE_SUSP;
++
++/* HotPlug Driver Tuning */
++static unsigned int target_cpus = 0;
++static u64 boost_lock_duration = BOOST_LOCK_DUR;
++static unsigned int def_sampling_ms = DEF_SAMPLING_MS;
++static unsigned int nr_fshift = DEFAULT_NR_FSHIFT;
++static unsigned int nr_run_hysteresis = DEFAULT_MAX_CPUS_ONLINE * 2;
++static unsigned int debug_intelli_plug = 0;
++
++#define dprintk(msg...)		\
++do { 				\
++	if (debug_intelli_plug)		\
++		pr_info(msg);	\
++} while (0)
++
++static unsigned int nr_run_thresholds_balance[] = {
++	(THREAD_CAPACITY * 625 * MULT_FACTOR) / DIV_FACTOR,
++	(THREAD_CAPACITY * 875 * MULT_FACTOR) / DIV_FACTOR,
++	(THREAD_CAPACITY * 1125 * MULT_FACTOR) / DIV_FACTOR,
++	UINT_MAX
++};
++
++static unsigned int nr_run_thresholds_performance[] = {
++	(THREAD_CAPACITY * 380 * MULT_FACTOR) / DIV_FACTOR,
++	(THREAD_CAPACITY * 625 * MULT_FACTOR) / DIV_FACTOR,
++	(THREAD_CAPACITY * 875 * MULT_FACTOR) / DIV_FACTOR,
++	UINT_MAX
++};
++
++static unsigned int nr_run_thresholds_conservative[] = {
++	(THREAD_CAPACITY * 875 * MULT_FACTOR) / DIV_FACTOR,
++	(THREAD_CAPACITY * 1625 * MULT_FACTOR) / DIV_FACTOR,
++	(THREAD_CAPACITY * 2125 * MULT_FACTOR) / DIV_FACTOR,
++	UINT_MAX
++};
++
++static unsigned int nr_run_thresholds_disable[] = {
++	0,  0,  0,  UINT_MAX
++};
++
++static unsigned int nr_run_thresholds_tri[] = {
++	(THREAD_CAPACITY * 625 * MULT_FACTOR) / DIV_FACTOR,
++	(THREAD_CAPACITY * 875 * MULT_FACTOR) / DIV_FACTOR,
++	UINT_MAX
++};
++
++static unsigned int nr_run_thresholds_eco[] = {
++        (THREAD_CAPACITY * 380 * MULT_FACTOR) / DIV_FACTOR,
++	UINT_MAX
++};
++
++static unsigned int nr_run_thresholds_strict[] = {
++	UINT_MAX
++};
++
++static unsigned int *nr_run_profiles[] = {
++	nr_run_thresholds_balance,
++	nr_run_thresholds_performance,
++	nr_run_thresholds_conservative,
++	nr_run_thresholds_disable,
++	nr_run_thresholds_tri,
++	nr_run_thresholds_eco,
++	nr_run_thresholds_strict
++	};
++
++static unsigned int nr_run_last;
++static unsigned int down_lock_dur = DEFAULT_DOWN_LOCK_DUR;
++
++struct down_lock {
++	unsigned int locked;
++	struct delayed_work lock_rem;
++};
++static DEFINE_PER_CPU(struct down_lock, lock_info);
++
++static void apply_down_lock(unsigned int cpu)
++{
++	struct down_lock *dl = &per_cpu(lock_info, cpu);
++
++	dl->locked = 1;
++	queue_delayed_work_on(0, intelliplug_wq, &dl->lock_rem,
++			      msecs_to_jiffies(down_lock_dur));
++}
++
++static void remove_down_lock(struct work_struct *work)
++{
++	struct down_lock *dl = container_of(work, struct down_lock,
++					    lock_rem.work);
++	dl->locked = 0;
++}
++
++static int check_down_lock(unsigned int cpu)
++{
++	struct down_lock *dl = &per_cpu(lock_info, cpu);
++	return dl->locked;
++}
++
++static unsigned int calculate_thread_stats(void)
++{
++	unsigned int avg_nr_run = avg_nr_running();
++	unsigned int nr_run;
++	unsigned int threshold_size;
++	unsigned int *current_profile;
++
++	threshold_size = max_cpus_online;
++	nr_run_hysteresis = max_cpus_online * 2;
++	nr_fshift = max_cpus_online - 1;
++
++	for (nr_run = 1; nr_run < threshold_size; nr_run++) {
++		unsigned int nr_threshold;
++		if (max_cpus_online >= 4)
++			current_profile = nr_run_profiles[full_mode_profile];
++		else if (max_cpus_online == 3)
++			current_profile = nr_run_profiles[4];
++		else if (max_cpus_online == 2)
++			current_profile = nr_run_profiles[5];
++		else
++			current_profile = nr_run_profiles[6];
++
++		nr_threshold = current_profile[nr_run - 1];
++
++		if (nr_run_last <= nr_run)
++			nr_threshold += nr_run_hysteresis;
++		if (avg_nr_run <= (nr_threshold << (FSHIFT - nr_fshift)))
++			break;
++	}
++	nr_run_last = nr_run;
++
++	return nr_run;
++}
++
++static void update_per_cpu_stat(void)
++{
++	unsigned int cpu;
++	struct ip_cpu_info *l_ip_info;
++
++	for_each_online_cpu(cpu) {
++		l_ip_info = &per_cpu(ip_info, cpu);
++		l_ip_info->cpu_nr_running = avg_cpu_nr_running(cpu);
++	}
++}
++
++static void __ref cpu_up_down_work(struct work_struct *work)
++{
++	int online_cpus, cpu, l_nr_threshold;
++	int target = target_cpus;
++	struct ip_cpu_info *l_ip_info;
++
++	if (target < min_cpus_online)
++		target = min_cpus_online;
++	else if (target > max_cpus_online)
++		target = max_cpus_online;
++
++	online_cpus = num_online_cpus();
++
++	if (target < online_cpus) {
++		if (online_cpus <= cpus_boosted &&
++		    (ktime_to_us(ktime_get()) - last_input < boost_lock_duration))
++			return;
++
++		update_per_cpu_stat();
++		for_each_online_cpu(cpu) {
++			if (cpu == 0)
++				continue;
++			if (check_down_lock(cpu) || check_cpuboost(cpu))
++				break;
++			l_nr_threshold =
++				cpu_nr_run_threshold << 1 / (num_online_cpus());
++			l_ip_info = &per_cpu(ip_info, cpu);
++			if (l_ip_info->cpu_nr_running < l_nr_threshold)
++				cpu_down(cpu);
++			if (target >= num_online_cpus())
++				break;
++		}
++	} else if (target > online_cpus) {
++		for_each_cpu_not(cpu, cpu_online_mask) {
++			if (cpu == 0)
++				continue;
++			cpu_up(cpu);
++			apply_down_lock(cpu);
++			if (target <= num_online_cpus())
++				break;
++		}
++	}
++}
++
++static void intelli_plug_work_fn(struct work_struct *work)
++{
++	if (hotplug_suspended && max_cpus_online_susp <= 1) {
++		dprintk("intelli_plug is suspended!\n");
++		return;
++	}
++
++	target_cpus = calculate_thread_stats();
++	queue_work_on(0, intelliplug_wq, &up_down_work);
++
++	if (atomic_read(&intelli_plug_active) == 1)
++		queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
++					msecs_to_jiffies(def_sampling_ms));
++}
++
++static void intelli_plug_suspend(void)
++{
++	int cpu = 0;
++
++	mutex_lock(&intelli_plug_mutex);
++	hotplug_suspended = true;
++	min_cpus_online_res = min_cpus_online;
++	min_cpus_online = 1;
++	max_cpus_online_res = max_cpus_online;
++	max_cpus_online = max_cpus_online_susp;
++	mutex_unlock(&intelli_plug_mutex);
++
++	/* Do not cancel hotplug work unless max_cpus_online_susp is 1 */
++	if (max_cpus_online_susp > 1 &&
++		full_mode_profile != 3)
++		return;
++
++	/* Flush hotplug workqueue */
++	flush_workqueue(intelliplug_wq);
++	cancel_delayed_work_sync(&intelli_plug_work);
++
++	/* Put all sibling cores to sleep */
++	for_each_online_cpu(cpu) {
++		if (cpu == 0)
++			continue;
++		cpu_down(cpu);
++	}
++}
++
++static void __ref intelli_plug_resume(void)
++{
++	int cpu, required_reschedule = 0, required_wakeup = 0;
++
++	if (hotplug_suspended) {
++		mutex_lock(&intelli_plug_mutex);
++		hotplug_suspended = false;
++		min_cpus_online = min_cpus_online_res;
++		max_cpus_online = max_cpus_online_res;
++		mutex_unlock(&intelli_plug_mutex);
++		required_wakeup = 1;
++		/* Initiate hotplug work if it was cancelled */
++		if (max_cpus_online_susp <= 1 ||
++			full_mode_profile == 3) {
++			required_reschedule = 1;
++			INIT_DELAYED_WORK(&intelli_plug_work, intelli_plug_work_fn);
++		}
++	}
++
++	if (wakeup_boost || required_wakeup) {
++		/* Fire up all CPUs */
++		for_each_cpu_not(cpu, cpu_online_mask) {
++			if (cpu == 0)
++				continue;
++			cpu_up(cpu);
++			apply_down_lock(cpu);
++		}
++	}
++
++	/* Resume hotplug workqueue if required */
++	if (required_reschedule)
++		queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
++				      msecs_to_jiffies(RESUME_SAMPLING_MS));
++}
++
++#ifdef CONFIG_STATE_NOTIFIER
++static int state_notifier_callback(struct notifier_block *this,
++				unsigned long event, void *data)
++{
++	if (atomic_read(&intelli_plug_active) == 0)
++		return NOTIFY_OK;
++
++	switch (event) {
++		case STATE_NOTIFIER_ACTIVE:
++			intelli_plug_resume();
++			break;
++		case STATE_NOTIFIER_SUSPEND:
++			intelli_plug_suspend();
++			break;
++		default:
++			break;
++	}
++
++	return NOTIFY_OK;
++}
++#endif
++
++static void intelli_plug_input_event(struct input_handle *handle,
++		unsigned int type, unsigned int code, int value)
++{
++	u64 now;
++
++	if (hotplug_suspended || cpus_boosted == 1)
++		return;
++
++	now = ktime_to_us(ktime_get());
++	last_input = now;
++
++	if (now - last_boost_time < MIN_INPUT_INTERVAL)
++		return;
++
++	if (num_online_cpus() >= cpus_boosted ||
++	    cpus_boosted <= min_cpus_online)
++		return;
++
++	target_cpus = cpus_boosted;
++	queue_work_on(0, intelliplug_wq, &up_down_work);
++	last_boost_time = ktime_to_us(ktime_get());
++}
++
++static int intelli_plug_input_connect(struct input_handler *handler,
++				 struct input_dev *dev,
++				 const struct input_device_id *id)
++{
++	struct input_handle *handle;
++	int err;
++
++	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
++	if (!handle)
++		return -ENOMEM;
++
++	handle->dev = dev;
++	handle->handler = handler;
++	handle->name = handler->name;
++
++	err = input_register_handle(handle);
++	if (err)
++		goto err_register;
++
++	err = input_open_device(handle);
++	if (err)
++		goto err_open;
++
++	dprintk("%s found and connected!\n", dev->name);
++
++	return 0;
++err_open:
++	input_unregister_handle(handle);
++err_register:
++	kfree(handle);
++	return err;
++}
++
++static void intelli_plug_input_disconnect(struct input_handle *handle)
++{
++	input_close_device(handle);
++	input_unregister_handle(handle);
++	kfree(handle);
++}
++
++static const struct input_device_id intelli_plug_ids[] = {
++	{
++		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
++			 INPUT_DEVICE_ID_MATCH_ABSBIT,
++		.evbit = { BIT_MASK(EV_ABS) },
++		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
++			    BIT_MASK(ABS_MT_POSITION_X) |
++			    BIT_MASK(ABS_MT_POSITION_Y) },
++	}, /* multi-touch touchscreen */
++	{
++		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT |
++			 INPUT_DEVICE_ID_MATCH_ABSBIT,
++		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
++		.absbit = { [BIT_WORD(ABS_X)] =
++			    BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
++	}, /* touchpad */
++	{ },
++};
++
++static struct input_handler intelli_plug_input_handler = {
++	.event          = intelli_plug_input_event,
++	.connect        = intelli_plug_input_connect,
++	.disconnect     = intelli_plug_input_disconnect,
++	.name           = "intelliplug_handler",
++	.id_table       = intelli_plug_ids,
++};
++
++static int __ref intelli_plug_start(void)
++{
++	int cpu, ret = 0;
++	struct down_lock *dl;
++
++	intelliplug_wq = alloc_workqueue("intelliplug", WQ_HIGHPRI | WQ_FREEZABLE, 0);
++	if (!intelliplug_wq) {
++		pr_err("%s: Failed to allocate hotplug workqueue\n",
++		       INTELLI_PLUG);
++		ret = -ENOMEM;
++		goto err_out;
++	}
++
++#ifdef CONFIG_STATE_NOTIFIER
++	notif.notifier_call = state_notifier_callback;
++	if (state_register_client(&notif)) {
++		pr_err("%s: Failed to register State notifier callback\n",
++			INTELLI_PLUG);
++		goto err_dev;
++	}
++#endif
++
++	ret = input_register_handler(&intelli_plug_input_handler);
++	if (ret) {
++		pr_err("%s: Failed to register input handler: %d\n",
++		       INTELLI_PLUG, ret);
++		goto err_dev;
++	}
++
++	mutex_init(&intelli_plug_mutex);
++
++	INIT_WORK(&up_down_work, cpu_up_down_work);
++	INIT_DELAYED_WORK(&intelli_plug_work, intelli_plug_work_fn);
++	for_each_possible_cpu(cpu) {
++		dl = &per_cpu(lock_info, cpu);
++		INIT_DELAYED_WORK(&dl->lock_rem, remove_down_lock);
++	}
++
++	/* Fire up all CPUs */
++	for_each_cpu_not(cpu, cpu_online_mask) {
++		if (cpu == 0)
++			continue;
++		cpu_up(cpu);
++		apply_down_lock(cpu);
++	}
++
++	queue_delayed_work_on(0, intelliplug_wq, &intelli_plug_work,
++			      START_DELAY_MS);
++
++	return ret;
++err_dev:
++	destroy_workqueue(intelliplug_wq);
++err_out:
++	atomic_set(&intelli_plug_active, 0);
++	return ret;
++}
++
++static void intelli_plug_stop(void)
++{
++	int cpu;
++	struct down_lock *dl;
++
++	for_each_possible_cpu(cpu) {
++		dl = &per_cpu(lock_info, cpu);
++		cancel_delayed_work_sync(&dl->lock_rem);
++	}
++	flush_workqueue(intelliplug_wq);
++	cancel_work_sync(&up_down_work);
++	cancel_delayed_work_sync(&intelli_plug_work);
++	mutex_destroy(&intelli_plug_mutex);
++#ifdef CONFIG_STATE_NOTIFIER
++	state_unregister_client(&notif);
++#endif
++	notif.notifier_call = NULL;
++
++	input_unregister_handler(&intelli_plug_input_handler);
++	destroy_workqueue(intelliplug_wq);
++}
++
++static void intelli_plug_active_eval_fn(unsigned int status)
++{
++	int ret = 0;
++
++	if (status == 1) {
++		ret = intelli_plug_start();
++		if (ret)
++			status = 0;
++	} else
++		intelli_plug_stop();
++
++	atomic_set(&intelli_plug_active, status);
++}
++
++#define show_one(file_name, object)				\
++static ssize_t show_##file_name					\
++(struct kobject *kobj, struct kobj_attribute *attr, char *buf)	\
++{								\
++	return sprintf(buf, "%u\n", object);			\
++}
++
++show_one(cpus_boosted, cpus_boosted);
++show_one(min_cpus_online, min_cpus_online);
++show_one(max_cpus_online, max_cpus_online);
++show_one(max_cpus_online_susp, max_cpus_online_susp);
++show_one(full_mode_profile, full_mode_profile);
++show_one(cpu_nr_run_threshold, cpu_nr_run_threshold);
++show_one(def_sampling_ms, def_sampling_ms);
++show_one(debug_intelli_plug, debug_intelli_plug);
++show_one(nr_fshift, nr_fshift);
++show_one(nr_run_hysteresis, nr_run_hysteresis);
++show_one(down_lock_duration, down_lock_dur);
++
++#define store_one(file_name, object)		\
++static ssize_t store_##file_name		\
++(struct kobject *kobj, 				\
++ struct kobj_attribute *attr, 			\
++ const char *buf, size_t count)			\
++{						\
++	unsigned int input;			\
++	int ret;				\
++	ret = sscanf(buf, "%u", &input);	\
++	if (ret != 1 || input > 100)		\
++		return -EINVAL;			\
++	if (input == object) {			\
++		return count;			\
++	}					\
++	object = input;				\
++	return count;				\
++}
++
++store_one(cpus_boosted, cpus_boosted);
++store_one(full_mode_profile, full_mode_profile);
++store_one(cpu_nr_run_threshold, cpu_nr_run_threshold);
++store_one(def_sampling_ms, def_sampling_ms);
++store_one(debug_intelli_plug, debug_intelli_plug);
++store_one(nr_fshift, nr_fshift);
++store_one(nr_run_hysteresis, nr_run_hysteresis);
++store_one(down_lock_duration, down_lock_dur);
++
++static ssize_t show_intelli_plug_active(struct kobject *kobj,
++					struct kobj_attribute *attr, 
++					char *buf)
++{
++	return sprintf(buf, "%d\n",
++			atomic_read(&intelli_plug_active));
++}
++
++static ssize_t store_intelli_plug_active(struct kobject *kobj,
++					 struct kobj_attribute *attr,
++					 const char *buf, size_t count)
++{
++	int ret;
++	unsigned int input;
++
++	ret = sscanf(buf, "%d", &input);
++	if (ret < 0)
++		return ret;
++
++	if (input < 0)
++		input = 0;
++	else if (input > 0)
++		input = 1;
++
++	if (input == atomic_read(&intelli_plug_active))
++		return count;
++
++	intelli_plug_active_eval_fn(input);
++
++	return count;
++}
++
++static ssize_t show_boost_lock_duration(struct kobject *kobj,
++					struct kobj_attribute *attr, 
++					char *buf)
++{
++	return sprintf(buf, "%llu\n", div_u64(boost_lock_duration, 1000));
++}
++
++static ssize_t store_boost_lock_duration(struct kobject *kobj,
++					 struct kobj_attribute *attr,
++					 const char *buf, size_t count)
++{
++	int ret;
++	u64 val;
++
++	ret = sscanf(buf, "%llu", &val);
++	if (ret != 1)
++		return -EINVAL;
++
++	boost_lock_duration = val * 1000;
++
++	return count;
++}
++
++static ssize_t store_min_cpus_online(struct kobject *kobj,
++				     struct kobj_attribute *attr,
++				     const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1 || val < 1 || val > NR_CPUS)
++		return -EINVAL;
++
++	if (max_cpus_online < val)
++		max_cpus_online = val;
++
++	min_cpus_online = val;
++
++	return count;
++}
++
++static ssize_t store_max_cpus_online(struct kobject *kobj,
++				     struct kobj_attribute *attr,
++				     const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1 || val < 1 || val > NR_CPUS)
++		return -EINVAL;
++
++	if (min_cpus_online > val)
++		min_cpus_online = val;
++
++	max_cpus_online = val;
++
++	return count;
++}
++
++static ssize_t store_max_cpus_online_susp(struct kobject *kobj,
++				     struct kobj_attribute *attr,
++				     const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1 || val < 1 || val > NR_CPUS)
++		return -EINVAL;
++
++	max_cpus_online_susp = val;
++
++	return count;
++}
++
++#define KERNEL_ATTR_RW(_name) \
++static struct kobj_attribute _name##_attr = \
++	__ATTR(_name, 0664, show_##_name, store_##_name)
++
++KERNEL_ATTR_RW(intelli_plug_active);
++KERNEL_ATTR_RW(cpus_boosted);
++KERNEL_ATTR_RW(min_cpus_online);
++KERNEL_ATTR_RW(max_cpus_online);
++KERNEL_ATTR_RW(max_cpus_online_susp);
++KERNEL_ATTR_RW(full_mode_profile);
++KERNEL_ATTR_RW(cpu_nr_run_threshold);
++KERNEL_ATTR_RW(boost_lock_duration);
++KERNEL_ATTR_RW(def_sampling_ms);
++KERNEL_ATTR_RW(debug_intelli_plug);
++KERNEL_ATTR_RW(nr_fshift);
++KERNEL_ATTR_RW(nr_run_hysteresis);
++KERNEL_ATTR_RW(down_lock_duration);
++
++static struct attribute *intelli_plug_attrs[] = {
++	&intelli_plug_active_attr.attr,
++	&cpus_boosted_attr.attr,
++	&min_cpus_online_attr.attr,
++	&max_cpus_online_attr.attr,
++	&max_cpus_online_susp_attr.attr,
++	&full_mode_profile_attr.attr,
++	&cpu_nr_run_threshold_attr.attr,
++	&boost_lock_duration_attr.attr,
++	&def_sampling_ms_attr.attr,
++	&debug_intelli_plug_attr.attr,
++	&nr_fshift_attr.attr,
++	&nr_run_hysteresis_attr.attr,
++	&down_lock_duration_attr.attr,
++	NULL,
++};
++
++static struct attribute_group intelli_plug_attr_group = {
++	.attrs = intelli_plug_attrs,
++	.name = "intelli_plug",
++};
++
++static int __init intelli_plug_init(void)
++{
++	int rc;
++
++	rc = sysfs_create_group(kernel_kobj, &intelli_plug_attr_group);
++
++	pr_info("intelli_plug: version %d.%d\n",
++		 INTELLI_PLUG_MAJOR_VERSION,
++		 INTELLI_PLUG_MINOR_VERSION);
++
++	if (atomic_read(&intelli_plug_active) == 1)
++		intelli_plug_start();
++
++	return 0;
++}
++
++static void __exit intelli_plug_exit(void)
++{
++
++	if (atomic_read(&intelli_plug_active) == 1)
++		intelli_plug_stop();
++	sysfs_remove_group(kernel_kobj, &intelli_plug_attr_group);
++}
++
++late_initcall(intelli_plug_init);
++module_exit(intelli_plug_exit);
++
++MODULE_AUTHOR("Paul Reioux <reioux@gmail.com>");
++MODULE_DESCRIPTION("'intell_plug' - An intelligent cpu hotplug driver for "
++	"Low Latency Frequency Transition capable processors");
++MODULE_LICENSE("GPLv2");
+diff --git a/arch/arm/mach-msm/mako_hotplug.c b/arch/arm/mach-msm/mako_hotplug.c
+new file mode 100644
+index 0000000..95fa360
+--- /dev/null
++++ b/arch/arm/mach-msm/mako_hotplug.c
+@@ -0,0 +1,583 @@
++/*
++ * Copyright (c) 2013-2015, Francisco Franco <franciscofranco.1990@gmail.com>.
++ *
++ * This software is licensed under the terms of the GNU General Public
++ * License version 2, as published by the Free Software Foundation, and
++ * may be copied, distributed, and modified under those terms.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * Simple no bullshit hot[un]plug driver for SMP
++ */
++
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/init.h>
++#include <linux/device.h>
++#include <linux/miscdevice.h>
++#include <linux/cpu.h>
++#include <linux/workqueue.h>
++#include <linux/sched.h>
++#include <linux/platform_device.h>
++#include <linux/timer.h>
++#include <linux/cpufreq.h>
++#include <linux/delay.h>
++#include <linux/input.h>
++#include <linux/jiffies.h>
++
++#define MAKO_HOTPLUG "mako_hotplug"
++
++#define DEFAULT_HOTPLUG_ENABLED 0
++#define DEFAULT_LOAD_THRESHOLD 80
++#define DEFAULT_HIGH_LOAD_COUNTER 10
++#define DEFAULT_MAX_LOAD_COUNTER 20
++#define DEFAULT_CPUFREQ_UNPLUG_LIMIT 1728000
++#define DEFAULT_MIN_TIME_CPU_ONLINE 1
++#define DEFAULT_TIMER 1
++
++#define MIN_CPU_UP_US (200 * USEC_PER_MSEC)
++#define NUM_POSSIBLE_CPUS num_possible_cpus()
++#define HIGH_LOAD (95)
++
++struct cpu_stats {
++	unsigned int counter;
++	u64 timestamp;
++	bool booted;
++} stats = {
++	.counter = 0,
++	.timestamp = 0,
++	.booted = false,
++};
++
++struct hotplug_tunables {
++	/**
++	 * whether make_hotplug is enabled or not
++	 */
++	unsigned int enabled;
++
++	/*
++	 * system load threshold to decide when online or offline cores
++	 * from 0 to 100
++	 */
++	unsigned int load_threshold;
++
++	/*
++	 * counter to filter online/offline calls. The load needs to be above
++	 * load_threshold X high_load_counter times for the cores to go online
++	 * otherwise they stay offline
++	 */
++	unsigned int high_load_counter;
++
++	/*
++	 * max number of samples counters allowed to be counted. The higher the
++	 * value the longer it will take the driver to offline cores after a
++	 * period of high and continuous load
++	 */
++	unsigned int max_load_counter;
++
++	/*
++	 * if the current CPU freq is above this limit don't offline the cores
++	 * for a couple of extra samples
++	 */
++	unsigned int cpufreq_unplug_limit;
++
++	/*
++	 * minimum time in seconds that a core stays online to avoid too many
++	 * online/offline calls
++	 */
++	unsigned int min_time_cpu_online;
++
++	/*
++	 * sample timer in seconds. The default value of 1 equals to 10
++	 * samples every second. The higher the value the less samples
++	 * per second it runs
++	 */
++	unsigned int timer;
++
++	/**
++	* the maximum frequency when screen is turned off.
++	*/
++	unsigned int screen_off_max;
++
++ 	/**
++	* the minimum cores which should be online.
++	*/
++ 	unsigned int min_cores_online;
++} tunables;
++
++static struct workqueue_struct *wq;
++static struct delayed_work decide_hotplug;
++
++static inline void cpus_online_work(void)
++{
++	unsigned int cpu;
++
++	for (cpu = 2; cpu < 4; cpu++) {
++		if (cpu_is_offline(cpu))
++			cpu_up(cpu);
++	}
++
++	pr_info("%s: all cpus were onlined\n", MAKO_HOTPLUG);
++}
++
++static inline void cpus_offline_work(void)
++{
++	struct hotplug_tunables;
++	unsigned int cpu;
++
++	for (cpu = 3; cpu > 1; cpu--) {
++		if (cpu_online(cpu))
++			cpu_down(cpu);
++	}
++
++	pr_info("%s: all cpus were offlined\n", MAKO_HOTPLUG);
++}
++
++static inline bool cpus_cpufreq_work(void)
++{
++	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
++	struct hotplug_tunables *t = &tunables;
++	unsigned int current_freq = 0;
++	unsigned int cpu;
++
++	if (policy) {
++		if (policy->min >= t->cpufreq_unplug_limit)
++			return false;
++	}
++
++	for (cpu = 2; cpu < 4; cpu++)
++		current_freq += cpufreq_quick_get(cpu);
++
++	current_freq >>= 1;
++
++	return current_freq >= t->cpufreq_unplug_limit;
++}
++
++static void cpu_revive(unsigned int load)
++{
++	struct hotplug_tunables *t = &tunables;
++	unsigned int counter_hysteria = 3;
++
++	if (unlikely(nr_running() >= 10))
++		goto online_all;
++
++	/*
++	 * we should care about a very high load spike and online the
++	 * cpus in question. If the device is under stress for at least 300ms
++	 * online all cores, no questions asked. 300ms here equals three samples
++	 */
++	if (load >= HIGH_LOAD && stats.counter >= counter_hysteria)
++		goto online_all;
++	else if (stats.counter < t->high_load_counter)
++		return;
++
++online_all:
++	cpus_online_work();
++	stats.timestamp = ktime_to_us(ktime_get());
++}
++
++static void cpu_smash(unsigned int load)
++{
++	struct hotplug_tunables *t = &tunables;
++	u64 extra_time = MIN_CPU_UP_US;
++
++	if (stats.counter >= t->high_load_counter)
++		return;
++
++	/*
++	 * offline the cpu only if its freq is lower than
++	 * CPUFREQ_UNPLUG_LIMIT. Else update the timestamp to now and
++	 * postpone the cpu offline process to at least another second
++	 */
++	if (cpus_cpufreq_work())
++		stats.timestamp = ktime_to_us(ktime_get());
++
++	/*
++	 * Let's not unplug this cpu unless its been online for longer than
++	 * 500ms to avoid consecutive ups and downs if the load is varying
++	 * closer to the threshold point.
++	 */
++	if (t->min_time_cpu_online > 1)
++		extra_time = t->min_time_cpu_online * MIN_CPU_UP_US;
++
++	if (ktime_to_us(ktime_get()) < stats.timestamp + extra_time)
++		return;
++
++	/*
++	 * If current load is higher than our threshold we can skip offlining
++	 * on the next sample
++	 */
++	if (load >= t->load_threshold)
++		return;
++
++	cpus_offline_work();
++
++	/*
++	 * reset the counter yo
++	 */
++	stats.counter = 0;
++}
++
++static void __ref decide_hotplug_func(struct work_struct *work)
++{
++	struct hotplug_tunables *t = &tunables;
++	unsigned int cur_load = 0;
++	unsigned int cpu;
++	unsigned int online_cpus = num_online_cpus();
++
++	if (!t->enabled)
++		goto reschedule;
++
++	/*
++	 * reschedule early when the user doesn't want more than 2 cores online
++	 */
++	if (unlikely(t->load_threshold == 100 && online_cpus == 2))
++		goto reschedule;
++
++	/*
++	 * reschedule early when users desire to run with all cores online
++	 */
++	if (unlikely(!t->load_threshold &&
++			online_cpus == NUM_POSSIBLE_CPUS)) {
++		goto reschedule;
++	}
++
++	for (cpu = 0; cpu < 2; cpu++)
++		cur_load += cpufreq_quick_get_util(cpu);
++
++	cur_load >>= 1;
++
++	if (cur_load >= t->load_threshold) {
++		if (stats.counter < t->max_load_counter)
++			++stats.counter;
++
++		if (online_cpus <= 2)
++			cpu_revive(cur_load);
++	} else {
++		if (stats.counter)
++			--stats.counter;
++
++		if (online_cpus > 2)
++			cpu_smash(cur_load);
++	}
++
++	queue_delayed_work(wq, &decide_hotplug,
++		msecs_to_jiffies(t->timer * HZ));
++
++	return;
++
++reschedule:
++	/*
++	 * This reschedule is specially for cases where the user wants to
++	 * run either dual-core or quad-core permanently - for that reason
++	 * we don't need to run this work every 100ms, but rather just
++	 * once every 2 seconds
++	 */
++	queue_delayed_work(wq, &decide_hotplug, HZ * 2);
++}
++
++/*
++ * Sysfs get/set entries start
++ */
++
++static ssize_t make_hotplug_enabled_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct hotplug_tunables *t = &tunables;
++
++	return snprintf(buf, 10, "%u\n", t->enabled);
++}
++
++static ssize_t make_hotplug_enabled_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t size)
++{
++	struct hotplug_tunables *t = &tunables;
++	int ret;
++	unsigned long new_val;
++
++	ret = kstrtoul(buf, 0, &new_val);
++	if (ret < 0)
++		return ret;
++
++	t->enabled = new_val > 1 ? 1 : new_val;
++
++	return size;
++}
++
++static ssize_t load_threshold_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct hotplug_tunables *t = &tunables;
++
++	return snprintf(buf, 10, "%u\n", t->load_threshold);
++}
++
++static ssize_t load_threshold_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t size)
++{
++	struct hotplug_tunables *t = &tunables;
++	int ret;
++	unsigned long new_val;
++
++	ret = kstrtoul(buf, 0, &new_val);
++	if (ret < 0)
++		return ret;
++
++	t->load_threshold = new_val > 100 ? 100 : new_val;
++
++	return size;
++}
++
++static ssize_t high_load_counter_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct hotplug_tunables *t = &tunables;
++
++	return snprintf(buf, 10, "%u\n", t->high_load_counter);
++}
++
++static ssize_t high_load_counter_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t size)
++{
++	struct hotplug_tunables *t = &tunables;
++	int ret;
++	unsigned long new_val;
++
++	ret = kstrtoul(buf, 0, &new_val);
++	if (ret < 0)
++		return ret;
++
++	t->high_load_counter = new_val > 50 ? 50 : new_val;
++
++	return size;
++}
++
++static ssize_t max_load_counter_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct hotplug_tunables *t = &tunables;
++
++	return snprintf(buf, 10, "%u\n", t->max_load_counter);
++}
++
++static ssize_t max_load_counter_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t size)
++{
++	struct hotplug_tunables *t = &tunables;
++	int ret;
++	unsigned long new_val;
++
++	ret = kstrtoul(buf, 0, &new_val);
++	if (ret < 0)
++		return ret;
++
++	t->max_load_counter = new_val > 50 ? 50 : new_val;
++
++	return size;
++}
++
++static ssize_t cpufreq_unplug_limit_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct hotplug_tunables *t = &tunables;
++
++	return snprintf(buf, 10, "%u\n", t->cpufreq_unplug_limit);
++}
++
++static ssize_t cpufreq_unplug_limit_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t size)
++{
++	struct hotplug_tunables *t = &tunables;
++	int ret;
++	unsigned long new_val;
++
++	ret = kstrtoul(buf, 0, &new_val);
++	if (ret < 0)
++		return ret;
++
++	t->cpufreq_unplug_limit = new_val > ULONG_MAX ? ULONG_MAX : new_val;
++
++	return size;
++}
++
++static ssize_t min_time_cpu_online_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	struct hotplug_tunables *t = &tunables;
++
++	return snprintf(buf, 10, "%u\n", t->min_time_cpu_online);
++}
++
++static ssize_t min_time_cpu_online_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t size)
++{
++	struct hotplug_tunables *t = &tunables;
++	int ret;
++	unsigned long new_val;
++
++	ret = kstrtoul(buf, 0, &new_val);
++	if (ret < 0)
++		return ret;
++
++	t->min_time_cpu_online = new_val > 10 ? 10 : new_val;
++
++	return size;
++}
++
++static ssize_t timer_show(struct device *dev, struct device_attribute *attr,
++		char *buf)
++{
++	struct hotplug_tunables *t = &tunables;
++
++	return snprintf(buf, 10, "%u\n", t->timer);
++}
++
++static ssize_t timer_store(struct device *dev, struct device_attribute *attr,
++		const char *buf, size_t size)
++{
++	struct hotplug_tunables *t = &tunables;
++	int ret;
++	unsigned long new_val;
++
++	ret = kstrtoul(buf, 0, &new_val);
++	if (ret < 0)
++		return ret;
++
++	t->timer = new_val > 100 ? 100 : new_val;
++
++	return size;
++}
++
++static DEVICE_ATTR(enabled, 0664, make_hotplug_enabled_show,
++		make_hotplug_enabled_store);
++static DEVICE_ATTR(load_threshold, 0664, load_threshold_show,
++		load_threshold_store);
++static DEVICE_ATTR(high_load_counter, 0664, high_load_counter_show,
++		high_load_counter_store);
++static DEVICE_ATTR(max_load_counter, 0664, max_load_counter_show,
++		max_load_counter_store);
++static DEVICE_ATTR(cpufreq_unplug_limit, 0664, cpufreq_unplug_limit_show,
++		cpufreq_unplug_limit_store);
++static DEVICE_ATTR(min_time_cpu_online, 0664, min_time_cpu_online_show,
++		min_time_cpu_online_store);
++static DEVICE_ATTR(timer, 0664, timer_show, timer_store);
++
++static struct attribute *mako_hotplug_control_attributes[] = {
++	&dev_attr_enabled.attr,
++	&dev_attr_load_threshold.attr,
++	&dev_attr_high_load_counter.attr,
++	&dev_attr_max_load_counter.attr,
++	&dev_attr_cpufreq_unplug_limit.attr,
++	&dev_attr_min_time_cpu_online.attr,
++	&dev_attr_timer.attr,
++	NULL
++};
++
++static struct attribute_group mako_hotplug_control_group = {
++	.attrs  = mako_hotplug_control_attributes,
++};
++
++static struct miscdevice mako_hotplug_control_device = {
++	.minor = MISC_DYNAMIC_MINOR,
++	.name = "mako_hotplug_control",
++};
++
++/*
++ * Sysfs get/set entries end
++ */
++
++static int mako_hotplug_probe(struct platform_device *pdev)
++{
++	int ret = 0;
++	struct hotplug_tunables *t = &tunables;
++
++	wq = alloc_workqueue("mako_hotplug_workqueue",
++		WQ_FREEZABLE |
++		WQ_UNBOUND, 1);
++
++	if (!wq) {
++		ret = -ENOMEM;
++		goto err;
++	}
++
++	t->enabled = DEFAULT_HOTPLUG_ENABLED;
++	t->load_threshold = DEFAULT_LOAD_THRESHOLD;
++	t->high_load_counter = DEFAULT_HIGH_LOAD_COUNTER;
++	t->max_load_counter = DEFAULT_MAX_LOAD_COUNTER;
++	t->cpufreq_unplug_limit = DEFAULT_CPUFREQ_UNPLUG_LIMIT;
++	t->min_time_cpu_online = DEFAULT_MIN_TIME_CPU_ONLINE;
++	t->timer = DEFAULT_TIMER;
++
++	ret = misc_register(&mako_hotplug_control_device);
++	if (ret) {
++		ret = -EINVAL;
++		goto err;
++	}
++
++	ret = sysfs_create_group(&mako_hotplug_control_device.this_device->kobj,
++			&mako_hotplug_control_group);
++	if (ret) {
++		ret = -EINVAL;
++		goto err;
++	}
++
++	INIT_DELAYED_WORK(&decide_hotplug, decide_hotplug_func);
++
++	queue_delayed_work(wq, &decide_hotplug, HZ * 30);
++err:
++	return ret;
++}
++
++static struct platform_device mako_hotplug_device = {
++	.name = MAKO_HOTPLUG,
++	.id = -1,
++};
++
++static int mako_hotplug_remove(struct platform_device *pdev)
++{
++	destroy_workqueue(wq);
++
++	return 0;
++}
++
++static struct platform_driver mako_hotplug_driver = {
++	.probe = mako_hotplug_probe,
++	.remove = mako_hotplug_remove,
++	.driver = {
++		.name = MAKO_HOTPLUG,
++		.owner = THIS_MODULE,
++	},
++};
++
++static int __init mako_hotplug_init(void)
++{
++	int ret;
++
++	ret = platform_driver_register(&mako_hotplug_driver);
++	if (ret)
++		return ret;
++
++	ret = platform_device_register(&mako_hotplug_device);
++	if (ret)
++		return ret;
++
++	pr_info("%s: init\n", MAKO_HOTPLUG);
++
++	return ret;
++}
++
++static void __exit mako_hotplug_exit(void)
++{
++	platform_device_unregister(&mako_hotplug_device);
++	platform_driver_unregister(&mako_hotplug_driver);
++}
++
++late_initcall(mako_hotplug_init);
++module_exit(mako_hotplug_exit);
++
++MODULE_AUTHOR("franciscofranco <franciscofranco.1990@gmail.com>");
++MODULE_DESCRIPTION("Mako Hotplug Driver");
++MODULE_LICENSE("GPLv2");
+diff --git a/arch/arm/mach-msm/msm_hotplug.c b/arch/arm/mach-msm/msm_hotplug.c
+new file mode 100644
+index 0000000..c49a933
+--- /dev/null
++++ b/arch/arm/mach-msm/msm_hotplug.c
+@@ -0,0 +1,1257 @@
++/*
++ * MSM Hotplug Driver
++ *
++ * Copyright (c) 2013-2015, Pranav Vashi <neobuddy89@gmail.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ */
++
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/cpu.h>
++#include <linux/init.h>
++#include <linux/workqueue.h>
++#include <linux/sched.h>
++#include <linux/platform_device.h>
++#include <linux/device.h>
++#include <linux/slab.h>
++#include <linux/cpufreq.h>
++#ifdef CONFIG_STATE_NOTIFIER
++#include <linux/state_notifier.h>
++#endif
++#include <linux/mutex.h>
++#include <linux/input.h>
++#include <linux/math64.h>
++#include <linux/kernel_stat.h>
++#include <linux/tick.h>
++
++#define MSM_HOTPLUG			"msm_hotplug"
++#define HOTPLUG_ENABLED			0
++#define DEFAULT_UPDATE_RATE		HZ / 10
++#define START_DELAY			HZ * 20
++#define MIN_INPUT_INTERVAL		150 * 1000L
++#define DEFAULT_HISTORY_SIZE		10
++#define DEFAULT_DOWN_LOCK_DUR		1000
++#define DEFAULT_BOOST_LOCK_DUR		2500 * 1000L
++#define DEFAULT_NR_CPUS_BOOSTED		NR_CPUS / 2
++#define DEFAULT_MIN_CPUS_ONLINE		1
++#define DEFAULT_MAX_CPUS_ONLINE		NR_CPUS
++#define DEFAULT_FAST_LANE_LOAD		99
++#define DEFAULT_MAX_CPUS_ONLINE_SUSP	1
++
++static unsigned int debug = 0;
++module_param_named(debug_mask, debug, uint, 0644);
++
++#define dprintk(msg...)		\
++do { 				\
++	if (debug)		\
++		pr_info(msg);	\
++} while (0)
++
++static struct cpu_hotplug {
++	unsigned int msm_enabled;
++	unsigned int suspended;
++	unsigned int min_cpus_online_res;
++	unsigned int max_cpus_online_res;
++	unsigned int max_cpus_online_susp;
++	unsigned int target_cpus;
++	unsigned int min_cpus_online;
++	unsigned int max_cpus_online;
++	unsigned int cpus_boosted;
++	unsigned int offline_load;
++	unsigned int down_lock_dur;
++	u64 boost_lock_dur;
++	u64 last_input;
++	unsigned int fast_lane_load;
++	struct work_struct up_work;
++	struct work_struct down_work;
++	struct mutex msm_hotplug_mutex;
++	struct notifier_block notif;
++} hotplug = {
++	.msm_enabled = HOTPLUG_ENABLED,
++	.min_cpus_online = DEFAULT_MIN_CPUS_ONLINE,
++	.max_cpus_online = DEFAULT_MAX_CPUS_ONLINE,
++	.suspended = 0,
++	.min_cpus_online_res = DEFAULT_MIN_CPUS_ONLINE,
++	.max_cpus_online_res = DEFAULT_MAX_CPUS_ONLINE,
++	.max_cpus_online_susp = DEFAULT_MAX_CPUS_ONLINE_SUSP,
++	.cpus_boosted = DEFAULT_NR_CPUS_BOOSTED,
++	.down_lock_dur = DEFAULT_DOWN_LOCK_DUR,
++	.boost_lock_dur = DEFAULT_BOOST_LOCK_DUR,
++	.fast_lane_load = DEFAULT_FAST_LANE_LOAD
++};
++
++static struct workqueue_struct *hotplug_wq;
++static struct delayed_work hotplug_work;
++
++static u64 last_boost_time;
++static unsigned int default_update_rates[] = { DEFAULT_UPDATE_RATE };
++
++static struct cpu_stats {
++	unsigned int *update_rates;
++	int nupdate_rates;
++	spinlock_t update_rates_lock;
++	unsigned int *load_hist;
++	unsigned int hist_size;
++	unsigned int hist_cnt;
++	unsigned int min_cpus;
++	unsigned int total_cpus;
++	unsigned int online_cpus;
++	unsigned int cur_avg_load;
++	unsigned int cur_max_load;
++	struct mutex stats_mutex;
++} stats = {
++	.update_rates = default_update_rates,
++	.nupdate_rates = ARRAY_SIZE(default_update_rates),
++	.hist_size = DEFAULT_HISTORY_SIZE,
++	.min_cpus = 1,
++	.total_cpus = NR_CPUS
++};
++
++struct down_lock {
++	unsigned int locked;
++	struct delayed_work lock_rem;
++};
++
++static DEFINE_PER_CPU(struct down_lock, lock_info);
++
++struct cpu_load_data {
++	u64 prev_cpu_idle;
++	u64 prev_cpu_wall;
++	unsigned int avg_load_maxfreq;
++	unsigned int cur_load_maxfreq;
++	unsigned int samples;
++	unsigned int window_size;
++	cpumask_var_t related_cpus;
++};
++
++static DEFINE_PER_CPU(struct cpu_load_data, cpuload);
++
++static bool io_is_busy;
++bool fast_lane_mode;
++
++static int update_average_load(unsigned int cpu)
++{
++	int ret;
++	unsigned int idle_time, wall_time;
++	unsigned int cur_load, load_max_freq;
++	u64 cur_wall_time, cur_idle_time;
++	struct cpu_load_data *pcpu = &per_cpu(cpuload, cpu);
++	struct cpufreq_policy policy;
++
++	ret = cpufreq_get_policy(&policy, cpu);
++	if (ret)
++		return -EINVAL;
++
++	cur_idle_time = get_cpu_idle_time(cpu, &cur_wall_time, io_is_busy);
++
++	wall_time = (unsigned int) (cur_wall_time - pcpu->prev_cpu_wall);
++	pcpu->prev_cpu_wall = cur_wall_time;
++
++	idle_time = (unsigned int) (cur_idle_time - pcpu->prev_cpu_idle);
++	pcpu->prev_cpu_idle = cur_idle_time;
++
++	if (unlikely(!wall_time || wall_time < idle_time))
++		return 0;
++
++	cur_load = 100 * (wall_time - idle_time) / wall_time;
++
++	/* Calculate the scaled load across cpu */
++	load_max_freq = (cur_load * policy.cur) / policy.max;
++
++	if (!pcpu->avg_load_maxfreq) {
++		/* This is the first sample in this window */
++		pcpu->avg_load_maxfreq = load_max_freq;
++		pcpu->window_size = wall_time;
++	} else {
++		/*
++		 * The is already a sample available in this window.
++		 * Compute weighted average with prev entry, so that
++		 * we get the precise weighted load.
++		 */
++		pcpu->avg_load_maxfreq =
++			((pcpu->avg_load_maxfreq * pcpu->window_size) +
++			(load_max_freq * wall_time)) /
++			(wall_time + pcpu->window_size);
++
++		pcpu->window_size += wall_time;
++	}
++
++	return 0;
++}
++
++static unsigned int load_at_max_freq(void)
++{
++	int cpu;
++	unsigned int total_load = 0, max_load = 0;
++	struct cpu_load_data *pcpu;
++
++	for_each_online_cpu(cpu) {
++		pcpu = &per_cpu(cpuload, cpu);
++		update_average_load(cpu);
++		total_load += pcpu->avg_load_maxfreq;
++		pcpu->cur_load_maxfreq = pcpu->avg_load_maxfreq;
++		max_load = max(max_load, pcpu->avg_load_maxfreq);
++		pcpu->avg_load_maxfreq = 0;
++	}
++	stats.cur_max_load = max_load;
++
++	return total_load;
++}
++static void update_load_stats(void)
++{
++	unsigned int i, j;
++	unsigned int load = 0;
++
++	mutex_lock(&stats.stats_mutex);
++	stats.online_cpus = num_online_cpus();
++
++	if (stats.hist_size > 1) {
++		stats.load_hist[stats.hist_cnt] = load_at_max_freq();
++	} else {
++		stats.cur_avg_load = load_at_max_freq();
++		mutex_unlock(&stats.stats_mutex);
++		return;
++	}
++
++	for (i = 0, j = stats.hist_cnt; i < stats.hist_size; i++, j--) {
++		load += stats.load_hist[j];
++
++		if (j == 0)
++			j = stats.hist_size;
++	}
++
++	if (++stats.hist_cnt == stats.hist_size)
++		stats.hist_cnt = 0;
++
++	stats.cur_avg_load = load / stats.hist_size;
++	mutex_unlock(&stats.stats_mutex);
++}
++
++struct loads_tbl {
++	unsigned int up_threshold;
++	unsigned int down_threshold;
++};
++
++#define LOAD_SCALE(u, d)     \
++{                            \
++	.up_threshold = u,   \
++	.down_threshold = d, \
++}
++
++static struct loads_tbl loads[] = {
++	LOAD_SCALE(400, 0),
++	LOAD_SCALE(65, 0),
++	LOAD_SCALE(120, 50),
++	LOAD_SCALE(190, 100),
++	LOAD_SCALE(410, 170),
++	LOAD_SCALE(0, 0),
++};
++
++static void apply_down_lock(unsigned int cpu)
++{
++	struct down_lock *dl = &per_cpu(lock_info, cpu);
++
++	dl->locked = 1;
++	queue_delayed_work_on(0, hotplug_wq, &dl->lock_rem,
++			      msecs_to_jiffies(hotplug.down_lock_dur));
++}
++
++static void remove_down_lock(struct work_struct *work)
++{
++	struct down_lock *dl = container_of(work, struct down_lock,
++					    lock_rem.work);
++	dl->locked = 0;
++}
++
++static int check_down_lock(unsigned int cpu)
++{
++	struct down_lock *dl = &per_cpu(lock_info, cpu);
++
++	return dl->locked;
++}
++
++static int get_lowest_load_cpu(void)
++{
++	int cpu, lowest_cpu = 0;
++	unsigned int lowest_load = UINT_MAX;
++	unsigned int cpu_load[stats.total_cpus];
++	unsigned int proj_load;
++	struct cpu_load_data *pcpu;
++
++	for_each_online_cpu(cpu) {
++		if (cpu == 0)
++			continue;
++		pcpu = &per_cpu(cpuload, cpu);
++		cpu_load[cpu] = pcpu->cur_load_maxfreq;
++		if (cpu_load[cpu] < lowest_load) {
++			lowest_load = cpu_load[cpu];
++			lowest_cpu = cpu;
++		}
++	}
++
++	proj_load = stats.cur_avg_load - lowest_load;
++	if (proj_load > loads[stats.online_cpus - 1].up_threshold)
++		return -EPERM;
++
++	if (hotplug.offline_load && lowest_load >= hotplug.offline_load)
++		return -EPERM;
++
++	return lowest_cpu;
++}
++
++static void __ref cpu_up_work(struct work_struct *work)
++{
++	int cpu;
++	unsigned int target;
++
++	target = hotplug.target_cpus;
++
++	for_each_cpu_not(cpu, cpu_online_mask) {
++		if (target <= num_online_cpus())
++			break;
++		if (cpu == 0)
++			continue;
++		cpu_up(cpu);
++		apply_down_lock(cpu);
++	}
++}
++
++static void cpu_down_work(struct work_struct *work)
++{
++	int cpu, lowest_cpu;
++	unsigned int target;
++
++	target = hotplug.target_cpus;
++
++	for_each_online_cpu(cpu) {
++		if (cpu == 0)
++			continue;
++		lowest_cpu = get_lowest_load_cpu();
++		if (lowest_cpu > 0 && lowest_cpu <= stats.total_cpus) {
++			if (check_down_lock(lowest_cpu) ||
++			    check_cpuboost(lowest_cpu))
++				break;
++			cpu_down(lowest_cpu);
++		}
++		if (target >= num_online_cpus())
++			break;
++	}
++}
++
++static void online_cpu(unsigned int target)
++{
++	unsigned int online_cpus;
++
++	if (!hotplug.msm_enabled)
++		return;
++
++	online_cpus = num_online_cpus();
++
++	/* 
++	 * Do not online more CPUs if max_cpus_online reached 
++	 * and cancel online task if target already achieved.
++	 */
++	if (target <= online_cpus ||
++		online_cpus >= hotplug.max_cpus_online)
++		return;
++
++	hotplug.target_cpus = target;
++	queue_work_on(0, hotplug_wq, &hotplug.up_work);
++}
++
++static void offline_cpu(unsigned int target)
++{
++	unsigned int online_cpus;
++	u64 now;
++
++	if (!hotplug.msm_enabled)
++		return;
++
++	online_cpus = num_online_cpus();
++
++	/* 
++	 * Do not offline more CPUs if min_cpus_online reached
++	 * and cancel offline task if target already achieved.
++	 */
++	if (target >= online_cpus || 
++		online_cpus <= hotplug.min_cpus_online)
++		return;
++
++	now = ktime_to_us(ktime_get());
++	if (online_cpus <= hotplug.cpus_boosted &&
++	    (now - hotplug.last_input < hotplug.boost_lock_dur))
++		return;
++
++	hotplug.target_cpus = target;
++	queue_work_on(0, hotplug_wq, &hotplug.down_work);
++}
++
++static unsigned int load_to_update_rate(unsigned int load)
++{
++	int i, ret;
++	unsigned long flags;
++
++	spin_lock_irqsave(&stats.update_rates_lock, flags);
++
++	for (i = 0; i < stats.nupdate_rates - 1 &&
++			load >= stats.update_rates[i+1]; i += 2)
++		;
++
++	ret = stats.update_rates[i];
++	spin_unlock_irqrestore(&stats.update_rates_lock, flags);
++	return ret;
++}
++
++static void reschedule_hotplug_work(void)
++{
++	int delay = load_to_update_rate(stats.cur_avg_load);
++	queue_delayed_work_on(0, hotplug_wq, &hotplug_work,
++			      msecs_to_jiffies(delay));
++}
++
++static void msm_hotplug_work(struct work_struct *work)
++{
++	unsigned int i, target = 0;
++
++	if (hotplug.suspended && hotplug.max_cpus_online_susp <= 1) {
++		dprintk("%s: suspended.\n", MSM_HOTPLUG);
++		return;
++	}
++
++	update_load_stats();
++
++	if (stats.cur_max_load >= hotplug.fast_lane_load) {
++		/* Enter the fast lane */
++		fast_lane_mode = true;
++		online_cpu(hotplug.max_cpus_online);
++		goto reschedule;
++	} else {
++		fast_lane_mode = false;
++	}
++
++	/* If number of cpus locked, break out early */
++	if (hotplug.min_cpus_online == stats.total_cpus) {
++		if (stats.online_cpus != hotplug.min_cpus_online)
++			online_cpu(hotplug.min_cpus_online);
++		goto reschedule;
++	} else if (hotplug.max_cpus_online == stats.min_cpus) {
++		if (stats.online_cpus != hotplug.max_cpus_online)
++			offline_cpu(hotplug.max_cpus_online);
++		goto reschedule;
++	}
++
++	for (i = stats.min_cpus; loads[i].up_threshold; i++) {
++		if (stats.cur_avg_load <= loads[i].up_threshold
++		    && stats.cur_avg_load > loads[i].down_threshold) {
++			target = i;
++			break;
++		}
++	}
++
++	if (target > hotplug.max_cpus_online)
++		target = hotplug.max_cpus_online;
++	else if (target < hotplug.min_cpus_online)
++		target = hotplug.min_cpus_online;
++
++	if (stats.online_cpus != target) {
++		if (target > stats.online_cpus)
++			online_cpu(target);
++		else if (target < stats.online_cpus)
++			offline_cpu(target);
++	}
++
++reschedule:
++	dprintk("%s: cur_avg_load: %3u online_cpus: %u target: %u\n", MSM_HOTPLUG,
++		stats.cur_avg_load, stats.online_cpus, target);
++	reschedule_hotplug_work();
++}
++
++#ifdef CONFIG_STATE_NOTIFIER
++static void msm_hotplug_suspend(void)
++{
++	int cpu;
++
++	mutex_lock(&hotplug.msm_hotplug_mutex);
++	hotplug.suspended = 1;
++	hotplug.min_cpus_online_res = hotplug.min_cpus_online;
++	hotplug.min_cpus_online = 1;
++	hotplug.max_cpus_online_res = hotplug.max_cpus_online;
++	hotplug.max_cpus_online = hotplug.max_cpus_online_susp;
++	mutex_unlock(&hotplug.msm_hotplug_mutex);
++
++	/* Do not cancel hotplug work unless max_cpus_online_susp is 1 */
++	if (hotplug.max_cpus_online_susp > 1)
++		return;
++
++	/* Flush hotplug workqueue */
++	flush_workqueue(hotplug_wq);
++	cancel_delayed_work_sync(&hotplug_work);
++
++	fast_lane_mode = false;
++
++	/* Put all sibling cores to sleep */
++	for_each_online_cpu(cpu) {
++		if (cpu == 0)
++			continue;
++		cpu_down(cpu);
++	}
++}
++
++static void __ref msm_hotplug_resume(void)
++{
++	int cpu, required_reschedule = 0, required_wakeup = 0;
++
++	if (hotplug.suspended) {
++		mutex_lock(&hotplug.msm_hotplug_mutex);
++		hotplug.suspended = 0;
++		hotplug.min_cpus_online = hotplug.min_cpus_online_res;
++		hotplug.max_cpus_online = hotplug.max_cpus_online_res;
++		mutex_unlock(&hotplug.msm_hotplug_mutex);
++		required_wakeup = 1;
++		/* Initiate hotplug work if it was cancelled */
++		if (hotplug.max_cpus_online_susp <= 1) {
++			required_reschedule = 1;
++			INIT_DELAYED_WORK(&hotplug_work, msm_hotplug_work);
++		}
++	}
++
++#ifdef CONFIG_CPU_BOOST
++	if (wakeup_boost || required_wakeup) {
++#else
++	if (required_wakeup) {
++#endif
++		/* Fire up all CPUs */
++		for_each_cpu_not(cpu, cpu_online_mask) {
++			if (cpu == 0)
++				continue;
++			cpu_up(cpu);
++			apply_down_lock(cpu);
++		}
++	}
++
++	/* Resume hotplug workqueue if required */
++	if (required_reschedule)
++		reschedule_hotplug_work();
++}
++
++static int state_notifier_callback(struct notifier_block *this,
++				unsigned long event, void *data)
++{
++	if (!hotplug.msm_enabled)
++		return NOTIFY_OK;
++
++	switch (event) {
++		case STATE_NOTIFIER_ACTIVE:
++			msm_hotplug_resume();
++			break;
++		case STATE_NOTIFIER_SUSPEND:
++			msm_hotplug_suspend();
++			break;
++		default:
++			break;
++	}
++
++	return NOTIFY_OK;
++}
++#endif
++
++static void hotplug_input_event(struct input_handle *handle, unsigned int type,
++				unsigned int code, int value)
++{
++	u64 now;
++
++	if (hotplug.suspended) {
++		dprintk("%s: suspended.\n", MSM_HOTPLUG);
++		return;
++	}
++
++	now = ktime_to_us(ktime_get());
++	hotplug.last_input = now;
++	if (now - last_boost_time < MIN_INPUT_INTERVAL)
++		return;
++
++	if (num_online_cpus() >= hotplug.cpus_boosted ||
++		hotplug.cpus_boosted <= hotplug.min_cpus_online)
++		return;
++
++	dprintk("%s: online_cpus: %u boosted\n", MSM_HOTPLUG,
++		stats.online_cpus);
++
++	online_cpu(hotplug.cpus_boosted);
++	last_boost_time = ktime_to_us(ktime_get());
++}
++
++static int hotplug_input_connect(struct input_handler *handler,
++				 struct input_dev *dev,
++				 const struct input_device_id *id)
++{
++	struct input_handle *handle;
++	int err;
++
++	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
++	if (!handle)
++		return -ENOMEM;
++
++	handle->dev = dev;
++	handle->handler = handler;
++	handle->name = handler->name;
++
++	err = input_register_handle(handle);
++	if (err)
++		goto err_register;
++
++	err = input_open_device(handle);
++	if (err)
++		goto err_open;
++
++	return 0;
++err_open:
++	input_unregister_handle(handle);
++err_register:
++	kfree(handle);
++	return err;
++}
++
++static void hotplug_input_disconnect(struct input_handle *handle)
++{
++	input_close_device(handle);
++	input_unregister_handle(handle);
++	kfree(handle);
++}
++
++static const struct input_device_id hotplug_ids[] = {
++	{
++		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
++			 INPUT_DEVICE_ID_MATCH_ABSBIT,
++		.evbit = { BIT_MASK(EV_ABS) },
++		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
++			    BIT_MASK(ABS_MT_POSITION_X) |
++			    BIT_MASK(ABS_MT_POSITION_Y) },
++	}, /* multi-touch touchscreen */
++	{
++		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT |
++			 INPUT_DEVICE_ID_MATCH_ABSBIT,
++		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
++		.absbit = { [BIT_WORD(ABS_X)] =
++			    BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
++	}, /* touchpad */
++	{ },
++};
++
++static struct input_handler hotplug_input_handler = {
++	.event		= hotplug_input_event,
++	.connect	= hotplug_input_connect,
++	.disconnect	= hotplug_input_disconnect,
++	.name		= MSM_HOTPLUG,
++	.id_table	= hotplug_ids,
++};
++
++static int __ref msm_hotplug_start(void)
++{
++	int cpu, ret = 0;
++	struct down_lock *dl;
++
++	hotplug_wq =
++	    alloc_workqueue("msm_hotplug_wq", WQ_HIGHPRI | WQ_FREEZABLE, 0);
++	if (!hotplug_wq) {
++		pr_err("%s: Failed to allocate hotplug workqueue\n",
++		       MSM_HOTPLUG);
++		ret = -ENOMEM;
++		goto err_out;
++	}
++
++#ifdef CONFIG_STATE_NOTIFIER
++	hotplug.notif.notifier_call = state_notifier_callback;
++	if (state_register_client(&hotplug.notif)) {
++		pr_err("%s: Failed to register State notifier callback\n",
++			MSM_HOTPLUG);
++		goto err_dev;
++	}
++#endif
++
++	ret = input_register_handler(&hotplug_input_handler);
++	if (ret) {
++		pr_err("%s: Failed to register input handler: %d\n",
++		       MSM_HOTPLUG, ret);
++		goto err_dev;
++	}
++
++	stats.load_hist = kmalloc(sizeof(stats.hist_size), GFP_KERNEL);
++	if (!stats.load_hist) {
++		pr_err("%s: Failed to allocate memory\n", MSM_HOTPLUG);
++		ret = -ENOMEM;
++		goto err_dev;
++	}
++
++	mutex_init(&stats.stats_mutex);
++	mutex_init(&hotplug.msm_hotplug_mutex);
++
++	INIT_DELAYED_WORK(&hotplug_work, msm_hotplug_work);
++	INIT_WORK(&hotplug.up_work, cpu_up_work);
++	INIT_WORK(&hotplug.down_work, cpu_down_work);
++	for_each_possible_cpu(cpu) {
++		dl = &per_cpu(lock_info, cpu);
++		INIT_DELAYED_WORK(&dl->lock_rem, remove_down_lock);
++	}
++
++	/* Fire up all CPUs */
++	for_each_cpu_not(cpu, cpu_online_mask) {
++		if (cpu == 0)
++			continue;
++		cpu_up(cpu);
++		apply_down_lock(cpu);
++	}
++
++	queue_delayed_work_on(0, hotplug_wq, &hotplug_work,
++			      START_DELAY);
++
++	return ret;
++err_dev:
++	destroy_workqueue(hotplug_wq);
++err_out:
++	hotplug.msm_enabled = 0;
++	return ret;
++}
++
++static void msm_hotplug_stop(void)
++{
++	int cpu;
++	struct down_lock *dl;
++
++	flush_workqueue(hotplug_wq);
++	for_each_possible_cpu(cpu) {
++		dl = &per_cpu(lock_info, cpu);
++		cancel_delayed_work_sync(&dl->lock_rem);
++	}
++	cancel_work_sync(&hotplug.down_work);
++	cancel_work_sync(&hotplug.up_work);
++	cancel_delayed_work_sync(&hotplug_work);
++
++	mutex_destroy(&hotplug.msm_hotplug_mutex);
++	mutex_destroy(&stats.stats_mutex);
++	kfree(stats.load_hist);
++
++#ifdef CONFIG_STATE_NOTIFIER
++	state_unregister_client(&hotplug.notif);
++#endif
++	hotplug.notif.notifier_call = NULL;
++	input_unregister_handler(&hotplug_input_handler);
++
++	destroy_workqueue(hotplug_wq);
++
++	fast_lane_mode = false;
++
++	/* Put all sibling cores to sleep */
++	for_each_online_cpu(cpu) {
++		if (cpu == 0)
++			continue;
++		cpu_down(cpu);
++	}
++}
++
++static unsigned int *get_tokenized_data(const char *buf, int *num_tokens)
++{
++	const char *cp;
++	int i;
++	int ntokens = 1;
++	int *tokenized_data;
++	int err = -EINVAL;
++
++	cp = buf;
++	while ((cp = strpbrk(cp + 1, " :")))
++		ntokens++;
++
++	if (!(ntokens & 0x1))
++		goto err;
++
++	tokenized_data = kmalloc(ntokens * sizeof(int), GFP_KERNEL);
++	if (!tokenized_data) {
++		err = -ENOMEM;
++		goto err;
++	}
++
++	cp = buf;
++	i = 0;
++	while (i < ntokens) {
++		if (sscanf(cp, "%d", &tokenized_data[i++]) != 1)
++			goto err_kfree;
++
++		cp = strpbrk(cp, " :");
++		if (!cp)
++			break;
++		cp++;
++	}
++
++	if (i != ntokens)
++		goto err_kfree;
++
++	*num_tokens = ntokens;
++	return tokenized_data;
++
++err_kfree:
++	kfree(tokenized_data);
++err:
++	return ERR_PTR(err);
++}
++
++/************************** sysfs interface ************************/
++
++static ssize_t show_enable_hotplug(struct device *dev,
++				   struct device_attribute *msm_hotplug_attrs,
++				   char *buf)
++{
++	return sprintf(buf, "%u\n", hotplug.msm_enabled);
++}
++
++static ssize_t store_enable_hotplug(struct device *dev,
++				    struct device_attribute *msm_hotplug_attrs,
++				    const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1 || val < 0 || val > 1)
++		return -EINVAL;
++
++	if (val == hotplug.msm_enabled)
++		return count;
++
++	hotplug.msm_enabled = val;
++
++	if (hotplug.msm_enabled)
++		ret = msm_hotplug_start();
++	else
++		msm_hotplug_stop();
++
++	return count;
++}
++
++static ssize_t show_down_lock_duration(struct device *dev,
++				       struct device_attribute
++				       *msm_hotplug_attrs, char *buf)
++{
++	return sprintf(buf, "%u\n", hotplug.down_lock_dur);
++}
++
++static ssize_t store_down_lock_duration(struct device *dev,
++					struct device_attribute
++					*msm_hotplug_attrs, const char *buf,
++					size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1)
++		return -EINVAL;
++
++	hotplug.down_lock_dur = val;
++
++	return count;
++}
++
++static ssize_t show_boost_lock_duration(struct device *dev,
++				        struct device_attribute
++				        *msm_hotplug_attrs, char *buf)
++{
++	return sprintf(buf, "%llu\n", div_u64(hotplug.boost_lock_dur, 1000));
++}
++
++static ssize_t store_boost_lock_duration(struct device *dev,
++					 struct device_attribute
++					 *msm_hotplug_attrs, const char *buf,
++					 size_t count)
++{
++	int ret;
++	u64 val;
++
++	ret = sscanf(buf, "%llu", &val);
++	if (ret != 1)
++		return -EINVAL;
++
++	hotplug.boost_lock_dur = val * 1000;
++
++	return count;
++}
++
++static ssize_t show_update_rates(struct device *dev,
++				struct device_attribute *msm_hotplug_attrs,
++				char *buf)
++{
++	int i;
++	ssize_t ret = 0;
++	unsigned long flags;
++
++	spin_lock_irqsave(&stats.update_rates_lock, flags);
++
++	for (i = 0; i < stats.nupdate_rates; i++)
++		ret += sprintf(buf + ret, "%u%s", stats.update_rates[i],
++			       i & 0x1 ? ":" : " ");
++
++	sprintf(buf + ret - 1, "\n");
++	spin_unlock_irqrestore(&stats.update_rates_lock, flags);
++	return ret;
++}
++
++static ssize_t store_update_rates(struct device *dev,
++				 struct device_attribute *msm_hotplug_attrs,
++				 const char *buf, size_t count)
++{
++	int ntokens;
++	unsigned int *new_update_rates = NULL;
++	unsigned long flags;
++
++	new_update_rates = get_tokenized_data(buf, &ntokens);
++	if (IS_ERR(new_update_rates))
++		return PTR_RET(new_update_rates);
++
++	spin_lock_irqsave(&stats.update_rates_lock, flags);
++	if (stats.update_rates != default_update_rates)
++		kfree(stats.update_rates);
++	stats.update_rates = new_update_rates;
++	stats.nupdate_rates = ntokens;
++	spin_unlock_irqrestore(&stats.update_rates_lock, flags);
++	return count;
++}
++
++static ssize_t show_load_levels(struct device *dev,
++				struct device_attribute *msm_hotplug_attrs,
++				char *buf)
++{
++	int i, len = 0;
++
++	if (!buf)
++		return -EINVAL;
++
++	for (i = 0; loads[i].up_threshold; i++) {
++		len += sprintf(buf + len, "%u ", i);
++		len += sprintf(buf + len, "%u ", loads[i].up_threshold);
++		len += sprintf(buf + len, "%u\n", loads[i].down_threshold);
++	}
++
++	return len;
++}
++
++static ssize_t store_load_levels(struct device *dev,
++				 struct device_attribute *msm_hotplug_attrs,
++				 const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val[3];
++
++	ret = sscanf(buf, "%u %u %u", &val[0], &val[1], &val[2]);
++	if (ret != ARRAY_SIZE(val) || val[2] > val[1])
++		return -EINVAL;
++
++	loads[val[0]].up_threshold = val[1];
++	loads[val[0]].down_threshold = val[2];
++
++	return count;
++}
++
++static ssize_t show_min_cpus_online(struct device *dev,
++				    struct device_attribute *msm_hotplug_attrs,
++				    char *buf)
++{
++	return sprintf(buf, "%u\n", hotplug.min_cpus_online);
++}
++
++static ssize_t store_min_cpus_online(struct device *dev,
++				     struct device_attribute *msm_hotplug_attrs,
++				     const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1 || val < 1 || val > stats.total_cpus)
++		return -EINVAL;
++
++	if (hotplug.max_cpus_online < val)
++		hotplug.max_cpus_online = val;
++
++	hotplug.min_cpus_online = val;
++
++	return count;
++}
++
++static ssize_t show_max_cpus_online(struct device *dev,
++				    struct device_attribute *msm_hotplug_attrs,
++				    char *buf)
++{
++	return sprintf(buf, "%u\n",hotplug.max_cpus_online);
++}
++
++static ssize_t store_max_cpus_online(struct device *dev,
++				     struct device_attribute *msm_hotplug_attrs,
++				     const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1 || val < 1 || val > stats.total_cpus)
++		return -EINVAL;
++
++	if (hotplug.min_cpus_online > val)
++		hotplug.min_cpus_online = val;
++
++	hotplug.max_cpus_online = val;
++
++	return count;
++}
++
++static ssize_t show_max_cpus_online_susp(struct device *dev,
++				    struct device_attribute *msm_hotplug_attrs,
++				    char *buf)
++{
++	return sprintf(buf, "%u\n",hotplug.max_cpus_online_susp);
++}
++
++static ssize_t store_max_cpus_online_susp(struct device *dev,
++				     struct device_attribute *msm_hotplug_attrs,
++				     const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1 || val < 1 || val > stats.total_cpus)
++		return -EINVAL;
++
++	hotplug.max_cpus_online_susp = val;
++
++	return count;
++}
++
++static ssize_t show_cpus_boosted(struct device *dev,
++				 struct device_attribute *msm_hotplug_attrs,
++				 char *buf)
++{
++	return sprintf(buf, "%u\n", hotplug.cpus_boosted);
++}
++
++static ssize_t store_cpus_boosted(struct device *dev,
++				  struct device_attribute *msm_hotplug_attrs,
++				  const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1 || val < 1 || val > stats.total_cpus)
++		return -EINVAL;
++
++	hotplug.cpus_boosted = val;
++
++	return count;
++}
++
++static ssize_t show_offline_load(struct device *dev,
++				 struct device_attribute *msm_hotplug_attrs,
++				 char *buf)
++{
++	return sprintf(buf, "%u\n", hotplug.offline_load);
++}
++
++static ssize_t store_offline_load(struct device *dev,
++				  struct device_attribute *msm_hotplug_attrs,
++				  const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1)
++		return -EINVAL;
++
++	hotplug.offline_load = val;
++
++	return count;
++}
++
++static ssize_t show_fast_lane_load(struct device *dev,
++				   struct device_attribute *msm_hotplug_attrs,
++				   char *buf)
++{
++	return sprintf(buf, "%u\n", hotplug.fast_lane_load);
++}
++
++static ssize_t store_fast_lane_load(struct device *dev,
++				    struct device_attribute *msm_hotplug_attrs,
++				    const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1)
++		return -EINVAL;
++
++	hotplug.fast_lane_load = val;
++
++	return count;
++}
++
++static ssize_t show_io_is_busy(struct device *dev,
++				   struct device_attribute *msm_hotplug_attrs,
++				   char *buf)
++{
++	return sprintf(buf, "%u\n", io_is_busy);
++}
++
++static ssize_t store_io_is_busy(struct device *dev,
++				    struct device_attribute *msm_hotplug_attrs,
++				    const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1 || val < 0 || val > 1)
++		return -EINVAL;
++
++	io_is_busy = val ? true : false;
++
++	return count;
++}
++
++static ssize_t show_current_load(struct device *dev,
++				 struct device_attribute *msm_hotplug_attrs,
++				 char *buf)
++{
++	return sprintf(buf, "%u\n", stats.cur_avg_load);
++}
++
++static DEVICE_ATTR(msm_enabled, 644, show_enable_hotplug, store_enable_hotplug);
++static DEVICE_ATTR(down_lock_duration, 644, show_down_lock_duration,
++		   store_down_lock_duration);
++static DEVICE_ATTR(boost_lock_duration, 644, show_boost_lock_duration,
++		   store_boost_lock_duration);
++static DEVICE_ATTR(update_rates, 644, show_update_rates, store_update_rates);
++static DEVICE_ATTR(load_levels, 644, show_load_levels, store_load_levels);
++static DEVICE_ATTR(min_cpus_online, 644, show_min_cpus_online,
++		   store_min_cpus_online);
++static DEVICE_ATTR(max_cpus_online, 644, show_max_cpus_online,
++		   store_max_cpus_online);
++static DEVICE_ATTR(max_cpus_online_susp, 644, show_max_cpus_online_susp,
++		   store_max_cpus_online_susp);
++static DEVICE_ATTR(cpus_boosted, 644, show_cpus_boosted, store_cpus_boosted);
++static DEVICE_ATTR(offline_load, 644, show_offline_load, store_offline_load);
++static DEVICE_ATTR(fast_lane_load, 644, show_fast_lane_load,
++		   store_fast_lane_load);
++static DEVICE_ATTR(io_is_busy, 644, show_io_is_busy, store_io_is_busy);
++static DEVICE_ATTR(current_load, 444, show_current_load, NULL);
++
++static struct attribute *msm_hotplug_attrs[] = {
++	&dev_attr_msm_enabled.attr,
++	&dev_attr_down_lock_duration.attr,
++	&dev_attr_boost_lock_duration.attr,
++	&dev_attr_update_rates.attr,
++	&dev_attr_load_levels.attr,
++	&dev_attr_min_cpus_online.attr,
++	&dev_attr_max_cpus_online.attr,
++	&dev_attr_max_cpus_online_susp.attr,
++	&dev_attr_cpus_boosted.attr,
++	&dev_attr_offline_load.attr,
++	&dev_attr_fast_lane_load.attr,
++	&dev_attr_io_is_busy.attr,
++	&dev_attr_current_load.attr,
++	NULL,
++};
++
++static struct attribute_group attr_group = {
++	.attrs = msm_hotplug_attrs,
++};
++
++/************************** sysfs end ************************/
++
++static int msm_hotplug_probe(struct platform_device *pdev)
++{
++	int ret = 0;
++	struct kobject *module_kobj;
++
++	module_kobj = kset_find_obj(module_kset, MSM_HOTPLUG);
++	if (!module_kobj) {
++		pr_err("%s: Cannot find kobject for module\n", MSM_HOTPLUG);
++		goto err_dev;
++	}
++
++	ret = sysfs_create_group(module_kobj, &attr_group);
++	if (ret) {
++		pr_err("%s: Failed to create sysfs: %d\n", MSM_HOTPLUG, ret);
++		goto err_dev;
++	}
++
++	if (hotplug.msm_enabled) {
++		ret = msm_hotplug_start();
++		if (ret != 0)
++			goto err_dev;
++	}
++
++	return ret;
++err_dev:
++	module_kobj = NULL;
++	return ret;
++}
++
++static struct platform_device msm_hotplug_device = {
++	.name = MSM_HOTPLUG,
++	.id = -1,
++};
++
++static int msm_hotplug_remove(struct platform_device *pdev)
++{
++	if (hotplug.msm_enabled)
++		msm_hotplug_stop();
++
++	return 0;
++}
++
++static struct platform_driver msm_hotplug_driver = {
++	.probe = msm_hotplug_probe,
++	.remove = msm_hotplug_remove,
++	.driver = {
++		.name = MSM_HOTPLUG,
++		.owner = THIS_MODULE,
++	},
++};
++
++static int __init msm_hotplug_init(void)
++{
++	int ret;
++
++	ret = platform_driver_register(&msm_hotplug_driver);
++	if (ret) {
++		pr_err("%s: Driver register failed: %d\n", MSM_HOTPLUG, ret);
++		return ret;
++	}
++
++	ret = platform_device_register(&msm_hotplug_device);
++	if (ret) {
++		pr_err("%s: Device register failed: %d\n", MSM_HOTPLUG, ret);
++		return ret;
++	}
++
++	pr_info("%s: Device init\n", MSM_HOTPLUG);
++
++	return ret;
++}
++
++static void __exit msm_hotplug_exit(void)
++{
++	platform_device_unregister(&msm_hotplug_device);
++	platform_driver_unregister(&msm_hotplug_driver);
++}
++
++late_initcall(msm_hotplug_init);
++module_exit(msm_hotplug_exit);
++
++MODULE_AUTHOR("Pranav Vashi <neobuddy89@gmail.com>");
++MODULE_DESCRIPTION("MSM Hotplug Driver");
++MODULE_LICENSE("GPLv2");
+diff --git a/arch/arm/mach-msm/msm_rq_stats.c b/arch/arm/mach-msm/msm_rq_stats.c
+index ed570dc..d43b1c7 100755
+--- a/arch/arm/mach-msm/msm_rq_stats.c
++++ b/arch/arm/mach-msm/msm_rq_stats.c
+@@ -259,6 +259,24 @@ static struct kobj_attribute hotplug_enabled_attr =
+ 	__ATTR(hotplug_enable, S_IWUSR | S_IRUSR, show_hotplug_enable,
+ 	       store_hotplug_enable);
+ 
++#ifdef CONFIG_BRICKED_HOTPLUG
++unsigned int get_rq_info(void)
++{
++	unsigned long flags = 0;
++        unsigned int rq = 0;
++
++        spin_lock_irqsave(&rq_lock, flags);
++
++        rq = rq_info.rq_avg;
++        rq_info.rq_avg = 0;
++
++        spin_unlock_irqrestore(&rq_lock, flags);
++
++        return rq;
++}
++EXPORT_SYMBOL(get_rq_info);
++#endif
++
+ static void def_work_fn(struct work_struct *work)
+ {
+ 	int64_t diff;
+@@ -418,8 +436,8 @@ static int __init msm_rq_stats_init(void)
+ 	rq_info.def_timer_jiffies = DEFAULT_DEF_TIMER_JIFFIES;
+ 	rq_info.rq_poll_last_jiffy = 0;
+ 	rq_info.def_timer_last_jiffy = 0;
+-	rq_info.hotplug_disabled = 1;
+-	rq_info.hotplug_enabled = 0;
++	rq_info.hotplug_disabled = 0;
++	rq_info.hotplug_enabled = 1;
+ 	ret = init_rq_attribs();
+ 
+ 	rq_info.init = 1;
+@@ -457,4 +475,4 @@ static int __init msm_rq_stats_early_init(void)
+ 	pm_notifier(system_suspend_handler, 0);
+ 	return 0;
+ }
+-core_initcall(msm_rq_stats_early_init);
++core_initcall(msm_rq_stats_early_init);
+\ No newline at end of file
+diff --git a/arch/arm/mach-msm/msm_sleeper.c b/arch/arm/mach-msm/msm_sleeper.c
+new file mode 100644
+index 0000000..46c0736
+--- /dev/null
++++ b/arch/arm/mach-msm/msm_sleeper.c
+@@ -0,0 +1,510 @@
++/*
++ * msm-sleeper.c
++ *
++ * Copyright (C) 2015 Aaron Segaert <asegaert@gmail.com>
++ *
++ * This software is licensed under the terms of the GNU General Public
++ * License version 2, as published by the Free Software Foundation, and
++ * may be copied, distributed, and modified under those terms.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ */
++
++#include <linux/workqueue.h>
++#include <linux/cpu.h>
++#include <linux/cpufreq.h>
++#include <linux/fb.h>
++#include <linux/platform_device.h>
++
++#define MSM_SLEEPER "msm_sleeper"
++#define MSM_SLEEPER_MAJOR_VERSION	4
++#define MSM_SLEEPER_MINOR_VERSION	1
++#define MSM_SLEEPER_ENABLED		0
++#define MSM_SLEEPER_DEBUG		0
++#define DELAY				HZ
++#define DEF_UP_THRESHOLD		85
++#define DEF_MAX_ONLINE			4
++#define DEF_DOWN_COUNT_MAX		10 /* 1 sec */
++#define DEF_UP_COUNT_MAX		5 /* 0.5 sec */
++#define DEF_SUSPEND_MAX_ONLINE		4
++#define DEF_PLUG_ALL			1
++
++struct msm_sleeper_data {
++	unsigned int enabled;
++	unsigned int delay;
++	unsigned int up_threshold;
++	unsigned int max_online;
++	unsigned int down_count;
++	unsigned int up_count;
++	unsigned int down_count_max;
++	unsigned int up_count_max;
++	bool suspended;
++	unsigned int suspend_max_online;
++	bool plug_all;
++	struct notifier_block notif;
++	struct work_struct suspend_work;
++	struct work_struct resume_work;
++} sleeper_data = {
++	.enabled = MSM_SLEEPER_ENABLED, 
++	.delay = DELAY,
++	.up_threshold = DEF_UP_THRESHOLD,
++	.max_online = DEF_MAX_ONLINE,
++	.down_count_max = DEF_DOWN_COUNT_MAX,
++	.up_count_max = DEF_UP_COUNT_MAX,
++	.suspended = false,
++	.suspend_max_online = DEF_SUSPEND_MAX_ONLINE,
++	.plug_all = DEF_PLUG_ALL
++};
++
++static struct workqueue_struct *sleeper_wq;
++static struct delayed_work sleeper_work;
++
++static inline void plug_cpu(void)
++{
++	unsigned int cpu;
++
++	if (num_online_cpus() == sleeper_data.max_online)
++		goto reset;
++
++	cpu = cpumask_next_zero(0, cpu_online_mask);
++	if (cpu < nr_cpu_ids)
++		cpu_up(cpu);
++		
++reset:
++	sleeper_data.down_count = 0;
++	sleeper_data.up_count = 0;
++}
++
++static inline void unplug_cpu(void)
++{
++	unsigned int cpu, low_cpu = 0, low_freq = ~0;
++
++	if (num_online_cpus() == 2)
++		goto reset;
++
++	get_online_cpus();
++	for_each_online_cpu(cpu) {
++		if (cpu > 1) {
++			unsigned int curfreq = cpufreq_quick_get(cpu);
++			if (low_freq > curfreq) {
++				low_freq = curfreq;
++				low_cpu = cpu;
++			}
++		}
++	}
++	put_online_cpus();
++
++	cpu_down(low_cpu);
++
++reset:
++	sleeper_data.down_count = 0;
++	sleeper_data.up_count = 0;
++}
++
++static void reschedule_timer (void)
++{
++	queue_delayed_work_on(0, sleeper_wq, &sleeper_work, msecs_to_jiffies(sleeper_data.delay));
++}
++
++static void __ref hotplug_func(struct work_struct *work)
++{
++	unsigned int cpu, loadavg = 0;
++
++	if (sleeper_data.suspended || sleeper_data.max_online == 2)
++		goto reschedule;
++
++	if (sleeper_data.plug_all) {
++		if (num_online_cpus() < nr_cpu_ids)
++			plug_cpu();
++		goto reschedule;
++	}
++
++	for_each_online_cpu(cpu)
++		loadavg += cpufreq_quick_get_util(cpu);
++
++	loadavg /= num_online_cpus();
++	
++	if (loadavg >= sleeper_data.up_threshold) {
++		++sleeper_data.up_count;
++		if (sleeper_data.up_count > sleeper_data.up_count_max)
++			plug_cpu();
++	} else if (loadavg > 95 && sleeper_data.up_count >= 2) {
++		++sleeper_data.up_count;
++		plug_cpu();
++	} else {
++		++sleeper_data.down_count;
++		if (sleeper_data.down_count > sleeper_data.down_count_max)
++			unplug_cpu();
++	}
++
++#if MSM_SLEEPER_DEBUG
++	pr_info("msm-sleeper: loadavg: %u, online: %u, up_count: %u, down_count: %u\n",
++		loadavg, num_online_cpus(), sleeper_data.up_count, sleeper_data.down_count);
++#endif
++
++reschedule:		
++	reschedule_timer();
++}
++
++static void msm_sleeper_suspend(struct work_struct *work)
++{
++	int cpu;
++	
++	sleeper_data.suspended = true;
++	
++	for_each_possible_cpu(cpu) {
++		if (sleeper_data.suspend_max_online == num_online_cpus())
++			break;
++			
++		if (cpu && cpu_online(cpu))
++			cpu_down(cpu);
++	}
++}
++
++static void __ref msm_sleeper_resume(struct work_struct *work)
++{
++	int cpu;
++
++	sleeper_data.suspended = false;
++	
++
++	if (sleeper_data.max_online == 2) {
++		if (cpu_is_offline(1)) {
++			cpu_up(1);
++		}
++	} else if (sleeper_data.plug_all) {
++		for_each_possible_cpu(cpu) {
++			if (cpu && cpu_is_offline(cpu)) {
++				cpu_up(cpu);
++			}
++		}
++	} 
++}
++
++static int fb_notifier_callback(struct notifier_block *this,
++				unsigned long event, void *data)
++{
++	struct fb_event *evdata = data;
++	int *blank;
++
++	if (!sleeper_data.enabled)
++		return NOTIFY_OK;
++
++	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
++		blank = evdata->data;
++		switch (*blank) {
++			case FB_BLANK_UNBLANK:
++				//display on
++				queue_work_on(0, sleeper_wq, &sleeper_data.resume_work);
++				break;
++			case FB_BLANK_POWERDOWN:
++			case FB_BLANK_HSYNC_SUSPEND:
++			case FB_BLANK_VSYNC_SUSPEND:
++			case FB_BLANK_NORMAL:
++				//display off
++				queue_work_on(0, sleeper_wq, &sleeper_data.suspend_work);
++				break;
++		}
++	}
++
++	return NOTIFY_OK;
++}
++
++static ssize_t show_enable_hotplug(struct device *dev,
++				   struct device_attribute *msm_sleeper_attrs, char *buf)
++{
++	return snprintf(buf, PAGE_SIZE, "%u\n", sleeper_data.enabled);
++}
++
++static ssize_t __ref store_enable_hotplug(struct device *dev,
++				    struct device_attribute *msm_sleeper_attrs,
++				    const char *buf, size_t count)
++{
++	int ret, cpu;
++	unsigned long val;
++	
++	ret = kstrtoul(buf, 0, &val);
++	if (ret < 0)
++		return ret;
++	
++	sleeper_data.enabled = val;
++
++	if (sleeper_data.enabled) {
++		reschedule_timer();
++	} else {
++		flush_workqueue(sleeper_wq);
++		cancel_delayed_work_sync(&sleeper_work);
++
++		for_each_possible_cpu(cpu)
++			if (cpu_is_offline(cpu))
++				cpu_up(cpu);
++	}
++
++	return count;
++}
++
++static ssize_t show_plug_all(struct device *dev,
++				    struct device_attribute *msm_sleeper_attrs,
++				    char *buf)
++{
++	return snprintf(buf, PAGE_SIZE, "%u\n", sleeper_data.plug_all);
++}
++
++static ssize_t store_plug_all(struct device *dev,
++				     struct device_attribute *msm_sleeper_attrs,
++				     const char *buf, size_t count)
++{
++	int ret;
++	unsigned long val;
++
++	ret = kstrtoul(buf, 0, &val);
++	if (ret < 0 || val > 1)
++		return -EINVAL;
++
++	sleeper_data.plug_all = val;
++
++	return count;
++}
++
++static ssize_t show_max_online(struct device *dev,
++				    struct device_attribute *msm_sleeper_attrs,
++				    char *buf)
++{
++	return snprintf(buf, PAGE_SIZE, "%u\n", sleeper_data.max_online);
++}
++
++static ssize_t store_max_online(struct device *dev,
++				     struct device_attribute *msm_sleeper_attrs,
++				     const char *buf, size_t count)
++{
++	int ret, cpu;
++	unsigned long val;
++
++	ret = kstrtoul(buf, 0, &val);
++	if (ret < 0 || val < 2 || val > NR_CPUS)
++		return -EINVAL;
++	
++	for_each_possible_cpu(cpu) {
++		if (cpu >= val)
++			if (cpu_online(cpu))
++				cpu_down(cpu);
++	}
++
++	sleeper_data.max_online = val;
++
++	return count;
++}
++
++static ssize_t show_suspend_max_online(struct device *dev,
++				    struct device_attribute *msm_sleeper_attrs,
++				    char *buf)
++{
++	return snprintf(buf, PAGE_SIZE, "%u\n", sleeper_data.suspend_max_online);
++}
++
++static ssize_t store_suspend_max_online(struct device *dev,
++				     struct device_attribute *msm_sleeper_attrs,
++				     const char *buf, size_t count)
++{
++	int ret;
++	unsigned long val;
++
++	ret = kstrtoul(buf, 0, &val);
++	if (ret < 0 || val < 1 || val > NR_CPUS)
++		return -EINVAL;
++
++	sleeper_data.suspend_max_online = val;
++
++	return count;
++}
++
++static ssize_t show_up_threshold(struct device *dev,
++				    struct device_attribute *msm_sleeper_attrs,
++				    char *buf)
++{
++	return snprintf(buf, PAGE_SIZE, "%u\n", sleeper_data.up_threshold);
++}
++
++static ssize_t store_up_threshold(struct device *dev,
++				     struct device_attribute *msm_sleeper_attrs,
++				     const char *buf, size_t count)
++{
++	int ret;
++	unsigned long val;
++
++	ret = kstrtoul(buf, 0, &val);
++	if (ret < 0)
++		return -EINVAL;
++
++	sleeper_data.up_threshold = val > 100 ? 100 : val;
++
++	return count;
++}
++
++static ssize_t show_up_count_max(struct device *dev,
++				    struct device_attribute *msm_sleeper_attrs,
++				    char *buf)
++{
++	return snprintf(buf, PAGE_SIZE, "%u\n", sleeper_data.up_count_max);
++}
++
++static ssize_t store_up_count_max(struct device *dev,
++				     struct device_attribute *msm_sleeper_attrs,
++				     const char *buf, size_t count)
++{
++	int ret;
++	unsigned long val;
++
++	ret = kstrtoul(buf, 0, &val);
++	if (ret < 0)
++		return -EINVAL;
++
++	sleeper_data.up_count_max = val > 40 ? 40 : val;
++
++	return count;
++}
++
++static ssize_t show_down_count_max(struct device *dev,
++				    struct device_attribute *msm_sleeper_attrs,
++				    char *buf)
++{
++	return snprintf(buf, PAGE_SIZE, "%u\n", sleeper_data.down_count_max);
++}
++
++
++static ssize_t store_down_count_max(struct device *dev,
++				     struct device_attribute *msm_sleeper_attrs,
++				     const char *buf, size_t count)
++{
++	int ret;
++	unsigned long val;
++
++	ret = kstrtoul(buf, 0, &val);
++	if (ret < 0)
++		return -EINVAL;
++
++	sleeper_data.down_count_max = val > 40 ? 40 : val;
++
++	return count;
++}
++
++static DEVICE_ATTR(enabled, 644, show_enable_hotplug, store_enable_hotplug);
++static DEVICE_ATTR(up_threshold, 644, show_up_threshold, store_up_threshold);
++static DEVICE_ATTR(plug_all, 644, show_plug_all, store_plug_all);
++static DEVICE_ATTR(max_online, 644, show_max_online, store_max_online);
++static DEVICE_ATTR(suspend_max_online, 644, show_suspend_max_online, store_suspend_max_online);
++static DEVICE_ATTR(up_count_max, 644, show_up_count_max, store_up_count_max);
++static DEVICE_ATTR(down_count_max, 644, show_down_count_max, store_down_count_max);
++
++static struct attribute *msm_sleeper_attrs[] = {
++	&dev_attr_up_threshold.attr,
++	&dev_attr_plug_all.attr,
++	&dev_attr_max_online.attr,
++	&dev_attr_suspend_max_online.attr,
++	&dev_attr_up_count_max.attr,
++	&dev_attr_down_count_max.attr,
++	&dev_attr_enabled.attr,
++	NULL
++};
++
++static struct attribute_group attr_group = {
++	.attrs = msm_sleeper_attrs,
++};
++
++static struct platform_device msm_sleeper_device = {
++	.name = MSM_SLEEPER,
++	.id = -1,
++};
++
++static int msm_sleeper_probe(struct platform_device *pdev)
++{
++	int ret = 0;
++
++	pr_info("msm-sleeper version %d.%d\n",
++		MSM_SLEEPER_MAJOR_VERSION,
++		MSM_SLEEPER_MINOR_VERSION);
++
++	sleeper_wq = alloc_workqueue("msm_sleeper_wq",
++				WQ_HIGHPRI | WQ_FREEZABLE, 0);
++	if (!sleeper_wq) {
++		ret = -ENOMEM;
++		goto err_out;
++	}
++
++	ret = sysfs_create_group(&pdev->dev.kobj, &attr_group);
++	if (ret) {
++		ret = -EINVAL;
++		goto err_dev;
++	}	
++
++	sleeper_data.notif.notifier_call = fb_notifier_callback;
++	if (fb_register_client(&sleeper_data.notif)) {
++		ret = -EINVAL;
++		goto err_dev;
++	}	
++	
++	INIT_WORK(&sleeper_data.resume_work, msm_sleeper_resume);
++	INIT_WORK(&sleeper_data.suspend_work, msm_sleeper_suspend);
++	INIT_DELAYED_WORK(&sleeper_work, hotplug_func);
++	
++	if (sleeper_data.enabled)
++		queue_delayed_work_on(0, sleeper_wq, &sleeper_work, HZ * 60);
++	
++	return ret;
++
++err_dev:
++	destroy_workqueue(sleeper_wq);
++
++err_out:
++	return ret;
++}
++
++static int msm_sleeper_remove(struct platform_device *pdev)
++{
++	destroy_workqueue(sleeper_wq);
++
++	return 0;
++}
++
++static struct platform_driver msm_sleeper_driver = {
++	.probe = msm_sleeper_probe,
++	.remove = msm_sleeper_remove,
++	.driver = {
++		.name = MSM_SLEEPER,
++		.owner = THIS_MODULE,
++	},
++};
++
++static int __init msm_sleeper_init(void)
++{
++	int ret;
++
++	ret = platform_driver_register(&msm_sleeper_driver);
++	if (ret) {
++		pr_err("%s: Driver register failed: %d\n", MSM_SLEEPER, ret);
++		return ret;
++	}
++
++	ret = platform_device_register(&msm_sleeper_device);
++	if (ret) {
++		pr_err("%s: Device register failed: %d\n", MSM_SLEEPER, ret);
++		return ret;
++	}
++
++	pr_info("%s: Device init\n", MSM_SLEEPER);
++
++	return ret;
++}
++
++static void __exit msm_sleeper_exit(void)
++{
++	platform_device_unregister(&msm_sleeper_device);
++	platform_driver_unregister(&msm_sleeper_driver);
++}
++
++late_initcall(msm_sleeper_init);
++module_exit(msm_sleeper_exit);
+diff --git a/arch/arm/mach-msm/msm_zen_decision.c b/arch/arm/mach-msm/msm_zen_decision.c
+new file mode 100644
+index 0000000..1113e41
+--- /dev/null
++++ b/arch/arm/mach-msm/msm_zen_decision.c
+@@ -0,0 +1,350 @@
++/* linux/arch/arm/mach-msm/msm_zen_decision.c
++ *
++ * In-kernel solution to replace CPU hotplug work that breaks from
++ * disabling certain MSM userspace applications.
++ *
++ * Copyright (c) 2015 Brandon Berhent
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 and
++ * only version 2 as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#include <linux/module.h>
++#include <linux/kobject.h>
++#include <linux/sysfs.h>
++#include <linux/cpu.h>
++#include <linux/cpumask.h>
++#include <linux/fb.h>
++#include <linux/notifier.h>
++#include <linux/platform_device.h>
++#include <linux/workqueue.h>
++#include <linux/power_supply.h>
++
++#define ZEN_DECISION "zen_decision"
++
++/*
++ * Enable/Disable driver
++ */
++unsigned int enabled = 0;
++
++/*
++ * How long to wait to enable cores on wake (in ms)
++ */
++#define WAKE_WAIT_TIME_MAX 60000 // 1 minute maximum
++unsigned int wake_wait_time = 1000;
++
++/*
++ * Battery level threshold to ignore UP operations.
++ * Only do CPU_UP work when battery level is above this value.
++ *
++ * Setting to 0 will do CPU_UP work regardless of battery level.
++ */
++unsigned int bat_threshold_ignore = 15;
++
++/* FB Notifier */
++static struct notifier_block fb_notifier;
++
++/* Worker Stuff */
++static struct workqueue_struct *zen_wake_wq;
++static struct delayed_work wake_work;
++
++/* Sysfs stuff */
++struct kobject *zendecision_kobj;
++
++/* Power supply information */
++static struct power_supply *psy;
++union power_supply_propval current_charge;
++
++/*
++ * Some devices may have a different name power_supply device representing the battery.
++ *
++ * If we can't find the "battery" device, then we ignore all battery work, which means
++ * we do the CPU_UP work regardless of the battery level.
++ */
++const char ps_name[] = "battery";
++
++static int get_power_supply_level(void)
++{
++	int ret;
++	if (!psy) {
++		ret = -ENXIO;
++		return ret;
++	}
++
++	/*
++	 * On at least some MSM devices POWER_SUPPLY_PROP_CAPACITY represents current
++	 * battery level as an integer between 0 and 100.
++	 *
++	 * Unknown if other devices use this property or a different one.
++	 */
++	ret = psy->get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &current_charge);
++	if (ret)
++		return ret;
++
++	return current_charge.intval;
++}
++
++/*
++ * msm_zd_online_cpus
++ *
++ * Core wake work function.
++ * Brings all CPUs online. Called from worker thread.
++ */
++static void __ref msm_zd_online_all_cpus(struct work_struct *work)
++{
++	int cpu;
++
++	for_each_cpu_not(cpu, cpu_online_mask) {
++		cpu_up(cpu);
++	}
++}
++
++/*
++ * msm_zd_queue_online_work
++ *
++ * Call msm_zd_online_all_cpus as a delayed worker thread on wake_wq.
++ * Delayed by wake_wait_time.
++ */
++static void msm_zd_queue_online_work(void)
++{
++	queue_delayed_work(zen_wake_wq, &wake_work,
++			msecs_to_jiffies(wake_wait_time));
++}
++
++/** Use FB notifiers to detect screen off/on and do the work **/
++static int fb_notifier_callback(struct notifier_block *nb,
++	unsigned long event, void *data)
++{
++	int *blank;
++	struct fb_event *evdata = data;
++
++	/* If driver is disabled just leave here */
++	if (!enabled)
++		return 0;
++
++	/* Clear wake workqueue of any pending threads */
++	flush_workqueue(zen_wake_wq);
++	cancel_delayed_work_sync(&wake_work);
++
++	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
++		blank = evdata->data;
++		if (*blank == FB_BLANK_UNBLANK) {
++			/* Always queue work if PS device doesn't exist or bat_threshold_ignore == 0 */
++			if (psy && bat_threshold_ignore) {
++				/* If current level > ignore threshold, then queue UP work */
++				if (get_power_supply_level() > bat_threshold_ignore)
++					msm_zd_queue_online_work();
++			} else
++				msm_zd_queue_online_work();
++		}
++	}
++
++	return 0;
++}
++
++/* Sysfs Start */
++static ssize_t enable_show(struct kobject *kobj,
++	struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%u\n", enabled);
++}
++
++static ssize_t enable_store(struct kobject *kobj,
++	struct kobj_attribute *attr, const char *buf, size_t size)
++{
++	int ret;
++	unsigned long new_val;
++
++	ret = kstrtoul(buf, 0, &new_val);
++	if (ret < 0)
++		return ret;
++
++	if (new_val > 0)
++		enabled = 1;
++	else
++		enabled = 0;
++
++	return size;
++}
++
++static ssize_t wake_delay_show(struct kobject *kobj,
++	struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%u\n", wake_wait_time);
++}
++
++static ssize_t wake_delay_store(struct kobject *kobj,
++	struct kobj_attribute *attr, const char *buf, size_t size)
++{
++	int ret;
++	unsigned long new_val;
++	ret = kstrtoul(buf, 0, &new_val);
++	if (ret < 0)
++		return ret;
++
++	/* Restrict value between 0 and WAKE_WAIT_TIME_MAX */
++	wake_wait_time = new_val > WAKE_WAIT_TIME_MAX ? WAKE_WAIT_TIME_MAX : new_val;
++
++	return size;
++}
++
++static ssize_t bat_threshold_ignore_show(struct kobject *kobj,
++	struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%u\n", bat_threshold_ignore);
++}
++
++static ssize_t bat_threshold_ignore_store(struct kobject *kobj,
++	struct kobj_attribute *attr, const char *buf, size_t size)
++{
++	int ret;
++	unsigned long new_val;
++	ret = kstrtoul(buf, 0, &new_val);
++	if (ret < 0)
++		return ret;
++
++	/* Restrict between 0 and 100 */
++	if (new_val > 100)
++		bat_threshold_ignore = 100;
++	else
++		bat_threshold_ignore = new_val;
++
++	return size;
++}
++
++static struct kobj_attribute kobj_enabled =
++	__ATTR(enabled, 0644, enable_show,
++		enable_store);
++
++static struct kobj_attribute kobj_wake_wait =
++	__ATTR(wake_wait_time, 0644, wake_delay_show,
++		wake_delay_store);
++
++static struct kobj_attribute kobj_bat_threshold_ignore =
++	__ATTR(bat_threshold_ignore, 0644, bat_threshold_ignore_show,
++		bat_threshold_ignore_store);
++
++static struct attribute *zd_attrs[] = {
++	&kobj_enabled.attr,
++	&kobj_wake_wait.attr,
++	&kobj_bat_threshold_ignore.attr,
++	NULL,
++};
++
++static struct attribute_group zd_option_group = {
++	.attrs = zd_attrs,
++};
++
++/* Sysfs End */
++
++static int zd_probe(struct platform_device *pdev)
++{
++	int ret;
++
++	/* Setup sysfs */
++	zendecision_kobj = kobject_create_and_add("zen_decision", kernel_kobj);
++	if (zendecision_kobj == NULL) {
++		pr_err("[%s]: subsystem register failed. \n", ZEN_DECISION);
++		return -ENOMEM;
++	}
++
++	ret = sysfs_create_group(zendecision_kobj, &zd_option_group);
++	if (ret) {
++		pr_info("[%s]: sysfs interface failed to initialize\n", ZEN_DECISION);
++		return -EINVAL;
++	}
++
++	/* Setup Workqueues */
++	zen_wake_wq = alloc_workqueue("zen_wake_wq", WQ_FREEZABLE | WQ_UNBOUND, 1);
++	if (!zen_wake_wq) {
++		pr_err("[%s]: Failed to allocate suspend workqueue\n", ZEN_DECISION);
++		return -ENOMEM;
++	}
++	INIT_DELAYED_WORK(&wake_work, msm_zd_online_all_cpus);
++
++	/* Setup FB Notifier */
++	fb_notifier.notifier_call = fb_notifier_callback;
++	if (fb_register_client(&fb_notifier)) {
++		pr_err("[%s]: failed to register FB notifier\n", ZEN_DECISION);
++		return -ENOMEM;
++	}
++
++	/* Setup power supply */
++	psy = power_supply_get_by_name(ps_name);
++	// We can continue without finding PS info, print debug info
++	if (!psy)
++		pr_warn("[%s]: power supply '%s' not found, continuing without \n", ZEN_DECISION, ps_name);
++	else
++		pr_info("[%s]: power supply '%s' found\n", ZEN_DECISION, ps_name);
++
++	/* Everything went well, lets say we loaded successfully */
++	pr_info("[%s]: driver initialized successfully \n", ZEN_DECISION);
++
++	return ret;
++}
++
++static int zd_remove(struct platform_device *pdev)
++{
++	kobject_put(zendecision_kobj);
++
++	flush_workqueue(zen_wake_wq);
++	cancel_delayed_work_sync(&wake_work);
++	destroy_workqueue(zen_wake_wq);
++
++	fb_unregister_client(&fb_notifier);
++	fb_notifier.notifier_call = NULL;
++
++	return 0;
++}
++
++static struct platform_driver zd_driver = {
++	.probe = zd_probe,
++	.remove = zd_remove,
++	.driver = {
++		.name = ZEN_DECISION,
++		.owner = THIS_MODULE,
++	}
++};
++
++static struct platform_device zd_device = {
++	.name = ZEN_DECISION,
++	.id = -1
++};
++
++static int __init zd_init(void)
++{
++	int ret = platform_driver_register(&zd_driver);
++	if (ret)
++		pr_err("[%s]: platform_driver_register failed: %d\n", ZEN_DECISION, ret);
++	else
++		pr_info("[%s]: platform_driver_register succeeded\n", ZEN_DECISION);
++
++
++	ret = platform_device_register(&zd_device);
++	if (ret)
++		pr_err("[%s]: platform_device_register failed: %d\n", ZEN_DECISION, ret);
++	else
++		pr_info("[%s]: platform_device_register succeeded\n", ZEN_DECISION);
++
++	return ret;
++}
++
++static void __exit zd_exit(void)
++{
++	platform_driver_unregister(&zd_driver);
++	platform_device_unregister(&zd_device);
++}
++
++late_initcall(zd_init);
++module_exit(zd_exit);
++
++MODULE_VERSION("2.0");
++MODULE_DESCRIPTION("Zen Decision - Kernel MSM Userspace Handler");
++MODULE_LICENSE("GPL v2");
++MODULE_AUTHOR("Brandon Berhent <bbedward@gmail.com>");
+diff --git a/arch/arm/mach-msm/thunderplug.c b/arch/arm/mach-msm/thunderplug.c
+new file mode 100644
+index 0000000..683fa9b
+--- /dev/null
++++ b/arch/arm/mach-msm/thunderplug.c
+@@ -0,0 +1,802 @@
++/* Copyright (c) 2015, Varun Chitre <varun.chitre15@gmail.com>
++ *
++ * This software is licensed under the terms of the GNU General Public
++ * License version 2, as published by the Free Software Foundation, and
++ * may be copied, distributed, and modified under those terms.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * A simple hotplugging driver.
++ * Compatible from dual core CPUs to Octa Core CPUs
++ */
++
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/hrtimer.h>
++#include <linux/init.h>
++#include <linux/device.h>
++#include <linux/input.h>
++#include <linux/slab.h>
++#include <linux/cpu.h>
++#include <linux/cpufreq.h>
++#ifdef CONFIG_STATE_NOTIFIER
++#include <linux/state_notifier.h>
++#endif
++
++#define DEBUG				0
++
++#define THUNDERPLUG			"thunderplug"
++
++#define DRIVER_VERSION			5
++#define DRIVER_SUBVER			4
++
++#define DEFAULT_CPU_LOAD_THRESHOLD	(90)
++
++#define HOTPLUG_ENABLED			(0)
++#define STARTDELAY			1000
++
++#define DEF_SAMPLING_MS			(20)
++#define MIN_SAMLING_MS			(10)
++#define MIN_CPU_UP_TIME			(300)
++
++#define DEFAULT_BOOST_LOCK_DUR		500 * 1000L
++#define DEFAULT_NR_CPUS_BOOSTED		2
++#define MIN_INPUT_INTERVAL		150 * 1000L
++
++static bool isSuspended = false;
++
++static int now[8], last_time[8];
++struct cpufreq_policy old_policy[NR_CPUS];
++static struct workqueue_struct *tplug_wq;
++static struct delayed_work tplug_work;
++
++static unsigned int last_load[8] = { 0 };
++static u64 last_boost_time;
++
++struct cpu_load_data {
++	u64 prev_cpu_idle;
++	u64 prev_cpu_wall;
++	unsigned int avg_load_maxfreq;
++	unsigned int cur_load_maxfreq;
++	unsigned int samples;
++	unsigned int window_size;
++	cpumask_var_t related_cpus;
++};
++
++static struct thunder_param_struct {
++	unsigned int cpus_boosted;
++	unsigned int target_cpus;
++	u64 boost_lock_dur;
++	u64 last_input;
++	int hotplug_suspend;
++	unsigned int sampling_time;
++	int suspend_cpu_num;
++	int resume_cpu_num;
++	int max_core_online;
++	int min_core_online;
++	int tplug_hp_enabled;
++	int load_threshold;
++	struct work_struct up_work;
++	struct notifier_block thunder_state_notif;
++} thunder_param = {
++	.cpus_boosted = DEFAULT_NR_CPUS_BOOSTED,
++	.boost_lock_dur = DEFAULT_BOOST_LOCK_DUR,
++	.suspend_cpu_num = 3,
++	.resume_cpu_num = (NR_CPUS -1),
++	.max_core_online = NR_CPUS,
++	.min_core_online = 1,
++	.sampling_time = DEF_SAMPLING_MS,
++	.load_threshold = DEFAULT_CPU_LOAD_THRESHOLD,
++	.tplug_hp_enabled = HOTPLUG_ENABLED,
++	.hotplug_suspend = 0,
++};
++
++static DEFINE_PER_CPU(struct cpu_load_data, cpuload);
++
++static inline void offline_cpus(void)
++{
++	unsigned int cpu;
++
++	for (cpu = NR_CPUS - 1; cpu >
++			(thunder_param.suspend_cpu_num - 1); cpu--) {
++		if (cpu_online(cpu))
++			cpu_down(cpu);
++	}
++	pr_info("%s: %d cpus were offlined\n",
++			THUNDERPLUG,
++			(NR_CPUS - thunder_param.suspend_cpu_num));
++}
++
++static inline void cpus_online_all(void)
++{
++	unsigned int cpu;
++
++	if (DEBUG)
++		pr_info("%s: resume_cpu_num = %d\n",THUNDERPLUG,
++				thunder_param.resume_cpu_num);
++
++	for (cpu = 1; cpu <= thunder_param.resume_cpu_num; cpu++) {
++		if (cpu_is_offline(cpu))
++			cpu_up(cpu);
++	}
++
++	pr_info("%s: all cpus were onlined\n", THUNDERPLUG);
++}
++
++static ssize_t thunderplug_hotplug_suspend_show(struct kobject *kobj,
++                        struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%d", thunder_param.hotplug_suspend);
++}
++
++static ssize_t thunderplug_hotplug_suspend_store(struct kobject *kobj,
++			struct kobj_attribute *attr,
++			const char *buf, size_t count)
++{
++	int val;
++
++	sscanf(buf, "%d", &val);
++
++	switch(val) {
++		case 0:
++		case 1:
++			thunder_param.hotplug_suspend = val;
++			break;
++		default:
++			pr_info("%s: invalid value! set 0 or 1 here.\n",
++					THUNDERPLUG);
++			thunder_param.hotplug_suspend = 0;
++			break;
++	}
++	return count;
++}
++
++static ssize_t thunderplug_suspend_cpus_show(struct kobject *kobj,
++			struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%d", thunder_param.suspend_cpu_num);
++}
++
++static ssize_t thunderplug_suspend_cpus_store(struct kobject *kobj,
++			struct kobj_attribute *attr,
++			const char *buf, size_t count)
++{
++	int val;
++
++	sscanf(buf, "%d", &val);
++
++	if (val < 1 || val > NR_CPUS)
++		pr_info("%s: suspend cpus off-limits\n", THUNDERPLUG);
++	else
++		thunder_param.suspend_cpu_num = val;
++
++	return count;
++}
++
++static ssize_t thunderplug_max_core_online_show(struct kobject *kobj,
++			struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%d", thunder_param.max_core_online);
++}
++
++static ssize_t __ref thunderplug_max_core_online_store(struct kobject *kobj,
++			struct kobj_attribute *attr,
++			const char *buf, size_t count)
++{
++	int val;
++
++	sscanf(buf, "%d", &val);
++
++	switch(val) {
++		case 1:
++		case 2:
++		case 3:
++		case 4:
++			if (thunder_param.tplug_hp_enabled &&
++					thunder_param.max_core_online != val) {
++				thunder_param.max_core_online = val;
++				offline_cpus();
++				cpus_online_all();
++			}
++			break;
++		default:
++			pr_info("%s: invalid max_core value\n",
++				THUNDERPLUG);
++			break;
++	}
++	return count;
++}
++
++static ssize_t thunderplug_min_core_online_show(struct kobject *kobj,
++			struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%d", thunder_param.min_core_online);
++}
++
++static ssize_t __ref thunderplug_min_core_online_store(struct kobject *kobj,
++                        struct kobj_attribute *attr,
++                        const char *buf, size_t count)
++{
++	int val;
++
++	sscanf(buf, "%d", &val);
++
++	switch(val) {
++		case 1:
++		case 2:
++		case 3:
++		case 4:
++			if (thunder_param.tplug_hp_enabled &&
++					thunder_param.min_core_online != val) {
++				thunder_param.min_core_online = val;
++				offline_cpus();
++				cpus_online_all();
++			}
++			break;
++		default:
++			pr_info("%s: invalid min_core value\n",
++				THUNDERPLUG);
++			break;
++	}
++	return count;
++}
++
++static ssize_t thunderplug_sampling_show(struct kobject *kobj,
++			struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%d", thunder_param.sampling_time);
++}
++
++static ssize_t thunderplug_sampling_store(struct kobject *kobj,
++			struct kobj_attribute *attr,
++			const char *buf, size_t count)
++{
++	int val;
++
++	sscanf(buf, "%d", &val);
++
++	if (val >= MIN_SAMLING_MS)
++		thunder_param.sampling_time = val;
++
++	return count;
++}
++
++static ssize_t thunderplug_load_show(struct kobject *kobj,
++			struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%d", thunder_param.load_threshold);
++}
++
++static ssize_t thunderplug_load_store(struct kobject *kobj,
++			struct kobj_attribute *attr,
++			const char *buf, size_t count)
++{
++	int val;
++
++	sscanf(buf, "%d", &val);
++
++	if (val > 10)
++		thunder_param.load_threshold = val;
++
++	return count;
++}
++
++static ssize_t thunderplug_boost_lock_duration_show(struct kobject *kobj,
++			struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%llu\n",
++			div_u64(thunder_param.boost_lock_dur, 1000));
++}
++
++static ssize_t thunderplug_boost_lock_duration_store(struct kobject *kobj,
++			struct kobj_attribute *attr,
++			const char *buf, size_t count)
++{
++	int ret;
++	u64 val;
++
++	ret = sscanf(buf, "%llu", &val);
++	if (ret != 1)
++		return -EINVAL;
++
++	thunder_param.boost_lock_dur = val * 1000;
++
++	return count;
++}
++
++static ssize_t thunderplug_cpus_boosted_show(struct kobject *kobj,
++			struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%u\n", thunder_param.cpus_boosted);
++}
++
++static ssize_t thunderplug_cpus_boosted_store(struct kobject *kobj,
++			struct kobj_attribute *attr,
++			const char *buf, size_t count)
++{
++	int ret;
++	unsigned int val;
++
++	ret = sscanf(buf, "%u", &val);
++	if (ret != 1 || val < 1 || val > CONFIG_NR_CPUS)
++		return -EINVAL;
++
++	thunder_param.cpus_boosted = val;
++
++	return count;
++}
++
++static unsigned int get_curr_load(unsigned int cpu)
++{
++	int ret;
++	unsigned int idle_time, wall_time;
++	unsigned int cur_load;
++	u64 cur_wall_time, cur_idle_time;
++	struct cpu_load_data *pcpu = &per_cpu(cpuload, cpu);
++	struct cpufreq_policy policy;
++
++	ret = cpufreq_get_policy(&policy, cpu);
++	if (ret)
++		return -EINVAL;
++
++	cur_idle_time = get_cpu_idle_time(cpu, &cur_wall_time, 0);
++
++	wall_time = (unsigned int) (cur_wall_time - pcpu->prev_cpu_wall);
++	pcpu->prev_cpu_wall = cur_wall_time;
++
++	idle_time = (unsigned int) (cur_idle_time - pcpu->prev_cpu_idle);
++	pcpu->prev_cpu_idle = cur_idle_time;
++
++	if (unlikely(!wall_time || wall_time < idle_time))
++		return 0;
++
++	cur_load = 100 * (wall_time - idle_time) / wall_time;
++
++	return cur_load;
++}
++
++static void __cpuinit tplug_work_fn(struct work_struct *work)
++{
++	int i;
++	unsigned int load[8], avg_load[8];
++	unsigned int nr_cpu_online;
++	u64 time_now;
++
++	if (!thunder_param.tplug_hp_enabled)
++		return;
++
++	for (i = 0 ; i < thunder_param.max_core_online - 1; i++) {
++		if (cpu_online(i))
++			load[i] = get_curr_load(i);
++		else
++			load[i] = 0;
++
++		avg_load[i] = ((int) load[i] + (int) last_load[i]) / 2;
++		last_load[i] = load[i];
++	}
++
++	for (i = 0 ; i < thunder_param.max_core_online - 1; i++) {
++		if (cpu_online(i) && avg_load[i] >
++				thunder_param.load_threshold &&
++				cpu_is_offline(i + 1)) {
++			if (DEBUG)
++				pr_info("%s : bringing back cpu%d\n",
++					THUNDERPLUG,i);
++			if (!((i + 1) > 7)) {
++				last_time[i + 1] = ktime_to_ms(ktime_get());
++				cpu_up(i + 1);
++			}
++		} else if (cpu_online(i) && avg_load[i] <
++				thunder_param.load_threshold &&
++				cpu_online(i + 1)) {
++			if (DEBUG)
++				pr_info("%s : offlining cpu%d\n",
++					THUNDERPLUG,i);
++			/* count online cores */
++			nr_cpu_online = num_online_cpus();
++
++			if (nr_cpu_online > thunder_param.min_core_online) {
++				/*
++				 * check if core touch boosted
++				 * before cpu_down
++				 */
++				time_now = ktime_to_us(ktime_get());
++				if (nr_cpu_online <=
++						thunder_param.cpus_boosted &&
++						(time_now -
++						thunder_param.last_input <
++						thunder_param.boost_lock_dur))
++					goto reschedule;
++
++				if (!(i + 1) == 0) {
++					now[i + 1] = ktime_to_ms(ktime_get());
++					if ((now[i + 1] - last_time[i + 1]) >
++							MIN_CPU_UP_TIME)
++						cpu_down(i + 1);
++				}
++			}
++		}
++	}
++
++reschedule:
++	queue_delayed_work_on(0, tplug_wq, &tplug_work,
++			msecs_to_jiffies(thunder_param.sampling_time));
++}
++
++#ifdef CONFIG_STATE_NOTIFIER
++static void __ref thunderplug_suspend(void)
++{
++	if (isSuspended == false) {
++		isSuspended = true;
++		cancel_delayed_work_sync(&tplug_work);
++		offline_cpus();
++		pr_info("%s: suspend\n", THUNDERPLUG);
++	}
++}
++
++static void __ref thunderplug_resume(void)
++{
++	if (isSuspended == true) {
++		isSuspended = false;
++		cpus_online_all();
++		pr_info("%s: resume\n", THUNDERPLUG);
++		queue_delayed_work_on(0, tplug_wq, &tplug_work,
++				msecs_to_jiffies(thunder_param.sampling_time));
++	}
++}
++
++static int state_notifier_callback(struct notifier_block *this,
++				unsigned long event, void *data)
++{
++	if (!thunder_param.hotplug_suspend)
++		return NOTIFY_OK;
++
++	if (!thunder_param.tplug_hp_enabled)
++		return NOTIFY_OK;
++
++	switch (event) {
++		case STATE_NOTIFIER_ACTIVE:
++			thunderplug_resume();
++			break;
++		case STATE_NOTIFIER_SUSPEND:
++			thunderplug_suspend();
++			break;
++		default:
++			break;
++	}
++	return NOTIFY_OK;
++}
++#endif
++
++static void __ref cpu_up_work(struct work_struct *work)
++{
++	int cpu;
++	unsigned int target = thunder_param.target_cpus;
++
++	for_each_cpu_not(cpu, cpu_online_mask) {
++		if (target <= num_online_cpus())
++			break;
++		if (cpu == 0)
++			continue;
++		cpu_up(cpu);
++	}
++}
++
++static void online_cpu(unsigned int target)
++{
++	unsigned int online_cpus;
++
++	online_cpus = num_online_cpus();
++
++	/*
++	 * Do not online more CPUs if max_cpus_online reached
++	 * and cancel online task if target already achieved.
++	 */
++	if (target <= online_cpus ||
++			online_cpus >= thunder_param.max_core_online)
++		return;
++
++	thunder_param.target_cpus = target;
++	queue_work_on(0, tplug_wq, &thunder_param.up_work);
++}
++
++static void thunder_input_event(struct input_handle *handle, unsigned int type,
++				unsigned int code, int value)
++{
++	u64 time_now;
++
++	if (isSuspended == true)
++		return;
++	if (!thunder_param.tplug_hp_enabled)
++		return;
++
++	time_now = ktime_to_us(ktime_get());
++	thunder_param.last_input = time_now;
++	if (time_now - last_boost_time < MIN_INPUT_INTERVAL)
++		return;
++
++	if (num_online_cpus() >= thunder_param.cpus_boosted ||
++			thunder_param.cpus_boosted <=
++			thunder_param.min_core_online)
++		return;
++
++	online_cpu(thunder_param.cpus_boosted);
++	last_boost_time = ktime_to_us(ktime_get());
++}
++
++static int thunder_input_connect(struct input_handler *handler,
++				 struct input_dev *dev,
++				 const struct input_device_id *id)
++{
++	struct input_handle *handle;
++	int err;
++
++	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
++	if (!handle)
++		return -ENOMEM;
++
++	handle->dev = dev;
++	handle->handler = handler;
++	handle->name = handler->name;
++
++	err = input_register_handle(handle);
++	if (err)
++		goto err_register;
++
++	err = input_open_device(handle);
++	if (err)
++		goto err_open;
++
++	return 0;
++err_open:
++	input_unregister_handle(handle);
++err_register:
++	kfree(handle);
++	return err;
++}
++
++static void thunder_input_disconnect(struct input_handle *handle)
++{
++	input_close_device(handle);
++	input_unregister_handle(handle);
++	kfree(handle);
++}
++
++static const struct input_device_id thunder_ids[] = {
++	{
++		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
++			 INPUT_DEVICE_ID_MATCH_ABSBIT,
++		.evbit = { BIT_MASK(EV_ABS) },
++		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
++			    BIT_MASK(ABS_MT_POSITION_X) |
++			    BIT_MASK(ABS_MT_POSITION_Y) },
++	}, /* multi-touch touchscreen */
++	{
++		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT |
++			 INPUT_DEVICE_ID_MATCH_ABSBIT,
++		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
++		.absbit = { [BIT_WORD(ABS_X)] =
++			    BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
++	}, /* touchpad */
++	{ },
++};
++
++static struct input_handler thunder_input_handler = {
++	.event		= thunder_input_event,
++	.connect	= thunder_input_connect,
++	.disconnect	= thunder_input_disconnect,
++	.name		= THUNDERPLUG,
++	.id_table	= thunder_ids,
++};
++
++static ssize_t thunderplug_hp_enabled_show(struct kobject *kobj,
++			struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "%d", thunder_param.tplug_hp_enabled);
++}
++
++static ssize_t __ref thunderplug_hp_enabled_store(struct kobject *kobj,
++			struct kobj_attribute *attr,
++			const char *buf, size_t count)
++{
++	int val, last_val;
++	int ret = 0, cpu;
++
++	sscanf(buf, "%d", &val);
++
++	last_val = thunder_param.tplug_hp_enabled;
++	switch(val) {
++		case 0:
++		case 1:
++			thunder_param.tplug_hp_enabled = val;
++			break;
++		default:
++			pr_info("%s : invalid choice\n", THUNDERPLUG);
++			break;
++	}
++
++	if (thunder_param.tplug_hp_enabled == 1 && !last_val) {
++		pr_info("%s : Starting hotplug driver\n", THUNDERPLUG);
++		tplug_wq = alloc_workqueue("tplug",
++				WQ_HIGHPRI | WQ_FREEZABLE, 0);
++		if (!tplug_wq) {
++			pr_err("%s: Failed to allocate hotplug workqueue\n",
++				__FUNCTION__);
++			thunder_param.tplug_hp_enabled = 0;
++			return 0;
++		}
++		ret = input_register_handler(&thunder_input_handler);
++		if (ret) {
++			pr_err("%s: Failed to register input handler: %d\n",
++					THUNDERPLUG, ret);
++			return 0;
++		}
++		INIT_DELAYED_WORK(&tplug_work, tplug_work_fn);
++		INIT_WORK(&thunder_param.up_work, cpu_up_work);
++		queue_delayed_work_on(0, tplug_wq, &tplug_work,
++				msecs_to_jiffies(thunder_param.sampling_time));
++	} else if (thunder_param.tplug_hp_enabled == 1 && last_val == 1) {
++		pr_info("%s : Already Working\n", THUNDERPLUG);
++	} else if (thunder_param.tplug_hp_enabled == 0 && last_val == 0) {
++		pr_info("%s : Already Offline\n", THUNDERPLUG);
++	} else {
++		if (last_val) {
++			input_unregister_handler(&thunder_input_handler);
++			flush_workqueue(tplug_wq);
++			cancel_work_sync(&thunder_param.up_work);
++			cancel_delayed_work_sync(&tplug_work);
++			destroy_workqueue(tplug_wq);
++
++			/* Put all sibling cores to sleep */
++			for_each_online_cpu(cpu) {
++				if (cpu == 0)
++					continue;
++				cpu_down(cpu);
++			}
++			pr_info("%s : Stopping hotplug driver\n", THUNDERPLUG);
++		}
++	}
++
++	return count;
++}
++
++static struct kobj_attribute thunderplug_hp_enabled_attribute =
++	__ATTR(hotplug_enabled,
++		0666, thunderplug_hp_enabled_show,
++		thunderplug_hp_enabled_store);
++
++static ssize_t thunderplug_ver_show(struct kobject *kobj,
++			struct kobj_attribute *attr, char *buf)
++{
++	return sprintf(buf, "ThunderPlug %u.%u", DRIVER_VERSION,
++			DRIVER_SUBVER);
++}
++
++static struct kobj_attribute thunderplug_ver_attribute =
++	__ATTR(version,
++		0444, thunderplug_ver_show, NULL);
++
++static struct kobj_attribute thunderplug_hotplug_suspend_attribute =
++	__ATTR(hotplug_suspend,
++		0666, thunderplug_hotplug_suspend_show,
++		thunderplug_hotplug_suspend_store);
++
++static struct kobj_attribute thunderplug_suspend_cpus_attribute =
++	__ATTR(suspend_cpus,
++		0666, thunderplug_suspend_cpus_show,
++		thunderplug_suspend_cpus_store);
++
++static struct kobj_attribute thunderplug_max_core_online_attribute =
++	__ATTR(max_core_online,
++		0666, thunderplug_max_core_online_show,
++		thunderplug_max_core_online_store);
++
++static struct kobj_attribute thunderplug_min_core_online_attribute =
++	__ATTR(min_core_online,
++		0666, thunderplug_min_core_online_show,
++		thunderplug_min_core_online_store);
++
++static struct kobj_attribute thunderplug_sampling_attribute =
++	__ATTR(sampling_rate,
++		0666, thunderplug_sampling_show,
++		thunderplug_sampling_store);
++
++static struct kobj_attribute thunderplug_load_attribute =
++	__ATTR(load_threshold,
++		0666, thunderplug_load_show,
++		thunderplug_load_store);
++
++static struct kobj_attribute thunderplug_boost_lock_duration_attribute =
++	__ATTR(boost_lock_duration,
++		0666, thunderplug_boost_lock_duration_show,
++		thunderplug_boost_lock_duration_store);
++
++static struct kobj_attribute thunderplug_cpus_boosted_attribute =
++	__ATTR(cpus_boosted,
++		0666, thunderplug_cpus_boosted_show,
++		thunderplug_cpus_boosted_store);
++
++static struct attribute *thunderplug_attrs[] = {
++	&thunderplug_ver_attribute.attr,
++	&thunderplug_hotplug_suspend_attribute.attr,
++	&thunderplug_suspend_cpus_attribute.attr,
++	&thunderplug_max_core_online_attribute.attr,
++	&thunderplug_min_core_online_attribute.attr,
++	&thunderplug_sampling_attribute.attr,
++	&thunderplug_load_attribute.attr,
++	&thunderplug_hp_enabled_attribute.attr,
++	&thunderplug_boost_lock_duration_attribute.attr,
++	&thunderplug_cpus_boosted_attribute.attr,
++	NULL,
++};
++
++static struct attribute_group thunderplug_attr_group =
++{
++	.attrs = thunderplug_attrs,
++};
++
++static struct kobject *thunderplug_kobj;
++
++static int __init thunderplug_init(void)
++{
++	int ret = 0;
++	int sysfs_result;
++
++	printk(KERN_DEBUG "[%s]\n",__func__);
++
++	thunderplug_kobj = kobject_create_and_add("thunderplug", kernel_kobj);
++	if (!thunderplug_kobj) {
++		pr_err("%s Interface create failed!\n",
++				__FUNCTION__);
++		return -ENOMEM;
++	}
++
++	sysfs_result = sysfs_create_group(thunderplug_kobj,
++			&thunderplug_attr_group);
++	if (sysfs_result) {
++		pr_info("%s sysfs create failed!\n", __FUNCTION__);
++		kobject_put(thunderplug_kobj);
++	}
++
++	if (thunder_param.tplug_hp_enabled) {
++		tplug_wq = alloc_workqueue("tplug",
++				WQ_HIGHPRI | WQ_FREEZABLE, 0);
++		if (!tplug_wq) {
++			pr_err("%s: Failed to allocate hotplug workqueue\n",
++				__FUNCTION__);
++			ret = -ENOMEM;
++			goto err_out;
++		}
++		INIT_DELAYED_WORK(&tplug_work, tplug_work_fn);
++		queue_delayed_work_on(0, tplug_wq, &tplug_work,
++					msecs_to_jiffies(STARTDELAY));
++	}
++
++#ifdef CONFIG_STATE_NOTIFIER
++	thunder_param.thunder_state_notif.notifier_call =
++				state_notifier_callback;
++	if (state_register_client(&thunder_param.thunder_state_notif)) {
++		pr_err("%s: Failed to register State notifier callback\n",
++			__func__);
++		goto err_out;
++	}
++#endif
++
++	pr_info("%s: init\n", THUNDERPLUG);
++
++	return ret;
++
++err_out:
++	thunder_param.tplug_hp_enabled = 0;
++	destroy_workqueue(tplug_wq);
++
++	return ret;
++}
++
++MODULE_LICENSE("GPL and additional rights");
++MODULE_AUTHOR("Varun Chitre <varun.chitre15@gmail.com>");
++MODULE_DESCRIPTION("Hotplug driver for ARM SoCs");
++late_initcall(thunderplug_init);
+diff --git a/drivers/cpufreq/cpufreq.c b/drivers/cpufreq/cpufreq.c
+index fa6b23e..d141e7c 100755
+--- a/drivers/cpufreq/cpufreq.c
++++ b/drivers/cpufreq/cpufreq.c
+@@ -1424,6 +1424,27 @@ static void cpufreq_out_of_sync(unsigned int cpu, unsigned int old_freq,
+ }
+ 
+ /**
++ * cpufreq_quick_get_util - get the CPU utilization from policy->util
++ * @cpu: CPU number
++ *
++ * This is the last known util, without actually getting it from the driver.
++ * Return value will be same as what is shown in util in sysfs.
++ */
++unsigned int cpufreq_quick_get_util(unsigned int cpu)
++{
++	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
++	unsigned int ret_util = 0;
++
++	if (policy) {
++		ret_util = policy->util;
++		cpufreq_cpu_put(policy);
++	}
++
++	return ret_util;
++}
++EXPORT_SYMBOL(cpufreq_quick_get_util);
++
++/**
+  * cpufreq_quick_get - get the CPU frequency (in kHz) from policy->cur
+  * @cpu: CPU number
+  *
+@@ -1633,9 +1654,6 @@ void cpufreq_notify_utilization(struct cpufreq_policy *policy,
+ {
+ 	if (policy) {
+ 		policy->util = util;
+-
+-		if (policy->util >= MIN_CPU_UTIL_NOTIFY)
+-			sysfs_notify(&policy->kobj, NULL, "cpu_utilization");
+ 	}
+ }
+ 
+diff --git a/include/linux/cpufreq.h b/include/linux/cpufreq.h
+index 6a7f9ae..4fb5f02 100755
+--- a/include/linux/cpufreq.h
++++ b/include/linux/cpufreq.h
+@@ -140,6 +140,7 @@ void cpufreq_sysfs_remove_file(const struct attribute *attr);
+ unsigned int cpufreq_get(unsigned int cpu);
+ unsigned int cpufreq_quick_get(unsigned int cpu);
+ unsigned int cpufreq_quick_get_max(unsigned int cpu);
++unsigned int cpufreq_quick_get_util(unsigned int cpu);
+ void disable_cpufreq(void);
+ 
+ u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy);
+@@ -160,6 +161,10 @@ static inline unsigned int cpufreq_quick_get_max(unsigned int cpu)
+ {
+ 	return 0;
+ }
++static inline unsigned int cpufreq_quick_get_util(unsigned int cpu);
++{
++	return 0;
++}
+ static inline void disable_cpufreq(void) { }
+ #endif
+ 
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index bef17f0..b3fc434 100755
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -102,6 +102,10 @@ extern unsigned long nr_running(void);
+ extern unsigned long nr_iowait(void);
+ extern unsigned long nr_iowait_cpu(int cpu);
+ extern unsigned long this_cpu_load(void);
++#ifdef CONFIG_INTELLI_HOTPLUG
++extern unsigned long avg_nr_running(void);
++extern unsigned long avg_cpu_nr_running(unsigned int cpu);
++#endif
+ 
+ extern void sched_update_nr_prod(int cpu, unsigned long nr, bool inc);
+ extern void sched_get_nr_running_avg(int *avg, int *iowait_avg);
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 6f8e659..ca97952 100755
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -119,6 +119,9 @@ void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
+ 
+ DEFINE_MUTEX(sched_domains_mutex);
+ DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
++#ifdef CONFIG_INTELLI_HOTPLUG
++DEFINE_PER_CPU_SHARED_ALIGNED(struct nr_stats_s, runqueue_stats);
++#endif
+ 
+ static void update_rq_clock_task(struct rq *rq, s64 delta);
+ 
+@@ -2253,6 +2256,61 @@ unsigned long nr_iowait(void)
+ 	return sum;
+ }
+ 
++#ifdef CONFIG_INTELLI_HOTPLUG
++unsigned long avg_nr_running(void)
++{
++	unsigned long i, sum = 0;
++	unsigned int seqcnt, ave_nr_running;
++
++	for_each_online_cpu(i) {
++		struct nr_stats_s *stats = &per_cpu(runqueue_stats, i);
++		struct rq *q = cpu_rq(i);
++
++		/*
++		 * Update average to avoid reading stalled value if there were
++		 * no run-queue changes for a long time. On the other hand if
++		 * the changes are happening right now, just read current value
++		 * directly.
++		 */
++		seqcnt = read_seqcount_begin(&stats->ave_seqcnt);
++		ave_nr_running = do_avg_nr_running(q);
++		if (read_seqcount_retry(&stats->ave_seqcnt, seqcnt)) {
++			read_seqcount_begin(&stats->ave_seqcnt);
++			ave_nr_running = stats->ave_nr_running;
++		}
++
++		sum += ave_nr_running;
++	}
++
++	return sum;
++}
++EXPORT_SYMBOL(avg_nr_running);
++
++unsigned long avg_cpu_nr_running(unsigned int cpu)
++{
++	unsigned int seqcnt, ave_nr_running;
++
++	struct nr_stats_s *stats = &per_cpu(runqueue_stats, cpu);
++	struct rq *q = cpu_rq(cpu);
++
++	/*
++	 * Update average to avoid reading stalled value if there were
++	 * no run-queue changes for a long time. On the other hand if
++	 * the changes are happening right now, just read current value
++	 * directly.
++	 */
++	seqcnt = read_seqcount_begin(&stats->ave_seqcnt);
++	ave_nr_running = do_avg_nr_running(q);
++	if (read_seqcount_retry(&stats->ave_seqcnt, seqcnt)) {
++		read_seqcount_begin(&stats->ave_seqcnt);
++		ave_nr_running = stats->ave_nr_running;
++	}
++
++	return ave_nr_running;
++}
++EXPORT_SYMBOL(avg_cpu_nr_running);
++#endif
++
+ unsigned long nr_iowait_cpu(int cpu)
+ {
+ 	struct rq *this = cpu_rq(cpu);
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index b32bccb..83c081c 100755
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -545,6 +545,32 @@ DECLARE_PER_CPU(struct rq, runqueues);
+ #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
+ #define raw_rq()		(&__raw_get_cpu_var(runqueues))
+ 
++#ifdef CONFIG_INTELLI_HOTPLUG
++struct nr_stats_s {
++	/* time-based average load */
++	u64 nr_last_stamp;
++	unsigned int ave_nr_running;
++	seqcount_t ave_seqcnt;
++};
++
++#define NR_AVE_PERIOD_EXP	28
++#define NR_AVE_SCALE(x)		((x) << FSHIFT)
++#define NR_AVE_PERIOD		(1 << NR_AVE_PERIOD_EXP)
++#define NR_AVE_DIV_PERIOD(x)	((x) >> NR_AVE_PERIOD_EXP)
++
++DECLARE_PER_CPU(struct nr_stats_s, runqueue_stats);
++#endif
++
++static inline u64 rq_clock(struct rq *rq)
++{
++	return rq->clock;
++}
++
++static inline u64 rq_clock_task(struct rq *rq)
++{
++	return rq->clock_task;
++}
++
+ #ifdef CONFIG_SMP
+ 
+ #define rcu_dereference_check_sched_domain(p) \
+@@ -1104,10 +1130,42 @@ static inline u64 steal_ticks(u64 steal)
+ }
+ #endif
+ 
++#ifdef CONFIG_INTELLI_HOTPLUG
++static inline unsigned int do_avg_nr_running(struct rq *rq)
++{
++
++	struct nr_stats_s *nr_stats = &per_cpu(runqueue_stats, rq->cpu);
++	unsigned int ave_nr_running = nr_stats->ave_nr_running;
++	s64 nr, deltax;
++
++	deltax = rq->clock_task - nr_stats->nr_last_stamp;
++	nr = NR_AVE_SCALE(rq->nr_running);
++
++	if (deltax > NR_AVE_PERIOD)
++		ave_nr_running = nr;
++	else
++		ave_nr_running +=
++			NR_AVE_DIV_PERIOD(deltax * (nr - ave_nr_running));
++
++	return ave_nr_running;
++}
++#endif
++
+ static inline void inc_nr_running(struct rq *rq)
+ {
++#ifdef CONFIG_INTELLI_HOTPLUG
++	struct nr_stats_s *nr_stats = &per_cpu(runqueue_stats, rq->cpu);
++#endif
+ 	sched_update_nr_prod(cpu_of(rq), rq->nr_running, true);
++#ifdef CONFIG_INTELLI_HOTPLUG
++	write_seqcount_begin(&nr_stats->ave_seqcnt);
++	nr_stats->ave_nr_running = do_avg_nr_running(rq);
++	nr_stats->nr_last_stamp = rq->clock_task;
++#endif
+ 	rq->nr_running++;
++#ifdef CONFIG_INTELLI_HOTPLUG
++	write_seqcount_end(&nr_stats->ave_seqcnt);
++#endif
+ 
+ #ifdef CONFIG_NO_HZ_FULL
+ 	if (rq->nr_running == 2) {
+@@ -1122,8 +1180,19 @@ static inline void inc_nr_running(struct rq *rq)
+ 
+ static inline void dec_nr_running(struct rq *rq)
+ {
++#ifdef CONFIG_INTELLI_HOTPLUG
++	struct nr_stats_s *nr_stats = &per_cpu(runqueue_stats, rq->cpu);
++#endif
+ 	sched_update_nr_prod(cpu_of(rq), rq->nr_running, false);
++#ifdef CONFIG_INTELLI_HOTPLUG
++	write_seqcount_begin(&nr_stats->ave_seqcnt);
++	nr_stats->ave_nr_running = do_avg_nr_running(rq);
++	nr_stats->nr_last_stamp = rq->clock_task;
++#endif
+ 	rq->nr_running--;
++#ifdef CONFIG_INTELLI_HOTPLUG
++	write_seqcount_end(&nr_stats->ave_seqcnt);
++#endif
+ }
+ 
+ static inline void rq_last_tick_reset(struct rq *rq)
