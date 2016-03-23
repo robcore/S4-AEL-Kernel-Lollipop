@@ -2215,7 +2215,7 @@ unsigned long avg_cpu_nr_running(unsigned int cpu)
 
 	struct nr_stats_s *stats = &per_cpu(runqueue_stats, cpu);
 	struct rq *q = cpu_rq(cpu);
-	
+
 	/*
 	 * Update average to avoid reading stalled value if there were
 	 * no run-queue changes for a long time. On the other hand if
