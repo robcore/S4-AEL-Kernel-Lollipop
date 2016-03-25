@@ -1,0 +1,113 @@
+--- arch/arm/mach-msm/msm_rq_stats.c
++++ arch/arm/mach-msm/msm_rq_stats.c
+@@ -242,90 +244,41 @@ static int freq_policy_handler(struct notifier_block *nb,
+ }
+ 
+ static ssize_t hotplug_disable_show(struct kobject *kobj,
+-				    struct kobj_attribute *attr, char *buf)
++		struct kobj_attribute *attr, char *buf)
+ {
+-	return snprintf(buf, MAX_LONG_SIZE, "%d\n", rq_info.hotplug_disabled);
+-}
+-
+-static ssize_t store_hotplug_enable(struct kobject *kobj,
+-				     struct kobj_attribute *attr,
+-				     const char *buf, size_t count)
+-{
+-	int ret;
+-	unsigned int val;
+-	unsigned long flags = 0;
+-	unsigned int cpu = 0;
+-
+-	ret = sscanf(buf, "%u", &val);
+-	if (ret != 1 || val < 0 || val > 1) {
+-		return -EINVAL;
+-	}
+-
+-	spin_lock_irqsave(&rq_lock, flags);
+-	if (val == rq_info.hotplug_enabled) {
+-		spin_unlock_irqrestore(&rq_lock, flags);
+-		return count;
+-	}
+-
+-	if (val) {
+-		for_each_possible_cpu(cpu) {
+-			struct cpu_load_data *pcpu = &per_cpu(cpuload, cpu);
+-			pcpu->prev_cpu_idle = get_cpu_idle_time(cpu, &pcpu->prev_cpu_wall, hp_io_is_busy);
+-		}
+-		rq_info.hotplug_disabled = 0;
+-	} else {
+-		rq_info.hotplug_disabled = 1;
+-	}
+-	rq_info.hotplug_enabled = val;
+-
+-	spin_unlock_irqrestore(&rq_lock, flags);
+-
+-	return count;
+-}
+-
+-static ssize_t show_hotplug_enable(struct kobject *kobj,
+-				    struct kobj_attribute *attr, char *buf)
+-{
+-	return snprintf(buf, MAX_LONG_SIZE, "%d\n", rq_info.hotplug_enabled);
++	unsigned int val = 0;
++	val = rq_info.hotplug_disabled;
++	return snprintf(buf, MAX_LONG_SIZE, "%d\n", val);
+ }
+ 
+ static struct kobj_attribute hotplug_disabled_attr = __ATTR_RO(hotplug_disable);
+ 
+-static struct kobj_attribute hotplug_enabled_attr =
+-	__ATTR(hotplug_enable, S_IWUSR | S_IRUSR, show_hotplug_enable,
+-	       store_hotplug_enable);
+-
+-static ssize_t store_hp_io_is_busy(struct kobject *kobj,
+-				     struct kobj_attribute *attr,
+-				     const char *buf, size_t count)
++#ifdef CONFIG_BRICKED_HOTPLUG
++unsigned int get_rq_info(void)
+ {
+-	int ret;
+-	unsigned int val;
++	unsigned long flags = 0;
++        unsigned int rq = 0;
+ 
+-	ret = sscanf(buf, "%u", &val);
+-	if (ret != 1 || val < 0 || val > 1)
+-		return -EINVAL;
++        spin_lock_irqsave(&rq_lock, flags);
+ 
+-	if (val == hp_io_is_busy)
+-		return count;
++        rq = rq_info.rq_avg;
++        rq_info.rq_avg = 0;
+ 
+-	hp_io_is_busy = val;
++        spin_unlock_irqrestore(&rq_lock, flags);
+ 
+-	return count;
++        return rq;
+ }
++EXPORT_SYMBOL(get_rq_info);
++#endif
+ 
+-static ssize_t show_hp_io_is_busy(struct kobject *kobj,
+-				    struct kobj_attribute *attr, char *buf)
++static void def_work_fn(struct work_struct *work)
+ {
+-	return sprintf(buf, "%d\n", hp_io_is_busy);
+-}
++	int64_t diff;
+ 
+-static struct kobj_attribute hp_io_is_busy_attr =
+-	__ATTR(hp_io_is_busy, S_IWUSR | S_IRUSR, show_hp_io_is_busy,
+-	       store_hp_io_is_busy);
++	diff = ktime_to_ns(ktime_get()) - rq_info.def_start_time;
++	do_div(diff, 1000 * 1000);
++	rq_info.def_interval = (unsigned int) diff;
+ 
+-static void def_work_fn(struct work_struct *work)
+-{
+ 	/* Notify polling threads on change of value */
+ 	sysfs_notify(rq_info.kobj, NULL, "def_timer_ms");
+ }
