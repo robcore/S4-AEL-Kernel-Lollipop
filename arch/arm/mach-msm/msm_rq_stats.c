@@ -251,6 +251,24 @@ static ssize_t hotplug_disable_show(struct kobject *kobj,
 
 static struct kobj_attribute hotplug_disabled_attr = __ATTR_RO(hotplug_disable);
 
+#ifdef CONFIG_BRICKED_HOTPLUG
+unsigned int get_rq_info(void)
+{
+	unsigned long flags = 0;
+        unsigned int rq = 0;
+
+        spin_lock_irqsave(&rq_lock, flags);
+
+        rq = rq_info.rq_avg;
+        rq_info.rq_avg = 0;
+
+        spin_unlock_irqrestore(&rq_lock, flags);
+
+        return rq;
+}
+EXPORT_SYMBOL(get_rq_info);
+#endif
+
 static void def_work_fn(struct work_struct *work)
 {
 	int64_t diff;
@@ -405,6 +423,7 @@ static int __init msm_rq_stats_init(void)
 	rq_info.rq_poll_last_jiffy = 0;
 	rq_info.def_timer_last_jiffy = 0;
 	rq_info.hotplug_disabled = 0;
+	rq_info.hotplug_enabled = 1;
 	ret = init_rq_attribs();
 
 	rq_info.init = 1;
