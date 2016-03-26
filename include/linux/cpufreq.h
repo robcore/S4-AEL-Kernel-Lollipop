@@ -36,6 +36,8 @@
 int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list);
 int cpufreq_unregister_notifier(struct notifier_block *nb, unsigned int list);
 extern void disable_cpufreq(void);
+u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy);
+unsigned int cpufreq_quick_get_util(unsigned int cpu);
 #else		/* CONFIG_CPU_FREQ */
 static inline int cpufreq_register_notifier(struct notifier_block *nb,
 						unsigned int list)
@@ -44,6 +46,14 @@ static inline int cpufreq_register_notifier(struct notifier_block *nb,
 }
 static inline int cpufreq_unregister_notifier(struct notifier_block *nb,
 						unsigned int list)
+{
+	return 0;
+}
+static inline unsigned int cpufreq_quick_get_util(unsigned int cpu);
+{
+	return 0;
+}
+static inline unsigned int cpufreq_quick_get_util(unsigned int cpu);
 {
 	return 0;
 }

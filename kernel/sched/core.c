@@ -85,7 +85,6 @@
 #endif
 #include "sched.h"
 #include "../workqueue_sched.h"
-#include "../smpboot.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/sched.h>
@@ -112,10 +111,6 @@ void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
 
 DEFINE_MUTEX(sched_domains_mutex);
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
-
-#ifdef CONFIG_INTELLI_PLUG
-DEFINE_PER_CPU_SHARED_ALIGNED(struct nr_stats_s, runqueue_stats);
-#endif
 
 static void update_rq_clock_task(struct rq *rq, s64 delta);
 
@@ -483,7 +478,6 @@ static void init_rq_hrtick(struct rq *rq)
 	rq->hrtick_csd.flags = 0;
 	rq->hrtick_csd.func = __hrtick_start;
 	rq->hrtick_csd.info = rq;
-}
 #endif
 
 	hrtimer_init(&rq->hrtick_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -2170,19 +2164,7 @@ unsigned long nr_iowait(void)
 	return sum;
 }
 
-unsigned long nr_iowait_cpu(int cpu)
-{
-	struct rq *this = cpu_rq(cpu);
-	return atomic_read(&this->nr_iowait);
-}
-
-unsigned long this_cpu_load(void)
-{
-	struct rq *this = this_rq();
-	return this->cpu_load[0];
-}
-
-#ifdef CONFIG_INTELLI_PLUG
+#ifdef CONFIG_INTELLI_HOTPLUG
 unsigned long avg_nr_running(void)
 {
 	unsigned long i, sum = 0;
@@ -2191,11 +2173,12 @@ unsigned long avg_nr_running(void)
 	for_each_online_cpu(i) {
 		struct nr_stats_s *stats = &per_cpu(runqueue_stats, i);
 		struct rq *q = cpu_rq(i);
+
 		/*
-	 	 * Update average to avoid reading stalled value if there were
-	 	 * no run-queue changes for a long time. On the other hand if
-	 	 * the changes are happening right now, just read current value
-	 	 * directly.
+		 * Update average to avoid reading stalled value if there were
+		 * no run-queue changes for a long time. On the other hand if
+		 * the changes are happening right now, just read current value
+		 * directly.
 		 */
 		seqcnt = read_seqcount_begin(&stats->ave_seqcnt);
 		ave_nr_running = do_avg_nr_running(q);
@@ -2203,6 +2186,7 @@ unsigned long avg_nr_running(void)
 			read_seqcount_begin(&stats->ave_seqcnt);
 			ave_nr_running = stats->ave_nr_running;
 		}
+
 		sum += ave_nr_running;
 	}
 
@@ -2234,6 +2218,19 @@ unsigned long avg_cpu_nr_running(unsigned int cpu)
 }
 EXPORT_SYMBOL(avg_cpu_nr_running);
 #endif
+
+unsigned long nr_iowait_cpu(int cpu)
+{
+	struct rq *this = cpu_rq(cpu);
+	return atomic_read(&this->nr_iowait);
+}
+
+
+unsigned long this_cpu_load(void)
+{
+	struct rq *this = this_rq();
+	return this->cpu_load[0];
+}
 
 #ifdef CONFIG_RUNTIME_COMPCACHE
 unsigned long this_cpu_loadx(int i)
@@ -6504,7 +6501,7 @@ static void init_sched_groups_power(int cpu, struct sched_domain *sd)
 {
 	struct sched_group *sg = sd->groups;
 
-	WARN_ON(!sd || !sg);
+	WARN_ON(!sg);
 
 	do {
 		sg->group_weight = cpumask_weight(sched_group_cpus(sg));
@@ -7426,7 +7423,6 @@ void __init sched_init(void)
 	/* May be allocated at isolcpus cmdline parse time */
 	if (cpu_isolated_map == NULL)
 		zalloc_cpumask_var(&cpu_isolated_map, GFP_NOWAIT);
-	idle_thread_set_boot_cpu();
 #endif
 	init_sched_fair_class();
 

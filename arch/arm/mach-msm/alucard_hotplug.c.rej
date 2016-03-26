@@ -1,0 +1,15 @@
+--- arch/arm/mach-msm/alucard_hotplug.c
++++ arch/arm/mach-msm/alucard_hotplug.c
+@@ -477,9 +477,9 @@ static void hotplug_stop(void)
+ 	notif.notifier_call = NULL;
+ #endif
+ 	cancel_delayed_work_sync(&alucard_hotplug_work);
+-	get_online_cpus();
+-	unregister_hotcpu_notifier(&alucard_hotplug_nb);
+-	put_online_cpus();
++	cpu_notifier_register_begin();
++	__unregister_hotcpu_notifier(&alucard_hotplug_nb);
++	cpu_notifier_register_done();
+ 
+ 	stop_rq_work();
+ 

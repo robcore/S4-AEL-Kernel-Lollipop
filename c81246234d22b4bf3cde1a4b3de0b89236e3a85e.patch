@@ -1,0 +1,300 @@
+From c81246234d22b4bf3cde1a4b3de0b89236e3a85e Mon Sep 17 00:00:00 2001
+From: "Christopher R. Palmer" <crpalmer@gmail.com>
+Date: Fri, 12 Sep 2014 18:05:10 -0400
+Subject: [PATCH] msm: msm_rq_stats: Tone down mpdecision
+
+Add a new Kconfig to enable more conservative computations sent
+to mpdecision:
+
+ * Do not make IO busy
+ * Do a time window weighted load computation instead of just a sum
+ * Do an sliding window averaged time computation for number runnable
+
+The purpose of these changes is to make mpdecision less likely to
+keep extra cores online.  It currently has a tendancy to run more
+cores running than needed and this can even cause some lag issues.
+
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+
+ Conflicts:
+	kernel/sched/core.c
+	kernel/sched/sched.h
+---
+ arch/arm/mach-msm/Kconfig        |  8 ++++++
+ arch/arm/mach-msm/msm_rq_stats.c | 39 +++++++++++++++++++++++++
+ include/linux/sched.h            |  5 ++++
+ kernel/sched/core.c              | 58 ++++++++++++++++++++++++++++++++++++++
+ kernel/sched/sched.h             | 61 ++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 171 insertions(+)
+
+diff --git a/arch/arm/mach-msm/Kconfig b/arch/arm/mach-msm/Kconfig
+index da67110..ab476a7 100644
+--- a/arch/arm/mach-msm/Kconfig
++++ b/arch/arm/mach-msm/Kconfig
+@@ -2496,6 +2496,14 @@ config MSM_RUN_QUEUE_STATS
+          in user mode, called MPDecision will be using this data to decide
+          on when to switch off/on the other cores.
+ 
++config MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE
++	bool "Use a more conservative computation for RQ Stats"
++	depends on MSM_RUN_QUEUE_STATS
++	default n
++	help
++	  Enable more conservative computation of load and size of the run
++	  queue.
++
+ config MSM_STANDALONE_POWER_COLLAPSE
+        bool "Enable standalone power collapse"
+        default n
+diff --git a/arch/arm/mach-msm/msm_rq_stats.c b/arch/arm/mach-msm/msm_rq_stats.c
+index 154c647..1fc9f38 100644
+--- a/arch/arm/mach-msm/msm_rq_stats.c
++++ b/arch/arm/mach-msm/msm_rq_stats.c
+@@ -117,6 +117,38 @@ static int update_average_load(unsigned int freq, unsigned int cpu)
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE
++
++static unsigned int report_load_at_max_freq(void)
++{
++	int cpu;
++	struct cpu_load_data *pcpu;
++	uint64_t timed_load = 0;
++	unsigned int max_window_size = 0;
++
++	for_each_online_cpu(cpu) {
++		pcpu = &per_cpu(cpuload, cpu);
++
++		mutex_lock(&pcpu->cpu_load_mutex);
++
++		update_average_load(pcpu->cur_freq, cpu);
++
++		timed_load += ((uint64_t) pcpu->avg_load_maxfreq) * pcpu->window_size;
++		if (pcpu->window_size > max_window_size)
++			max_window_size = pcpu->window_size;
++
++		pcpu->avg_load_maxfreq = 0;
++		mutex_unlock(&pcpu->cpu_load_mutex);
++	}
++
++	if (max_window_size == 0)
++		return 0;
++	else
++		return div_u64(timed_load, max_window_size);
++}
++
++#else
++
+ static unsigned int report_load_at_max_freq(void)
+ {
+ 	int cpu;
+@@ -134,6 +166,8 @@ static unsigned int report_load_at_max_freq(void)
+ 	return total_load;
+ }
+ 
++#endif
++
+ static int cpufreq_transition_handler(struct notifier_block *nb,
+ 			unsigned long val, void *data)
+ {
+@@ -279,6 +313,10 @@ static void def_work_fn(struct work_struct *work)
+ static ssize_t run_queue_avg_show(struct kobject *kobj,
+ 		struct kobj_attribute *attr, char *buf)
+ {
++#ifdef CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE
++	int nr_running = (avg_nr_running() * 10) >> FSHIFT;
++	return snprintf(buf, PAGE_SIZE, "%d.%d\n", nr_running/10, nr_running%10);
++#else
+ 	unsigned int val = 0;
+ 	unsigned long flags = 0;
+ 
+@@ -289,6 +327,7 @@ static ssize_t run_queue_avg_show(struct kobject *kobj,
+ 	spin_unlock_irqrestore(&rq_lock, flags);
+ 
+ 	return snprintf(buf, PAGE_SIZE, "%d.%d\n", val/10, val%10);
++#endif
+ }
+ 
+ static struct kobj_attribute run_queue_avg_attr = __ATTR_RO(run_queue_avg);
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index f349cfd..46bdf8c 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -139,6 +139,11 @@ extern int nr_processes(void);
+ extern unsigned long nr_running(void);
+ extern unsigned long nr_uninterruptible(void);
+ extern unsigned long nr_iowait(void);
++#if defined(CONFIG_FAST_HOTPLUG) || defined(CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE)
++extern unsigned long avg_nr_running(void);
++extern unsigned long avg_cpu_nr_running(unsigned int cpu);
++#endif
++
+ extern unsigned long nr_iowait_cpu(int cpu);
+ extern unsigned long this_cpu_load(void);
+ 
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 473db96..3805470 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -113,6 +113,9 @@ void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
+ 
+ DEFINE_MUTEX(sched_domains_mutex);
+ DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
++#if defined(CONFIG_FAST_HOTPLUG) || defined(CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE)
++DEFINE_PER_CPU_SHARED_ALIGNED(struct nr_stats_s, runqueue_stats);
++#endif
+ 
+ static void update_rq_clock_task(struct rq *rq, s64 delta);
+ 
+@@ -2190,6 +2193,61 @@ unsigned long nr_iowait(void)
+ 	return sum;
+ }
+ 
++#if defined(CONFIG_FAST_HOTPLUG) || defined(CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE)
++unsigned long avg_nr_running(void)
++{
++	unsigned long i, sum = 0;
++	unsigned int seqcnt, ave_nr_running;
++
++	for_each_online_cpu(i) {
++		struct nr_stats_s *stats = &per_cpu(runqueue_stats, i);
++		struct rq *q = cpu_rq(i);
++
++		/*
++		 * Update average to avoid reading stalled value if there were
++		 * no run-queue changes for a long time. On the other hand if
++		 * the changes are happening right now, just read current value
++		 * directly.
++		 */
++		seqcnt = read_seqcount_begin(&stats->ave_seqcnt);
++		ave_nr_running = do_avg_nr_running(q);
++		if (read_seqcount_retry(&stats->ave_seqcnt, seqcnt)) {
++			read_seqcount_begin(&stats->ave_seqcnt);
++			ave_nr_running = stats->ave_nr_running;
++		}
++
++		sum += ave_nr_running;
++	}
++
++	return sum;
++}
++EXPORT_SYMBOL(avg_nr_running);
++
++unsigned long avg_cpu_nr_running(unsigned int cpu)
++{
++	unsigned int seqcnt, ave_nr_running;
++
++	struct nr_stats_s *stats = &per_cpu(runqueue_stats, cpu);
++	struct rq *q = cpu_rq(cpu);
++
++	/*
++	 * Update average to avoid reading stalled value if there were
++	 * no run-queue changes for a long time. On the other hand if
++	 * the changes are happening right now, just read current value
++	 * directly.
++	 */
++	seqcnt = read_seqcount_begin(&stats->ave_seqcnt);
++	ave_nr_running = do_avg_nr_running(q);
++	if (read_seqcount_retry(&stats->ave_seqcnt, seqcnt)) {
++		read_seqcount_begin(&stats->ave_seqcnt);
++		ave_nr_running = stats->ave_nr_running;
++	}
++
++	return ave_nr_running;
++}
++EXPORT_SYMBOL(avg_cpu_nr_running);
++#endif
++
+ unsigned long nr_iowait_cpu(int cpu)
+ {
+ 	struct rq *this = cpu_rq(cpu);
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index efd62df..6fa1f7b 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -484,6 +484,22 @@ DECLARE_PER_CPU(struct rq, runqueues);
+ #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
+ #define raw_rq()		(&__raw_get_cpu_var(runqueues))
+ 
++#if defined(CONFIG_FAST_HOTPLUG) || defined(CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE)
++struct nr_stats_s {
++	/* time-based average load */
++	u64 nr_last_stamp;
++	unsigned int ave_nr_running;
++	seqcount_t ave_seqcnt;
++};
++
++#define NR_AVE_PERIOD_EXP	28
++#define NR_AVE_SCALE(x)		((x) << FSHIFT)
++#define NR_AVE_PERIOD		(1 << NR_AVE_PERIOD_EXP)
++#define NR_AVE_DIV_PERIOD(x)	((x) >> NR_AVE_PERIOD_EXP)
++
++DECLARE_PER_CPU(struct nr_stats_s, runqueue_stats);
++#endif
++
+ #ifdef CONFIG_SMP
+ 
+ #define rcu_dereference_check_sched_domain(p) \
+@@ -922,16 +938,61 @@ extern void cpuacct_charge(struct task_struct *tsk, u64 cputime);
+ static inline void cpuacct_charge(struct task_struct *tsk, u64 cputime) {}
+ #endif
+ 
++#if defined(CONFIG_FAST_HOTPLUG) || defined(CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE)
++static inline unsigned int do_avg_nr_running(struct rq *rq)
++{
++
++	struct nr_stats_s *nr_stats = &per_cpu(runqueue_stats, rq->cpu);
++	unsigned int ave_nr_running = nr_stats->ave_nr_running;
++	s64 nr, deltax;
++
++	deltax = rq->clock_task - nr_stats->nr_last_stamp;
++	nr = NR_AVE_SCALE(rq->nr_running);
++
++	if (deltax > NR_AVE_PERIOD)
++		ave_nr_running = nr;
++	else
++		ave_nr_running +=
++			NR_AVE_DIV_PERIOD(deltax * (nr - ave_nr_running));
++
++	return ave_nr_running;
++}
++#endif
++
+ static inline void inc_nr_running(struct rq *rq)
+ {
++#if defined(CONFIG_FAST_HOTPLUG) || defined(CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE)
++	struct nr_stats_s *nr_stats = &per_cpu(runqueue_stats, rq->cpu);
++#endif
++
+ 	sched_update_nr_prod(cpu_of(rq), rq->nr_running, true);
++#if defined(CONFIG_FAST_HOTPLUG) || defined(CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE)
++	write_seqcount_begin(&nr_stats->ave_seqcnt);
++	nr_stats->ave_nr_running = do_avg_nr_running(rq);
++	nr_stats->nr_last_stamp = rq->clock_task;
++#endif
+ 	rq->nr_running++;
++#if defined(CONFIG_FAST_HOTPLUG) || defined(CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE)
++	write_seqcount_end(&nr_stats->ave_seqcnt);
++#endif
+ }
+ 
+ static inline void dec_nr_running(struct rq *rq)
+ {
++#if defined(CONFIG_FAST_HOTPLUG) || defined(CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE)
++	struct nr_stats_s *nr_stats = &per_cpu(runqueue_stats, rq->cpu);
++#endif
++
+ 	sched_update_nr_prod(cpu_of(rq), rq->nr_running, false);
++#if defined(CONFIG_FAST_HOTPLUG) || defined(CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE)
++	write_seqcount_begin(&nr_stats->ave_seqcnt);
++	nr_stats->ave_nr_running = do_avg_nr_running(rq);
++	nr_stats->nr_last_stamp = rq->clock_task;
++#endif
+ 	rq->nr_running--;
++#if defined(CONFIG_FAST_HOTPLUG) || defined(CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE)
++	write_seqcount_end(&nr_stats->ave_seqcnt);
++#endif
+ }
+ 
+ extern void update_rq_clock(struct rq *rq);

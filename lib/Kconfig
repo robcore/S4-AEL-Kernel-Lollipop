@@ -16,6 +16,9 @@ config BITREVERSE
 config RATIONAL
 	boolean
 
+config GENERIC_STRNLEN_USER
+	bool
+
 config GENERIC_FIND_FIRST_BIT
 	bool
 
@@ -177,6 +180,9 @@ config LZO_COMPRESS
 config LZO_DECOMPRESS
 	tristate
 
+config LZ4_DECOMPRESS
+	tristate
+
 source "lib/xz/Kconfig"
 
 #
@@ -199,6 +205,10 @@ config DECOMPRESS_XZ
 
 config DECOMPRESS_LZO
 	select LZO_DECOMPRESS
+	tristate
+
+config DECOMPRESS_LZ4
+	select LZ4_DECOMPRESS
 	tristate
 
 #

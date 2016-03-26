@@ -112,8 +112,7 @@ void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
 
 DEFINE_MUTEX(sched_domains_mutex);
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
-
-#ifdef CONFIG_INTELLI_PLUG
+#ifdef CONFIG_INTELLI_HOTPLUG
 DEFINE_PER_CPU_SHARED_ALIGNED(struct nr_stats_s, runqueue_stats);
 #endif
 
@@ -2170,19 +2169,62 @@ unsigned long nr_iowait(void)
 	return sum;
 }
 
-unsigned long nr_iowait_cpu(int cpu)
+#ifdef CONFIG_INTELLI_HOTPLUG
+unsigned long avg_nr_running(void)
 {
-	struct rq *this = cpu_rq(cpu);
-	return atomic_read(&this->nr_iowait);
-}
+	unsigned long i, sum = 0;
+	unsigned int seqcnt, ave_nr_running;
 
-unsigned long this_cpu_load(void)
+	for_each_online_cpu(i) {
+		struct nr_stats_s *stats = &per_cpu(runqueue_stats, i);
+		struct rq *q = cpu_rq(i);
+
+		/*
+		 * Update average to avoid reading stalled value if there were
+		 * no run-queue changes for a long time. On the other hand if
+		 * the changes are happening right now, just read current value
+		 * directly.
+		 */
+		seqcnt = read_seqcount_begin(&stats->ave_seqcnt);
+		ave_nr_running = do_avg_nr_running(q);
+		if (read_seqcount_retry(&stats->ave_seqcnt, seqcnt)) {
+			read_seqcount_begin(&stats->ave_seqcnt);
+			ave_nr_running = stats->ave_nr_running;
+		}
+
+		sum += ave_nr_running;
+	}
+
+	return sum;
+}
+EXPORT_SYMBOL(avg_nr_running);
+
+unsigned long avg_cpu_nr_running(unsigned int cpu)
 {
-	struct rq *this = this_rq();
-	return this->cpu_load[0];
-}
+	unsigned int seqcnt, ave_nr_running;
 
-#ifdef CONFIG_INTELLI_PLUG
+	struct nr_stats_s *stats = &per_cpu(runqueue_stats, cpu);
+	struct rq *q = cpu_rq(cpu);
+
+	/*
+	 * Update average to avoid reading stalled value if there were
+	 * no run-queue changes for a long time. On the other hand if
+	 * the changes are happening right now, just read current value
+	 * directly.
+	 */
+	seqcnt = read_seqcount_begin(&stats->ave_seqcnt);
+	ave_nr_running = do_avg_nr_running(q);
+	if (read_seqcount_retry(&stats->ave_seqcnt, seqcnt)) {
+		read_seqcount_begin(&stats->ave_seqcnt);
+		ave_nr_running = stats->ave_nr_running;
+	}
+
+	return ave_nr_running;
+}
+EXPORT_SYMBOL(avg_cpu_nr_running);
+#endif
+
+#ifdef CONFIG_INTELLI_HOTPLUG
 unsigned long avg_nr_running(void)
 {
 	unsigned long i, sum = 0;
@@ -2192,10 +2234,10 @@ unsigned long avg_nr_running(void)
 		struct nr_stats_s *stats = &per_cpu(runqueue_stats, i);
 		struct rq *q = cpu_rq(i);
 		/*
-	 	 * Update average to avoid reading stalled value if there were
-	 	 * no run-queue changes for a long time. On the other hand if
-	 	 * the changes are happening right now, just read current value
-	 	 * directly.
+		 * Update average to avoid reading stalled value if there were
+		 * no run-queue changes for a long time. On the other hand if
+		 * the changes are happening right now, just read current value
+		 * directly.
 		 */
 		seqcnt = read_seqcount_begin(&stats->ave_seqcnt);
 		ave_nr_running = do_avg_nr_running(q);
@@ -2234,6 +2276,19 @@ unsigned long avg_cpu_nr_running(unsigned int cpu)
 }
 EXPORT_SYMBOL(avg_cpu_nr_running);
 #endif
+
+unsigned long nr_iowait_cpu(int cpu)
+{
+	struct rq *this = cpu_rq(cpu);
+	return atomic_read(&this->nr_iowait);
+}
+
+
+unsigned long this_cpu_load(void)
+{
+	struct rq *this = this_rq();
+	return this->cpu_load[0];
+}
 
 #ifdef CONFIG_RUNTIME_COMPCACHE
 unsigned long this_cpu_loadx(int i)
@@ -6504,7 +6559,7 @@ static void init_sched_groups_power(int cpu, struct sched_domain *sd)
 {
 	struct sched_group *sg = sd->groups;
 
-	WARN_ON(!sd || !sg);
+	WARN_ON(!sg);
 
 	do {
 		sg->group_weight = cpumask_weight(sched_group_cpus(sg));
@@ -7215,9 +7270,6 @@ void __init sched_init_smp(void)
 
 	hotcpu_notifier(cpuset_cpu_active, CPU_PRI_CPUSET_ACTIVE);
 	hotcpu_notifier(cpuset_cpu_inactive, CPU_PRI_CPUSET_INACTIVE);
-
-	/* RT runtime code needs to handle some hotplug events */
-	hotcpu_notifier(update_runtime, 0);
 
 	init_hrtick();
 

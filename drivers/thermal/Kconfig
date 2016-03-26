@@ -86,11 +86,18 @@ config INTELLI_THERMAL
 	  This enables thermal monitoring capability in the kernel replacing
 	  userspace thermal monitoring altogether.
 
+config INTELLI_THERMAL_STATS
+	bool "Enable intelli_thermal statistics"
+	depends on INTELLI_THERMAL
+	default n
+	help
+	  This enables intelli_thermal statistics
+
 config THERMAL_MONITOR
 	bool "Monitor thermal state and limit CPU Frequency"
 	depends on THERMAL_TSENS8960 || THERMAL_TSENS8974
 	depends on CPU_FREQ_MSM
-	default y
+	default n
 	help
 	  This enables thermal monitoring capability in the kernel in the
 	  absence of a system wide thermal monitoring entity or until such an

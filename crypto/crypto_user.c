@@ -496,9 +496,11 @@ static void crypto_netlink_rcv(struct sk_buff *skb)
 
 static int __init crypto_user_init(void)
 {
-	crypto_nlsk = netlink_kernel_create(&init_net, NETLINK_CRYPTO,
-					    0, crypto_netlink_rcv,
-					    NULL, THIS_MODULE);
+	struct netlink_kernel_cfg cfg = {
+		.input	= crypto_netlink_rcv,
+	};
+
+	crypto_nlsk = netlink_kernel_create(&init_net, NETLINK_CRYPTO, &cfg);
 	if (!crypto_nlsk)
 		return -ENOMEM;
 

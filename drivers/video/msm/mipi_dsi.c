@@ -149,6 +149,10 @@ static int mipi_dsi_off(struct platform_device *pdev)
 
 	mipi_dsi_unprepare_clocks();
 
+	#if defined(CONFIG_MACH_JF)
+		lcd_notifier_call_chain(LCD_EVENT_ON_END, NULL);
+	#endif
+
 	usleep(5000);
 #if  defined (CONFIG_MIPI_DSI_RESET_LP11)
 
