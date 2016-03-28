@@ -380,7 +380,7 @@ enum {
 int get_max_freq(void);
 int get_min_freq(void);
 
-#define MAX_FREQ_LIMIT		get_max_freq() /* 1512000 */
+#define MAX_FREQ_LIMIT		get_max_freq() /* 1890000 */
 #define MIN_FREQ_LIMIT		get_min_freq() /* 384000 */
 
 #define MIN_TOUCH_LIMIT		1134000
@@ -389,9 +389,9 @@ int get_min_freq(void);
 #define MIN_TOUCH_HIGH_LIMIT_SECOND	1566000
 
 #ifdef CONFIG_TARGET_SERIES_DALI
-#define MAX_UNICPU_LIMIT	1188000
+#define MAX_UNICPU_LIMIT	1890000
 #else
-#define MAX_UNICPU_LIMIT	1242000
+#define MAX_UNICPU_LIMIT	1890000
 #endif
 
 #define UPDATE_NOW_BITS		0xFF
