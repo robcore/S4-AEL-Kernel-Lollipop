@@ -65,30 +65,9 @@ enum ipi_msg_type {
 
 static DECLARE_COMPLETION(cpu_running);
 
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
 {
-	struct cpuinfo_arm *ci = &per_cpu(cpu_data, cpu);
-	struct task_struct *idle = ci->idle;
 	int ret;
-
-	/*
-	 * Spawn a new process manually, if not already done.
-	 * Grab a pointer to its task struct so we can mess with it
-	 */
-	if (!idle) {
-		idle = fork_idle(cpu);
-		if (IS_ERR(idle)) {
-			printk(KERN_ERR "CPU%u: fork() failed\n", cpu);
-			return PTR_ERR(idle);
-		}
-		ci->idle = idle;
-	} else {
-		/*
-		 * Since this idle thread is being re-used, call
-		 * init_idle() to reinitialize the thread structure.
-		 */
-		init_idle(idle, cpu);
-	}
 
 	/*
 	 * We need to tell the secondary core where to find
@@ -321,9 +300,6 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 void __init smp_prepare_boot_cpu(void)
 {
-	unsigned int cpu = smp_processor_id();
-
-	per_cpu(cpu_data, cpu).idle = current;
 }
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
@@ -497,13 +473,15 @@ static void percpu_timer_stop(void)
 
 static DEFINE_RAW_SPINLOCK(stop_lock);
 
+static struct pt_regs __percpu regs_before_stop;
 /*
  * ipi_cpu_stop - handle IPI from smp_send_stop()
  */
-static void ipi_cpu_stop(unsigned int cpu)
+static void ipi_cpu_stop(unsigned int cpu, struct pt_regs *regs)
 {
 	if (system_state == SYSTEM_BOOTING ||
 	    system_state == SYSTEM_RUNNING) {
+		per_cpu(regs_before_stop, cpu) = *regs;
 		raw_spin_lock(&stop_lock);
 		printk(KERN_CRIT "CPU%u: stopping\n", cpu);
 		dump_stack();
@@ -619,7 +597,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 
 	case IPI_CPU_STOP:
 		irq_enter();
-		ipi_cpu_stop(cpu);
+		ipi_cpu_stop(cpu, regs);
 		irq_exit();
 		break;
 

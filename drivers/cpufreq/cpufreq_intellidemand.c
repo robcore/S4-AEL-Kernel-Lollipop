@@ -1663,7 +1663,7 @@ static void dbs_refresh_callback(struct work_struct *work)
 	dbs_work = container_of(work, struct dbs_work_struct, work);
 	cpu = dbs_work->cpu;
 
-	cpu_maps_update_begin();
+	get_online_cpus();
 
 	if (lock_policy_rwsem_write(cpu) < 0)
 		goto bail_acq_sema_failed;
@@ -1693,7 +1693,7 @@ bail_incorrect_governor:
 	unlock_policy_rwsem_write(cpu);
 
 bail_acq_sema_failed:
-	cpu_maps_update_done();
+	put_online_cpus();
 	return;
 }
 

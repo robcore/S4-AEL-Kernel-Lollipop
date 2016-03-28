@@ -36,8 +36,6 @@
 int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list);
 int cpufreq_unregister_notifier(struct notifier_block *nb, unsigned int list);
 extern void disable_cpufreq(void);
-u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy);
-unsigned int cpufreq_quick_get_util(unsigned int cpu);
 #else		/* CONFIG_CPU_FREQ */
 static inline int cpufreq_register_notifier(struct notifier_block *nb,
 						unsigned int list)
@@ -46,10 +44,6 @@ static inline int cpufreq_register_notifier(struct notifier_block *nb,
 }
 static inline int cpufreq_unregister_notifier(struct notifier_block *nb,
 						unsigned int list)
-{
-	return 0;
-}
-static inline unsigned int cpufreq_quick_get_util(unsigned int cpu);
 {
 	return 0;
 }
@@ -450,9 +444,6 @@ extern struct cpufreq_governor cpufreq_gov_userspace;
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND)
 extern struct cpufreq_governor cpufreq_gov_ondemand;
 #define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_ondemand)
-#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_UBERDEMAND)
-extern struct cpufreq_governor cpufreq_gov_uberdemand;
-#define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_uberdemand)
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_CONSERVATIVE)
 extern struct cpufreq_governor cpufreq_gov_conservative;
 #define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_conservative)
@@ -465,6 +456,9 @@ extern struct cpufreq_governor cpufreq_gov_intelliactive;
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_INTELLIDEMAND)
 extern struct cpufreq_governor cpufreq_gov_intellidemand;
 #define CPUFREQ_DEFAULT_GOVERNOR        (&cpufreq_gov_intellidemand)
+#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_UBERDEMAND)
+extern struct cpufreq_governor cpufreq_gov_uberdemand;
+#define CPUFREQ_DEFAULT_GOVERNOR        (&cpufreq_gov_uberdemand)
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_INTELLIMM)
 extern struct cpufreq_governor cpufreq_gov_intellimm;
 #define CPUFREQ_DEFAULT_GOVERNOR        (&cpufreq_gov_intellimm)

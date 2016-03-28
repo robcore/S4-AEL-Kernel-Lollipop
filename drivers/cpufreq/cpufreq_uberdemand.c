@@ -61,7 +61,7 @@
 static unsigned int min_sampling_rate;
 
 #define LATENCY_MULTIPLIER			(1000)
-#define MIN_LATENCY_MULTIPLIER			(100)
+#define MIN_LATENCY_MULTIPLIER			(20)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000 * 1000)
 
 #define POWERSAVE_BIAS_MAXLEVEL			(1000)
@@ -654,8 +654,8 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	/* Check for frequency increase */
 	if (max_load_freq > dbs_tuners_ins.up_threshold * policy->cur) {
 		if (policy->cur < policy->max) {
-			if (policy->cur < 1458000) dbs_freq_increase(policy, SECOND_PHASE_FREQ);
-			else if (policy->cur < 1566000) dbs_freq_increase(policy, SECOND_PHASE_FREQ);
+			if (policy->cur < 1350000) dbs_freq_increase(policy, SECOND_PHASE_FREQ);
+			else if (policy->cur < 1458000) dbs_freq_increase(policy, SECOND_PHASE_FREQ);
 			else {
 				this_dbs_info->rate_mult = dbs_tuners_ins.sampling_down_factor;
 				dbs_freq_increase(policy, policy->max);

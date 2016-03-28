@@ -246,12 +246,12 @@ EXPORT_SYMBOL(tsens_get_temp);
 
 int tsens_get_max_sensor_num(uint32_t *tsens_num_sensors)
 {
-	if (!tmdev)
-		return -ENODEV;
+        if (!tmdev)
+                return -ENODEV;
 
-	*tsens_num_sensors = tmdev->tsens_num_sensor;
+        *tsens_num_sensors = tmdev->tsens_num_sensor;
 
-	return 0;
+        return 0;
 }
 EXPORT_SYMBOL(tsens_get_max_sensor_num);
 
