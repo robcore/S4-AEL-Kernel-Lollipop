@@ -1,0 +1,24 @@
+From 7e2fcc8b8495d17ceac7db37bfa1fcf4950f2f90 Mon Sep 17 00:00:00 2001
+From: Paul Reioux <reioux@gmail.com>
+Date: Mon, 8 Sep 2014 00:27:39 -0500
+Subject: [PATCH] intelli-thermal v2: even more verbose debug
+
+Signed-off-by: Paul Reioux <reioux@gmail.com>
+---
+ drivers/thermal/intelli/msm_thermal_v2.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/thermal/intelli/msm_thermal_v2.c b/drivers/thermal/intelli/msm_thermal_v2.c
+index 7c00e5aa5..938c4ff 100644
+--- a/drivers/thermal/intelli/msm_thermal_v2.c
++++ b/drivers/thermal/intelli/msm_thermal_v2.c
+@@ -849,7 +849,8 @@ static int set_threshold(uint32_t zone_id,
+ 	long temp;
+ 
+ 	if ((!threshold) || (zone_id >= max_tsens_num)) {
+-		pr_err("%s: Invalid input for threshold\n", KBUILD_MODNAME);
++		pr_err("%s: Invalid input for threshold: zone id: %u\n",
++			KBUILD_MODNAME, zone_id);
+ 		ret = -EINVAL;
+ 		goto set_threshold_exit;
+ 	}

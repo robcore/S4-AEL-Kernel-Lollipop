@@ -1,0 +1,33 @@
+From 0ddecb9dadeb4161b34566f818c8fcda3b28311f Mon Sep 17 00:00:00 2001
+From: Paul Reioux <reioux@gmail.com>
+Date: Mon, 8 Sep 2014 00:19:32 -0500
+Subject: [PATCH] intelli-thermal v2: better debug message
+
+Signed-off-by: Paul Reioux <reioux@gmail.com>
+---
+ drivers/thermal/intelli/msm_thermal_v2.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/thermal/intelli/msm_thermal_v2.c b/drivers/thermal/intelli/msm_thermal_v2.c
+index 9644a96..7c00e5aa5 100644
+--- a/drivers/thermal/intelli/msm_thermal_v2.c
++++ b/drivers/thermal/intelli/msm_thermal_v2.c
+@@ -849,7 +849,7 @@ static int set_threshold(uint32_t zone_id,
+ 	long temp;
+ 
+ 	if ((!threshold) || (zone_id >= max_tsens_num)) {
+-		pr_err("%s: Invalid input\n", KBUILD_MODNAME);
++		pr_err("%s: Invalid input for threshold\n", KBUILD_MODNAME);
+ 		ret = -EINVAL;
+ 		goto set_threshold_exit;
+ 	}
+@@ -1527,7 +1527,8 @@ int msm_thermal_set_frequency(uint32_t cpu, uint32_t freq, bool is_max)
+ 	int ret = 0;
+ 
+ 	if (cpu >= num_possible_cpus()) {
+-		pr_err("%s: Invalid input\n", KBUILD_MODNAME);
++		pr_err("%s: Invalid input %u for frequency\n", KBUILD_MODNAME,
++			cpu);
+ 		ret = -EINVAL;
+ 		goto set_freq_exit;
+ 	}
