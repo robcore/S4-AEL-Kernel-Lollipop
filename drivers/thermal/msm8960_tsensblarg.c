@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -289,7 +289,7 @@ static DEVICE_ATTR(curr_temp, S_IRUSR|S_IRGRP, show_temp, NULL);
  * returns with an error stating the main sensor is not enabled.
  */
 static int tsens_tz_set_mode(struct thermal_zone_device *thermal,
-			      enum thermal_device_mode mode)
+			      enum thermal_devaice_mode mode)
 {
 	struct tsens_tm_device_sensor *tm_sensor = thermal->devdata;
 	unsigned int reg, mask, i;
