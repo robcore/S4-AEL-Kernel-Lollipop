@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -684,15 +684,6 @@ static void tsens_scheduler_fn(struct work_struct *work)
 			if (lower_th_x)
 				mask |= TSENS_LOWER_STATUS_CLR;
 			if (upper_th_x || lower_th_x) {
-			unsigned long temp;
-			enum thermal_trip_type trip =
-					THERMAL_TRIP_CONFIGURABLE_LOW;
-
-			if (upper_th_x)
-				trip = THERMAL_TRIP_CONFIGURABLE_HI;
-			tsens_tz_get_temp(tm->sensor[i].tz_dev, &temp);
-			thermal_sensor_trip(tm->sensor[i].tz_dev, trip, temp);
-
 				/* Notify user space */
 				schedule_work(&tm->sensor[i].work);
 				adc_code = readl_relaxed(sensor_addr);
