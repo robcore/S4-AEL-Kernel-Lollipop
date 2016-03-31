@@ -9208,7 +9208,7 @@ static int tabla_codec_remove(struct snd_soc_codec *codec)
 	tabla_codec_enable_bandgap(codec, TABLA_BANDGAP_OFF);
 	if (tabla->mbhc_fw)
 		release_firmware(tabla->mbhc_fw);
-	for (i = 0; i < ARRAY_SIZE(tabla->dai); i++)
+	for (i = 0; i < ARRAY_SIZE(tabla_dai); i++)
 		kfree(tabla->dai[i].ch_num);
 	mutex_destroy(&tabla->codec_resource_lock);
 #ifdef CONFIG_DEBUG_FS
