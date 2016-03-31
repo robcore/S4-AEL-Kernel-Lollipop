@@ -354,7 +354,7 @@ int mdp4_overlay_iommu_map_buf(int mem_id,
 
 		if (ion_map_iommu(display_iclient, *srcp_ihdl,
 				DISPLAY_READ_DOMAIN, GEN_POOL, SZ_4K, map_size, start,
-				len, 0, 0)) {
+				len, 0, ION_IOMMU_UNMAP_DELAYED)) {
 			ion_free(display_iclient, *srcp_ihdl);
 			pr_err("%s(): ion_map_iommu() failed\n",
 					__func__);
