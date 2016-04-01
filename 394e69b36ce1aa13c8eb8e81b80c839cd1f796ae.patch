@@ -1,0 +1,65 @@
+From 394e69b36ce1aa13c8eb8e81b80c839cd1f796ae Mon Sep 17 00:00:00 2001
+From: Joonsoo Kim <js1304@gmail.com>
+Date: Wed, 15 Aug 2012 23:25:39 +0900
+Subject: [PATCH] workqueue: introduce system_highpri_wq
+
+Commit 3270476a6c0ce322354df8679652f060d66526dc ('workqueue: reimplement
+WQ_HIGHPRI using a separate worker_pool') introduce separate worker pool
+for HIGHPRI. When we handle busyworkers for gcwq, it can be normal worker
+or highpri worker. But, we don't consider this difference in rebind_workers(),
+we use just system_wq for highpri worker. It makes mismatch between
+cwq->pool and worker->pool.
+
+It doesn't make error in current implementation, but possible in the future.
+Now, we introduce system_highpri_wq to use proper cwq for highpri workers
+in rebind_workers(). Following patch fix this issue properly.
+
+tj: Even apart from rebinding, having system_highpri_wq generally
+    makes sense.
+
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+Signed-off-by: Tejun Heo <tj@kernel.org>
+---
+ kernel/workqueue.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+index bb6362c..1744c74 100644
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -273,12 +273,14 @@ struct workqueue_struct {
+ };
+ 
+ struct workqueue_struct *system_wq __read_mostly;
++struct workqueue_struct *system_highpri_wq __read_mostly;
+ struct workqueue_struct *system_long_wq __read_mostly;
+ struct workqueue_struct *system_nrt_wq __read_mostly;
+ struct workqueue_struct *system_unbound_wq __read_mostly;
+ struct workqueue_struct *system_freezable_wq __read_mostly;
+ struct workqueue_struct *system_nrt_freezable_wq __read_mostly;
+ EXPORT_SYMBOL_GPL(system_wq);
++EXPORT_SYMBOL_GPL(system_highpri_wq);
+ EXPORT_SYMBOL_GPL(system_long_wq);
+ EXPORT_SYMBOL_GPL(system_nrt_wq);
+ EXPORT_SYMBOL_GPL(system_unbound_wq);
+@@ -3978,6 +3980,7 @@ static int __init init_workqueues(void)
+ 	}
+ 
+ 	system_wq = alloc_workqueue("events", 0, 0);
++	system_highpri_wq = alloc_workqueue("events_highpri", WQ_HIGHPRI, 0);
+ 	system_long_wq = alloc_workqueue("events_long", 0, 0);
+ 	system_nrt_wq = alloc_workqueue("events_nrt", WQ_NON_REENTRANT, 0);
+ 	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND,
+@@ -3986,9 +3989,9 @@ static int __init init_workqueues(void)
+ 					      WQ_FREEZABLE, 0);
+ 	system_nrt_freezable_wq = alloc_workqueue("events_nrt_freezable",
+ 			WQ_NON_REENTRANT | WQ_FREEZABLE, 0);
+-	BUG_ON(!system_wq || !system_long_wq || !system_nrt_wq ||
+-	       !system_unbound_wq || !system_freezable_wq ||
+-		!system_nrt_freezable_wq);
++	BUG_ON(!system_wq || !system_highpri_wq || !system_long_wq ||
++	       !system_nrt_wq || !system_unbound_wq || !system_freezable_wq ||
++	       !system_nrt_freezable_wq);
+ 	return 0;
+ }
+ early_initcall(init_workqueues);
