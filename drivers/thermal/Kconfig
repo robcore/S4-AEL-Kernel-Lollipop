@@ -75,7 +75,7 @@ config THERMAL_PM8XXX
 
 choice
 	prompt "MSM Thermal Monitor Types"
-	default INTELLI_THERMAL
+	default THERMAL_MONITOR
 
 config INTELLI_THERMAL
 	bool "Better thermal monitor for MSM"
@@ -84,6 +84,12 @@ config INTELLI_THERMAL
 	help
 	  This enables thermal monitoring capability in the kernel replacing
 	  userspace thermal monitoring altogether.
+
+config INTELLI_THERMAL_STATS
+	bool "Enable intelli_thermal statistics"
+	depends on THERMAL_MONITOR
+	help
+	  This enables intelli_thermal statistics
 
 config THERMAL_MONITOR
 	bool "Monitor thermal state and limit CPU Frequency"

@@ -1,0 +1,514 @@
+From ed01bba2acfa0c9a7582a11e0606e841bcd5addc Mon Sep 17 00:00:00 2001
+From: ausdim <koronaios@gmail.com>
+Date: Fri, 5 Jul 2013 18:47:00 +0300
+Subject: [PATCH] disable all debuggers
+
+Conflicts:
+	arch/arm/configs/jf_defconfig
+	drivers/mfd/max77693.c
+	kernel/workqueue.c
+---
+ arch/arm/configs/jf_defconfig              | 27 ++++++++++++++++-----------
+ arch/arm/kernel/smp.c                      |  4 ++--
+ arch/arm/kernel/traps.c                    |  2 ++
+ arch/arm/mach-msm/include/mach/sec_debug.h |  4 ++--
+ arch/arm/mach-msm/msm_watchdog.c           |  8 ++++----
+ arch/arm/mach-msm/pm-8x60.c                |  2 +-
+ arch/arm/mach-msm/restart.c                |  2 +-
+ drivers/input/keyboard/gpio_keys.c         |  6 ++++--
+ drivers/input/misc/pmic8xxx-pwrkey.c       |  6 +++---
+ drivers/mfd/max77693.c                     | 11 +++++++++++
+ drivers/misc/sec_misc.c                    |  5 +++++
+ drivers/video/msm/mipi_dsi_host.c          | 16 ++++++++++++++++
+ kernel/sched/core.c                        |  7 ++++---
+ kernel/workqueue.c                         |  5 ++++-
+ 14 files changed, 75 insertions(+), 30 deletions(-)
+
+diff --git a/arch/arm/configs/jf_defconfig b/arch/arm/configs/jf_defconfig
+index 4591da5..bd7c424 100644
+--- a/arch/arm/configs/jf_defconfig
++++ b/arch/arm/configs/jf_defconfig
+@@ -9,7 +9,7 @@ CONFIG_ZRAM_FOR_ANDROID=y
+ # CONFIG_IKCONFIG is not set
+ # CONFIG_IKCONFIG_PROC is not set
+ CONFIG_CGROUPS=y
+-CONFIG_CGROUP_DEBUG=y
++# CONFIG_CGROUP_DEBUG is not set
+ CONFIG_CGROUP_FREEZER=y
+ CONFIG_CGROUP_CPUACCT=y
+ CONFIG_RESOURCE_COUNTERS=y
+@@ -303,7 +303,7 @@ CONFIG_SLIP_COMPRESSED=y
+ CONFIG_SLIP_MODE_SLIP6=y
+ CONFIG_USB_USBNET=y
+ CONFIG_MSM_RMNET_USB=y
+-CONFIG_USB_DEBUG=y
++# CONFIG_USB_DEBUG is not set
+ # CONFIG_WCNSS_CORE is not set
+ CONFIG_INPUT_EVDEV=y
+ CONFIG_KEYBOARD_GPIO=y
+@@ -344,7 +344,7 @@ CONFIG_SPI=y
+ CONFIG_SPI_QUP=y
+ CONFIG_SPI_SPIDEV=y
+ CONFIG_SLIMBUS_MSM_CTRL=y
+-CONFIG_DEBUG_GPIO=y
++# CONFIG_DEBUG_GPIO is not set
+ CONFIG_GPIO_SYSFS=y
+ CONFIG_GPIO_SX150X=y
+ CONFIG_POWER_SUPPLY=y
+@@ -427,7 +427,7 @@ CONFIG_MSM_KGSL_KERNEL_API_ENABLE=y
+ CONFIG_MSM_KGSL_FPS_NODE_ENABLE=y
+ CONFIG_FB=y
+ CONFIG_FB_VIRTUAL=y
+-CONFIG_SEC_DEBUG_MDP=y
++# CONFIG_SEC_DEBUG_MDP is not set
+ CONFIG_FB_MSM=y
+ CONFIG_USE_VFB=y
+ # CONFIG_FB_MSM_BACKLIGHT is not set
+@@ -632,7 +632,7 @@ CONFIG_TIMER_STATS=y
+ CONFIG_DEBUG_INFO=y
+ CONFIG_DEBUG_MEMORY_INIT=y
+ CONFIG_ENABLE_DEFAULT_TRACERS=y
+-CONFIG_DYNAMIC_DEBUG=y
++# CONFIG_DYNAMIC_DEBUG is not set
+ CONFIG_DEBUG_USER=y
+ CONFIG_PID_IN_CONTEXTIDR=y
+ CONFIG_CRYPTO_TWOFISH=y
+@@ -650,12 +650,12 @@ CONFIG_GENLOCK_MISCDEVICE=y
+ CONFIG_BLK_DEV_LOOP=y
+ CONFIG_SAMSUNG_JACK=y
+ CONFIG_SEC_MISC=y
+-CONFIG_SEC_DEBUG=y
+-CONFIG_SEC_DEBUG_SCHED_LOG=y
+-CONFIG_SEC_DEBUG_AVC_LOG=y
+-CONFIG_SEC_DEBUG_IRQ_EXIT_LOG=y
+-CONFIG_SEC_DEBUG_SUBSYS=y
+-CONFIG_SEC_DEBUG_MDM_FILE_INFO=y
++# CONFIG_SEC_DEBUG is not set
++# CONFIG_SEC_DEBUG_SCHED_LOG is not set
++# CONFIG_SEC_DEBUG_AVC_LOG is not set
++# CONFIG_SEC_DEBUG_IRQ_EXIT_LOG is not set
++# CONFIG_SEC_DEBUG_SUBSYS is not set
++# CONFIG_SEC_DEBUG_MDM_FILE_INFO is not set
+ CONFIG_SCHED_TRACER=y
+ CONFIG_MFD_MAX77693=y
+ CONFIG_IR_REMOCON_FPGA=y
+@@ -705,6 +705,7 @@ CONFIG_SEC_RESTRICT_FORK=y
+ CONFIG_SEC_RESTRICT_ROOTING_LOG=y
+ 
+ # Fork hang detection
++<<<<<<< HEAD
+ CONFIG_SEC_FORKHANG_DEBUG=y
+ 
+ CONFIG_SEC_GPIO_DVS=y
+@@ -718,3 +719,7 @@ CONFIG_TIMA_LOG=y
+ # CONFIG_USB_GSPCA is not set
+ CONFIG_CRYPTO_RNG=y
+ CONFIG_CRYPTO_ANSI_CPRNG=y
++=======
++# CONFIG_SEC_FORKHANG_DEBUG is not set
++CONFIG_INPUT_KEYCHORD=y
++>>>>>>> 86fc9df... disable all debuggers
+diff --git a/arch/arm/kernel/smp.c b/arch/arm/kernel/smp.c
+index c6185bf..246f1fb 100644
+--- a/arch/arm/kernel/smp.c
++++ b/arch/arm/kernel/smp.c
+@@ -43,7 +43,7 @@
+ #include <asm/localtimer.h>
+ #include <asm/smp_plat.h>
+ 
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ #include <mach/sec_debug.h>
+ #endif
+ /*
+@@ -513,7 +513,7 @@ static void ipi_cpu_stop(unsigned int cpu)
+ 		raw_spin_lock(&stop_lock);
+ 		printk(KERN_CRIT "CPU%u: stopping\n", cpu);
+ 		dump_stack();
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ 		sec_debug_dump_stack();
+ #endif
+ 		raw_spin_unlock(&stop_lock);
+diff --git a/arch/arm/kernel/traps.c b/arch/arm/kernel/traps.c
+index 4d5a3ea..be5135a 100644
+--- a/arch/arm/kernel/traps.c
++++ b/arch/arm/kernel/traps.c
+@@ -306,7 +306,9 @@ void die(const char *str, struct pt_regs *regs, int err)
+ 	oops_enter();
+ 
+ 	raw_spin_lock_irq(&die_lock);
++#ifdef CONFIG_SEC_DEBUG_SCHED_LOG
+ 	secdbg_sched_msg("!!die!!");
++#endif
+ 	console_verbose();
+ 	bust_spinlocks(1);
+ 	if (!user_mode(regs))
+diff --git a/arch/arm/mach-msm/include/mach/sec_debug.h b/arch/arm/mach-msm/include/mach/sec_debug.h
+index 8fdba82..b3ec655 100644
+--- a/arch/arm/mach-msm/include/mach/sec_debug.h
++++ b/arch/arm/mach-msm/include/mach/sec_debug.h
+@@ -29,7 +29,7 @@
+ 
+ extern void *restart_reason;
+ 
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ extern int sec_debug_init(void);
+ extern int sec_debug_dump_stack(void);
+ extern void sec_debug_hw_reset(void);
+@@ -50,7 +50,7 @@ static inline int sec_debug_init(void)
+ {
+ 	return 0;
+ }
+-static inline int sec_debug_dump_stack(void) {}
++static inline int sec_debug_dump_stack(void) { return 0; }
+ static inline void sec_debug_check_crash_key(unsigned int code, int value) {}
+ 
+ static inline void sec_getlog_supply_fbinfo(void *p_fb, u32 res_x, u32 res_y,
+diff --git a/arch/arm/mach-msm/msm_watchdog.c b/arch/arm/mach-msm/msm_watchdog.c
+index 8c6cab7..2b06295 100644
+--- a/arch/arm/mach-msm/msm_watchdog.c
++++ b/arch/arm/mach-msm/msm_watchdog.c
+@@ -84,7 +84,7 @@ module_param_call(runtime_disable, wdog_enable_set, param_get_int,
+ static int appsbark;
+ module_param(appsbark, int, 0);
+ 
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ static unsigned int regsave_vaddr;
+ static unsigned int regsave_paddr;
+ #endif
+@@ -221,7 +221,7 @@ static int wdog_enable_set(const char *val, struct kernel_param *kp)
+ 	return ret;
+ }
+ 
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ static unsigned long long last_emerg_pet;
+ void emerg_pet_watchdog(void)
+ {
+@@ -299,7 +299,7 @@ static irqreturn_t wdog_bark_handler(int irq, void *dev_id)
+ 	return IRQ_HANDLED;
+ }
+ 
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ unsigned int get_wdog_regsave_paddr(void)
+ {
+ 	return __pa(&regsave_paddr);
+@@ -321,7 +321,7 @@ static void configure_bark_dump(void)
+ 
+ 	if (!appsbark) {
+ 		scm_regsave = (void *)__get_free_page(GFP_KERNEL);
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ 		printk(KERN_INFO "WDOG handled by TZ:dump @0x%08x PA:%08x\n",
+ 				(unsigned int) scm_regsave,
+ 				(unsigned int) __pa(scm_regsave));
+diff --git a/arch/arm/mach-msm/pm-8x60.c b/arch/arm/mach-msm/pm-8x60.c
+index f6399d8..492c75b 100644
+--- a/arch/arm/mach-msm/pm-8x60.c
++++ b/arch/arm/mach-msm/pm-8x60.c
+@@ -53,7 +53,7 @@
+ #include "timer.h"
+ #include "pm-boot.h"
+ #include <mach/event_timer.h>
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ #include <mach/sec_debug.h>
+ #endif
+ #include <linux/regulator/consumer.h>
+diff --git a/arch/arm/mach-msm/restart.c b/arch/arm/mach-msm/restart.c
+index 0c1fa48..58c0b43 100644
+--- a/arch/arm/mach-msm/restart.c
++++ b/arch/arm/mach-msm/restart.c
+@@ -403,7 +403,7 @@ static int __init msm_pmic_restart_init(void)
+ 
+ #ifdef CONFIG_MACH_JF_VZW
+ 	return 0;
+-#else
++#elif defined(CONFIG_SEC_DEBUG)
+ 	if (kernel_sec_get_debug_level() != KERNEL_SEC_DEBUG_LEVEL_LOW)
+ 		return 0;
+ #endif
+diff --git a/drivers/input/keyboard/gpio_keys.c b/drivers/input/keyboard/gpio_keys.c
+index 4bdfd92..84b926d 100644
+--- a/drivers/input/keyboard/gpio_keys.c
++++ b/drivers/input/keyboard/gpio_keys.c
+@@ -29,8 +29,10 @@
+ #include <linux/of_platform.h>
+ #include <linux/of_gpio.h>
+ #include <linux/spinlock.h>
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ #include <mach/sec_debug.h>
++#else
++#include <linux/sec_class.h>
+ #endif
+ 
+ struct gpio_button_data {
+@@ -419,7 +421,7 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
+ 	unsigned int type = button->type ?: EV_KEY;
+ 	int state = (gpio_get_value_cansleep(button->gpio) ? 1 : 0) ^ button->active_low;
+ 
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ 	sec_debug_check_crash_key(button->code, state);
+ #endif
+ 	if (type == EV_ABS) {
+diff --git a/drivers/input/misc/pmic8xxx-pwrkey.c b/drivers/input/misc/pmic8xxx-pwrkey.c
+index 8b8e5c3..740b103 100644
+--- a/drivers/input/misc/pmic8xxx-pwrkey.c
++++ b/drivers/input/misc/pmic8xxx-pwrkey.c
+@@ -22,7 +22,7 @@
+ 
+ #include <linux/mfd/pm8xxx/core.h>
+ #include <linux/input/pmic8xxx-pwrkey.h>
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ #include <mach/sec_debug.h>
+ #endif
+ #include <linux/string.h>
+@@ -59,7 +59,7 @@ static irqreturn_t pwrkey_press_irq(int irq, void *_pwrkey)
+ 
+ 	input_report_key(pwrkey->pwr, KEY_POWER, 1);
+ 	input_sync(pwrkey->pwr);
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ 	sec_debug_check_crash_key(KEY_POWER, 1);
+ #endif
+ 	return IRQ_HANDLED;
+@@ -79,7 +79,7 @@ static irqreturn_t pwrkey_release_irq(int irq, void *_pwrkey)
+ 
+ 	input_report_key(pwrkey->pwr, KEY_POWER, 0);
+ 	input_sync(pwrkey->pwr);
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ 	sec_debug_check_crash_key(KEY_POWER, 0);
+ #endif
+ 	return IRQ_HANDLED;
+diff --git a/drivers/mfd/max77693.c b/drivers/mfd/max77693.c
+index e29c59b..e96111d 100644
+--- a/drivers/mfd/max77693.c
++++ b/drivers/mfd/max77693.c
+@@ -168,13 +168,17 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
+ 	}
+ 
+ #if defined(CONFIG_MACH_JF_VZW) || defined(CONFIG_MACH_JF_LGT)
++#ifdef CONFIG_SEC_DEBUG
+ 	if (kernel_sec_get_debug_level() == KERNEL_SEC_DEBUG_LEVEL_LOW) {
++#endif
+ 		pm8xxx_hard_reset_config(PM8XXX_DISABLE_HARD_RESET);
+ 		max77693_write_reg(i2c, MAX77693_PMIC_REG_MAINCTRL1, 0x04);
++#ifdef CONFIG_SEC_DEBUG
+ 	} else {
+ 		pm8xxx_hard_reset_config(PM8XXX_DISABLE_HARD_RESET);
+ 		max77693_write_reg(i2c, MAX77693_PMIC_REG_MAINCTRL1, 0x0c);
+ 	}
++<<<<<<< HEAD
+ #elif defined(CONFIG_MACH_JACTIVE_EUR)
+ 		if (kernel_sec_get_debug_level() == KERNEL_SEC_DEBUG_LEVEL_LOW) {
+ 			max77693_write_reg(i2c, MAX77693_PMIC_REG_MAINCTRL1, 0x04);
+@@ -182,14 +186,21 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
+ 			pm8xxx_hard_reset_config(PM8XXX_DISABLE_HARD_RESET);
+ 			max77693_write_reg(i2c, MAX77693_PMIC_REG_MAINCTRL1, 0x0b);
+ 		}	
++=======
++#endif
++>>>>>>> 86fc9df... disable all debuggers
+ #else
++#ifdef CONFIG_SEC_DEBUG
+ 	if (kernel_sec_get_debug_level() == KERNEL_SEC_DEBUG_LEVEL_LOW) {
++#endif
+ 		max77693_write_reg(i2c, MAX77693_PMIC_REG_MAINCTRL1, 0x04);
++#ifdef CONFIG_SEC_DEBUG
+ 	} else {
+ 		pm8xxx_hard_reset_config(PM8XXX_DISABLE_HARD_RESET);
+ 		max77693_write_reg(i2c, MAX77693_PMIC_REG_MAINCTRL1, 0x0c);
+ 	}
+ #endif
++#endif
+ 	max77693_update_reg(i2c, MAX77693_CHG_REG_SAFEOUT_CTRL, 0x00, 0x30);
+ 
+ 	max77693->muic = i2c_new_dummy(i2c->adapter, I2C_ADDR_MUIC);
+diff --git a/drivers/misc/sec_misc.c b/drivers/misc/sec_misc.c
+index ca72e48..24b403a 100644
+--- a/drivers/misc/sec_misc.c
++++ b/drivers/misc/sec_misc.c
+@@ -33,6 +33,7 @@
+ #include <mach/gpio.h>
+ #include <linux/sec_param.h>
+ #include <mach/sec_debug.h>
++#include <linux/sec_class.h>
+ 
+ #define MOVINAND_CHECKSUM
+ #define RORY_CONTROL
+@@ -133,6 +134,7 @@ static DEVICE_ATTR(rory_control, S_IRUGO | S_IWUSR ,
+ 		rory_control_show, rory_control_store);
+ #endif /*RORY_CONTROL*/
+ 
++#ifdef CONFIG_SEC_DEBUG
+ static unsigned int convert_debug_level_str(const char *str)
+ {
+ 	if (strncasecmp(str, "0xA0A0", 6) == 0)
+@@ -191,6 +193,7 @@ static ssize_t debug_level_store(struct device *dev,
+ 
+ static DEVICE_ATTR(debug_level, S_IRUGO | S_IWUSR ,
+ 		debug_level_show, debug_level_store);
++#endif
+ 
+ #if defined(CONFIG_MACH_APEXQ) || defined(CONFIG_MACH_AEGIS2)
+ static ssize_t slideCount_show
+@@ -224,7 +227,9 @@ static struct device_attribute *sec_misc_attrs[] = {
+ 	&dev_attr_emmc_checksum_done,
+ 	&dev_attr_emmc_checksum_pass,
+ 	&dev_attr_rory_control,
++#ifdef CONFIG_SEC_DEBUG
+ 	&dev_attr_debug_level,
++#endif
+ #if defined(CONFIG_MACH_APEXQ) || defined(CONFIG_MACH_AEGIS2)
+ 	&dev_attr_slideCount,
+ #endif
+diff --git a/drivers/video/msm/mipi_dsi_host.c b/drivers/video/msm/mipi_dsi_host.c
+index abc365a..b0339e1 100644
+--- a/drivers/video/msm/mipi_dsi_host.c
++++ b/drivers/video/msm/mipi_dsi_host.c
+@@ -1673,7 +1673,9 @@ int mipi_dsi_cmd_dma_tx(struct dsi_buf *tp)
+ 		pr_err("%s: dma timeout error\n", __func__);
+ 		dumpreg(0);
+ 		dumstate(0);
++#ifdef CONFIG_SEC_DEBUG_MDP
+ 		sec_debug_mdp.dsi_err.mipi_tx_time_out_err_cnt++;
++#endif
+ 		mdp4_dump_regs();
+ 		dsi_clk_dump();
+ 		console_verbose();
+@@ -1908,7 +1910,9 @@ void mipi_dsi_ack_err_status(void)
+ 
+ 	if (status) {
+ 		MIPI_OUTP(MIPI_DSI_BASE + 0x0064, status);
++#ifdef CONFIG_SEC_DEBUG_MDP
+ 		sec_debug_mdp.dsi_err.mipi_dsi_ack_err_status = status;
++#endif
+ 		pr_debug("%s: status=%x\n", __func__, status);
+ 	}
+ }
+@@ -1920,7 +1924,9 @@ void mipi_dsi_timeout_status(void)
+ 	status = MIPI_INP(MIPI_DSI_BASE + 0x00bc);/* DSI_TIMEOUT_STATUS */
+ 	if (status & 0x0111) {
+ 		MIPI_OUTP(MIPI_DSI_BASE + 0x00bc, status);
++#ifdef CONFIG_SEC_DEBUG_MDP
+ 		sec_debug_mdp.dsi_err.mipi_dsi_timeout_status = status;
++#endif
+ 		pr_debug("%s: status=%x\n", __func__, status);
+ 	}
+ }
+@@ -1933,7 +1939,9 @@ void mipi_dsi_dln0_phy_err(void)
+ 
+ 	if (status & 0x011111) {
+ 		MIPI_OUTP(MIPI_DSI_BASE + 0x00b0, status);
++#ifdef CONFIG_SEC_DEBUG_MDP
+ 		sec_debug_mdp.dsi_err.mipi_dsi_dln0_phy_err = status;
++#endif
+ 		pr_debug("%s: status=%x\n", __func__, status);
+ 	}
+ }
+@@ -1946,7 +1954,9 @@ void mipi_dsi_fifo_status(void)
+ 
+ 	if (status & 0x44444489) {
+ 		MIPI_OUTP(MIPI_DSI_BASE + 0x0008, status);
++#ifdef CONFIG_SEC_DEBUG_MDP
+ 		sec_debug_mdp.dsi_err.mipi_dsi_fifo_status = status;
++#endif
+ 		pr_debug("%s: status=%x\n", __func__, status);
+ 	}
+ }
+@@ -1959,7 +1969,9 @@ void mipi_dsi_status(void)
+ 
+ 	if (status & 0x80000000) {
+ 		MIPI_OUTP(MIPI_DSI_BASE + 0x0004, status);
++#ifdef CONFIG_SEC_DEBUG_MDP
+ 		sec_debug_mdp.dsi_err.mipi_dsi_status = status;
++#endif
+ 		pr_debug("%s: status=%x\n", __func__, status);
+ 	}
+ }
+@@ -1996,7 +2008,9 @@ int mipi_runtime_clk_change(int fps)
+ 
+ 	if (!rc) {
+ 		pr_err("%s: dma timeout error\n", __func__);
++#ifdef CONFIG_SEC_DEBUG_MDP
+ 		sec_debug_mdp.dsi_err.fps_chage_time_out_err_cnt++;
++#endif
+ 	}
+ 		
+ 	mutex_unlock(&fps_done_mutex);
+@@ -2033,7 +2047,9 @@ int mipi_runtime_csc_update(uint32_t reg[][2], int length)
+ 
+ 	if (!rc) {
+ 		pr_err("%s: dma timeout error\n", __func__);
++#ifdef CONFIG_SEC_DEBUG_MDP
+ 		sec_debug_mdp.dsi_err.fps_chage_time_out_err_cnt++;
++#endif
+ 	}
+ 		
+ 	mutex_unlock(&fps_done_mutex);
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index c96783f..7e1f815 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -80,7 +80,7 @@
+ #ifdef CONFIG_PARAVIRT
+ #include <asm/paravirt.h>
+ #endif
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ #include <mach/sec_debug.h>
+ #endif
+ #include "sched.h"
+@@ -3390,7 +3390,7 @@ static void __sched __schedule(void)
+ 		 */
+ 		cpu = smp_processor_id();
+ 		rq = cpu_rq(cpu);
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ 		sec_debug_task_sched_log(cpu, rq->curr);
+ #endif
+ 	} else
+@@ -7114,9 +7114,10 @@ void __init sched_init(void)
+ 	int i, j;
+ 	unsigned long alloc_size = 0, ptr;
+ 
++#ifdef CONFIG_SEC_DEBUG
+     sec_gaf_supply_rqinfo(offsetof(struct rq, curr),
+                           offsetof(struct cfs_rq, rq));
+-
++#endif
+ #ifdef CONFIG_FAIR_GROUP_SCHED
+ 	alloc_size += 2 * nr_cpu_ids * sizeof(void **);
+ #endif
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+index 61deb50..ab66ff9 100644
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -43,7 +43,7 @@
+ #include <linux/idr.h>
+ 
+ #include "workqueue_sched.h"
+-#if CONFIG_SEC_DEBUG
++#ifdef CONFIG_SEC_DEBUG
+ #include <mach/sec_debug.h>
+ #endif
+ 
+@@ -1900,7 +1900,10 @@ __acquires(&gcwq->lock)
+ 	lock_map_acquire_read(&cwq->wq->lockdep_map);
+ 	lock_map_acquire(&lockdep_map);
+ 	trace_workqueue_execute_start(work);
++<<<<<<< HEAD
+ 	worker->current_func(work);	
++=======
++>>>>>>> 86fc9df... disable all debuggers
+ #ifdef CONFIG_SEC_DEBUG
+ 	secdbg_sched_msg("@%pS", f);
+ #endif

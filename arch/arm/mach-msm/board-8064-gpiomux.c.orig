@@ -772,7 +772,7 @@ static struct msm_gpiomux_config mpq8064_spkr_i2s_config[] __initdata = {
 
 static struct msm_gpiomux_config apq8064_audio_codec_configs[] __initdata = {
 	{
-		.gpio = PM8921_GPIO_PM_TO_SYS(7),
+		.gpio = 38,
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &mbhc_hs_detect,
 		},
