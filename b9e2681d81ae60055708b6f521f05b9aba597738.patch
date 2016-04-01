@@ -1,0 +1,42 @@
+From b9e2681d81ae60055708b6f521f05b9aba597738 Mon Sep 17 00:00:00 2001
+From: googyanas <googyanas@gmail.com>
+Date: Sat, 21 Feb 2015 21:23:22 +0000
+Subject: [PATCH] kthread: fix return value of kthread_create() upon SIGKILL.
+
+Commit 786235eeba0e ("kthread: make kthread_create() killable") meant
+for allowing kthread_create() to abort as soon as killed by the
+OOM-killer.  But returning -ENOMEM is wrong if killed by SIGKILL from
+userspace.  Change kthread_create() to return -EINTR upon SIGKILL.
+
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Acked-by: David Rientjes <rientjes@google.com>
+Cc: <stable@vger.kernel.org> [3.13+]
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+---
+ kernel/kthread.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/kthread.c b/kernel/kthread.c
+index 6762122..19d85db 100644
+--- a/kernel/kthread.c
++++ b/kernel/kthread.c
+@@ -183,7 +183,7 @@ static void create_kthread(struct kthread_create_info *create)
+  * kthread_stop() has been called).  The return value should be zero
+  * or a negative error number; it will be passed to kthread_stop().
+  *
+- * Returns a task_struct or ERR_PTR(-ENOMEM).
++ * Returns a task_struct or ERR_PTR(-ENOMEM) or ERR_PTR(-EINTR).
+  */
+ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
+ 					   void *data,
+@@ -220,7 +220,7 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
+ 		 * that thread.
+ 		 */
+ 		if (xchg(&create->done, NULL))
+-			return ERR_PTR(-ENOMEM);
++			return ERR_PTR(-EINTR);
+ 		/*
+ 		 * kthreadd (or new kernel thread) will call complete()
+ 		 * shortly.
