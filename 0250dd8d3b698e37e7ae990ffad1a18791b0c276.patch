@@ -1,0 +1,22 @@
+From 0250dd8d3b698e37e7ae990ffad1a18791b0c276 Mon Sep 17 00:00:00 2001
+From: Hybridmax <hybridmax95@gmail.com>
+Date: Sun, 8 Mar 2015 18:43:48 +0100
+Subject: [PATCH] TTY: msm_smd_tty: Fix simultaneous open/close race condition
+
+---
+ arch/arm/mach-msm/smd_tty.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-msm/smd_tty.c b/arch/arm/mach-msm/smd_tty.c
+index 3ce0d09..9d38c16 100755
+--- a/arch/arm/mach-msm/smd_tty.c
++++ b/arch/arm/mach-msm/smd_tty.c
+@@ -375,7 +375,7 @@ static int smd_tty_open(struct tty_struct *tty, struct file *f)
+ 
+ static void smd_tty_close(struct tty_struct *tty, struct file *f)
+ {
+-	struct smd_tty_info *info = tty->driver_data;
++	struct smd_tty_info *info = smd_tty + tty->index;
+ 	unsigned long flags;
+ 
+ 	if (info == 0)
