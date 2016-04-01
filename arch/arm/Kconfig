@@ -159,7 +159,8 @@ config ARM_TICKET_LOCKS
 	depends on SMP
 
 config RWSEM_GENERIC_SPINLOCK
-		def_bool y
+	bool
+	default y
 
 config RWSEM_XCHGADD_ALGORITHM
 	bool
@@ -2460,6 +2461,7 @@ config FPE_FASTFPE
 
 config VFP
 	bool "VFP-format floating point maths"
+	default y
 	depends on CPU_V6 || CPU_V6K || CPU_ARM926T || CPU_V7 || CPU_FEROCEON
 	help
 	  Say Y to include VFP support code in the kernel. This is needed
@@ -2477,6 +2479,7 @@ config VFPv3
 
 config NEON
 	bool "Advanced SIMD (NEON) Extension support"
+	default y
 	depends on VFPv3 && CPU_V7
 	help
 	  Say Y to include support code for NEON, the ARMv7 Advanced SIMD
@@ -2484,7 +2487,7 @@ config NEON
 
 config KERNEL_MODE_NEON
 	bool "Support for NEON in kernel mode"
-	default n
+	default y
 	depends on NEON
 	help
 	  Say Y to include support for NEON in kernel mode.

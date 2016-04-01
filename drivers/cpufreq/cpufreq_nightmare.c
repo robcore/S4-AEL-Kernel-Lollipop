@@ -101,7 +101,7 @@ static struct nightmare_tuners {
 	.freq_for_responsiveness = ATOMIC_INIT(200000),
 	.freq_for_responsiveness_max = ATOMIC_INIT(1200000),
 #else
-	.freq_for_responsiveness = ATOMIC_INIT(1566000),
+	.freq_for_responsiveness = ATOMIC_INIT(1026000),
 	.freq_for_responsiveness_max = ATOMIC_INIT(1890000),
 #endif
 	.freq_step_at_min_freq = ATOMIC_INIT(20),

@@ -46,7 +46,7 @@
 #define DEF_HIGH_GRID_STEP             		(20)
 #define DEF_MIDDLE_GRID_LOAD			(65)
 #define DEF_HIGH_GRID_LOAD			(89)
-#define DEF_OPTIMAL_FREQ			(1728000)
+#define DEF_OPTIMAL_FREQ			(1566000)
 
 /*
  * The polling frequency of this governor depends on the capability of
@@ -168,7 +168,7 @@ static struct dbs_tuners {
 	.high_grid_load = DEF_HIGH_GRID_LOAD,
 	.ignore_nice = 0,
 	.powersave_bias = 1,
-	.sync_freq = 810000,
+	.sync_freq = 702000,
 	.optimal_freq = 1350000,
 	.optimal_max_freq = DEF_OPTIMAL_FREQ,
 	.debug_mask=0,

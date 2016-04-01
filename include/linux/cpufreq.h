@@ -245,6 +245,7 @@ struct cpufreq_driver {
 	/* optional */
 	unsigned int (*getavg)	(struct cpufreq_policy *policy,
 				 unsigned int cpu);
+
 	int	(*bios_limit)	(int cpu, unsigned int *limit);
 
 	int	(*exit)		(struct cpufreq_policy *policy);
@@ -561,9 +562,6 @@ extern struct cpufreq_governor cpufreq_gov_elementalx;
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_LAZY)
 extern struct cpufreq_governor cpufreq_gov_lazy;
 #define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_lazy)
-#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_UBERDEMAND)
-extern struct cpufreq_governor cpufreq_gov_uberdemand;
-#define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_uberdemand)
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_LULZACTIVE)
 extern struct cpufreq_governor cpufreq_gov_lulzactive;
 #define CPUFREQ_DEFAULT_GOVERNOR  (&cpufreq_gov_lulzactive)

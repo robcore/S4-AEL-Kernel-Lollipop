@@ -5048,7 +5048,6 @@ static void __init register_i2c_devices(void)
 		apq8064_camera_board_info.board_info,
 		apq8064_camera_board_info.num_i2c_board_info,
 	};
-
 	struct i2c_registry apq8064_front_camera_i2c_devices = {
 		I2C_SURF | I2C_FFA | I2C_LIQUID | I2C_RUMI,
 		APQ_8064_GSBI7_QUP_I2C_BUS_ID,

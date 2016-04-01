@@ -122,14 +122,6 @@ config CPU_FREQ_DEFAULT_GOV_INTERACTIVE
 	  loading your cpufreq low-level hardware driver, using the
 	  'interactive' governor for latency-sensitive workloads.
 
-config CPU_FREQ_DEFAULT_GOV_UBERDEMAND
-	bool "uberdemand"
-	select CPU_FREQ_GOV_UBERDEMAND
-	help
-	  Use the CPUFreq governor 'uberdemand' as default. This is a
-	  kickass governor based on ondemand.  It was made by a guy
-	  named Cl3kener I think.  I will fix this descriptor.
-
 config CPU_FREQ_DEFAULT_GOV_ASSWAX
             bool "asswax"
             select CPU_FREQ_GOV_ASSWAX
@@ -435,13 +427,6 @@ config CPU_FREQ_GOV_CONSERVATIVE
 
 	  If in doubt, say N.
 
-config CPU_FREQ_GOV_UBERDEMAND
-	       tristate "'uberdemand' cpufreq policy governor"
-	       depends on CPU_FREQ
-	       help
-	         'uberdemand' - Enhanced ondemand-based gov.
-	         If in doubt, say N. Say yes though.
-
 config CPU_FREQ_GOV_ASSWAX
            tristate "'asswax' cpufreq governor"
            depends on CPU_FREQ
@@ -666,7 +651,7 @@ config INTELLI_MAX_ACTIVE_FREQ
 config INTELLI_MAX_INACTIVE_FREQ
 	int "Max Inactive Freq for Intellidemand"
 	depends on CPU_FREQ_GOV_INTELLIDEMAND
-	default	384000
+	default	1026000
 	help
 		Set default max inactive frequency for intellidemand
 
@@ -738,7 +723,7 @@ endmenu
 
 config LAZYPLUG
 	bool "Conservative hotplugging for generic devices"
-	default n
+	default y
 	help
 	  This enables the conservative hotplugging, lazyplug by arter97
 	  based on intelli_plug. Refer to the comments for more info.
