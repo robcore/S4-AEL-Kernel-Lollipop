@@ -1,0 +1,40 @@
+From bac1dff0c64898feedb745cf56937e13e65e47ce Mon Sep 17 00:00:00 2001
+From: Viresh Kumar <viresh.kumar@linaro.org>
+Date: Sat, 12 Jan 2013 05:14:38 +0000
+Subject: [PATCH] cpufreq: Manage only online cpus
+
+cpufreq core doesn't manage offline cpus and if driver->init() has
+returned
+mask including offline cpus, it may result in unwanted behavior by
+cpufreq core
+or governors.
+
+We need to get only online cpus in this mask. There are two places to
+fix this
+mask, cpufreq core and cpufreq driver. It makes sense to do this at
+common place
+and hence is done in core.
+
+Signed-off-by: Viresh Kumar <viresh.kumar@linaro.org>
+Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+---
+ drivers/cpufreq/cpufreq.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/cpufreq/cpufreq.c b/drivers/cpufreq/cpufreq.c
+index b3b038a..9e07d6ce 100644
+--- a/drivers/cpufreq/cpufreq.c
++++ b/drivers/cpufreq/cpufreq.c
+@@ -1088,6 +1088,12 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
+ 	/* related cpus should atleast have policy->cpus */
+ 	cpumask_or(policy->related_cpus, policy->related_cpus, policy->cpus);
+ 
++	/*
++	 * affected cpus must always be the one, which are online. We aren't
++	 * managing offline cpus here.
++	 */
++	cpumask_and(policy->cpus, policy->cpus, cpu_online_mask);
++
+ 	policy->user_policy.min = policy->min;
+ 	policy->user_policy.max = policy->max;
+ 

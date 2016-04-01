@@ -1,0 +1,40 @@
+From 8e62c4d4a5eee91c33378431b0627146373d0b8b Mon Sep 17 00:00:00 2001
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
+Date: Tue, 18 Sep 2012 09:59:23 -0700
+Subject: [PATCH] workqueue: use __cpuinit instead of __devinit for cpu
+ callbacks
+
+For workqueue hotplug callbacks, it makes less sense to use __devinit
+which discards the memory after boot if !HOTPLUG.  __cpuinit, which
+discards the memory after boot if !HOTPLUG_CPU fits better.
+
+tj: Updated description.
+
+Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+Signed-off-by: Tejun Heo <tj@kernel.org>
+---
+ kernel/workqueue.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+index 175458f..4f23b7e 100644
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -3589,7 +3589,7 @@ static void gcwq_unbind_fn(struct work_struct *work)
+  * Workqueues should be brought up before normal priority CPU notifiers.
+  * This will be registered high priority CPU notifier.
+  */
+-static int __devinit workqueue_cpu_up_callback(struct notifier_block *nfb,
++static int __cpuinit workqueue_cpu_up_callback(struct notifier_block *nfb,
+ 					       unsigned long action,
+ 					       void *hcpu)
+ {
+@@ -3630,7 +3630,7 @@ static int __devinit workqueue_cpu_up_callback(struct notifier_block *nfb,
+  * Workqueues should be brought down after normal priority CPU notifiers.
+  * This will be registered as low priority CPU notifier.
+  */
+-static int __devinit workqueue_cpu_down_callback(struct notifier_block *nfb,
++static int __cpuinit workqueue_cpu_down_callback(struct notifier_block *nfb,
+ 						 unsigned long action,
+ 						 void *hcpu)
+ {
