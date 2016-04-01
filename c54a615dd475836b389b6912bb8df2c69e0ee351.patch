@@ -1,0 +1,30 @@
+From c54a615dd475836b389b6912bb8df2c69e0ee351 Mon Sep 17 00:00:00 2001
+From: Hybridmax <hybridmax95@gmail.com>
+Date: Sun, 8 Mar 2015 18:41:04 +0100
+Subject: [PATCH] sched: Fix inaccurate accounting for real-time task
+
+---
+ kernel/sched/rt.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
+index 61a03b1..72f2278 100755
+--- a/kernel/sched/rt.c
++++ b/kernel/sched/rt.c
+@@ -1378,6 +1378,16 @@ static struct task_struct *_pick_next_task_rt(struct rq *rq)
+ 		rt_rq = group_rt_rq(rt_se);
+ 	} while (rt_rq);
+ 
++	/*
++	 * Force update of rq->clock_task in case we failed to do so in
++	 * put_prev_task. A stale value can cause us to over-charge execution
++	 * time to real-time task, that could trigger throttling unnecessarily
++	 */
++	if (rq->skip_clock_update > 0) {
++		rq->skip_clock_update = 0;
++		update_rq_clock(rq);
++	}
++
+ 	p = rt_task_of(rt_se);
+ 	p->se.exec_start = rq->clock_task;
+ 
