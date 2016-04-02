@@ -32,6 +32,8 @@
 #include <linux/kernel_stat.h>
 #include <linux/tick.h>
 
+#include <mach/cpufreq.h>
+
 #include <trace/events/power.h>
 
 extern ssize_t get_gpu_vdd_levels_str(char *buf);

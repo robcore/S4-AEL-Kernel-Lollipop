@@ -1,29 +1,20 @@
 --- kernel/sched/core.c
 +++ kernel/sched/core.c
-@@ -80,7 +80,7 @@
- #ifdef CONFIG_PARAVIRT
- #include <asm/paravirt.h>
+@@ -117,7 +117,7 @@ void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
+ 
+ DEFINE_MUTEX(sched_domains_mutex);
+ DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
+-#ifdef CONFIG_INTELLI_HOTPLUG
++#if defined(CONFIG_INTELLI_HOTPLUG) || defined(CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE)
+ DEFINE_PER_CPU_SHARED_ALIGNED(struct nr_stats_s, runqueue_stats);
  #endif
--#if defined(CONFIG_SEC_DEBUG)
-+#ifdef CONFIG_SEC_DEBUG
- #include <mach/sec_debug.h>
- #endif
- #include "sched.h"
-@@ -3281,7 +3281,7 @@ static void __sched __schedule(void)
- 		 */
- 		cpu = smp_processor_id();
- 		rq = cpu_rq(cpu);
--#if defined(CONFIG_SEC_DEBUG)
-+#ifdef CONFIG_SEC_DEBUG
- 		sec_debug_task_sched_log(cpu, rq->curr);
- #endif
- 	} else
-@@ -6988,7 +6988,7 @@ void __init sched_init(void)
+ 
+@@ -2350,7 +2350,7 @@ unsigned long nr_iowait(void)
+ 	return sum;
+ }
+ 
+-#ifdef CONFIG_INTELLI_HOTPLUG
++#if defined(CONFIG_INTELLI_HOTPLUG) || defined(CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE)
+ unsigned long avg_nr_running(void)
  {
- 	int i, j;
- 	unsigned long alloc_size = 0, ptr;
--#if !defined(CONFIG_MACH_MELIUS)
-+#ifdef CONFIG_SEC_DEBUG
-     sec_gaf_supply_rqinfo(offsetof(struct rq, curr),
-                           offsetof(struct cfs_rq, rq));
- #endif
+ 	unsigned long i, sum = 0;
