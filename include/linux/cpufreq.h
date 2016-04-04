@@ -20,8 +20,11 @@
 #include <linux/workqueue.h>
 #include <linux/cpumask.h>
 #include <asm/div64.h>
+#include <linux/kernel_stat.h>
 
 #define CPUFREQ_NAME_LEN 16
+/* Print length for names. Extra 1 space for accomodating '\n' in prints */
+#define CPUFREQ_NAME_PLEN (CPUFREQ_NAME_LEN + 1)
 
 
 /*********************************************************************
@@ -36,6 +39,20 @@
 int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list);
 int cpufreq_unregister_notifier(struct notifier_block *nb, unsigned int list);
 extern void disable_cpufreq(void);
+u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy);
+unsigned int cpufreq_quick_get_util(unsigned int cpu);
+
+/*
+ * Governor specific info that can be passed to modules that subscribe
+ * to CPUFREQ_GOVINFO_NOTIFIER
+ */
+struct cpufreq_govinfo {
+	unsigned int cpu;
+	unsigned int load;
+	unsigned int sampling_rate_us;
+};
+extern struct atomic_notifier_head cpufreq_govinfo_notifier_list;
+
 #else		/* CONFIG_CPU_FREQ */
 static inline int cpufreq_register_notifier(struct notifier_block *nb,
 						unsigned int list)
@@ -131,6 +148,11 @@ struct cpufreq_policy {
 #define CPUFREQ_SHARED_TYPE_ALL	 (2) /* All dependent CPUs should set freq */
 #define CPUFREQ_SHARED_TYPE_ANY	 (3) /* Freq can be set from any dependent CPU*/
 
+static inline bool policy_is_shared(struct cpufreq_policy *policy)
+{
+	return cpumask_weight(policy->cpus) > 1;
+}
+
 /******************** cpufreq transition notifiers *******************/
 
 #define CPUFREQ_PRECHANGE	(0)
@@ -205,7 +227,6 @@ extern int __cpufreq_driver_target(struct cpufreq_policy *policy,
 				   unsigned int target_freq,
 				   unsigned int relation);
 
-
 extern int __cpufreq_driver_getavg(struct cpufreq_policy *policy,
 				   unsigned int cpu);
 
@@ -221,6 +242,7 @@ void unlock_policy_rwsem_write(int cpu);
 
 #define CPUFREQ_RELATION_L 0  /* lowest frequency at or above target */
 #define CPUFREQ_RELATION_H 1  /* highest frequency below or at target */
+#define CPUFREQ_RELATION_C 2  /* closest frequency to target */
 
 struct freq_attr;
 
@@ -245,7 +267,6 @@ struct cpufreq_driver {
 	/* optional */
 	unsigned int (*getavg)	(struct cpufreq_policy *policy,
 				 unsigned int cpu);
-
 	int	(*bios_limit)	(int cpu, unsigned int *limit);
 
 	int	(*exit)		(struct cpufreq_policy *policy);
@@ -287,6 +308,13 @@ static inline void cpufreq_verify_within_limits(struct cpufreq_policy *policy, u
 	return;
 }
 
+static inline void
+cpufreq_verify_within_cpu_limits(struct cpufreq_policy *policy)
+{
+	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
+			policy->cpuinfo.max_freq);
+}
+
 struct freq_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct cpufreq_policy *, char *);
@@ -325,20 +353,9 @@ __ATTR(_name, 0644, show_##_name, store_##_name)
 /*********************************************************************
  *                        CPUFREQ 2.6. INTERFACE                     *
  *********************************************************************/
-u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy);
 int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu);
 int cpufreq_update_policy(unsigned int cpu);
-
-/*
- * Governor specific info that can be passed to modules that subscribe
- * to CPUFREQ_GOVINFO_NOTIFIER
- */
-struct cpufreq_govinfo {
-	unsigned int cpu;
-	unsigned int load;
-	unsigned int sampling_rate_us;
-};
-extern struct atomic_notifier_head cpufreq_govinfo_notifier_list;
+bool have_governor_per_policy(void);
 
 #ifdef CONFIG_MSM_LIMITER
 int cpufreq_set_gov(char *target_gov, unsigned int cpu);
@@ -391,9 +408,9 @@ int get_min_freq(void);
 #define MIN_TOUCH_HIGH_LIMIT_SECOND	1566000
 
 #ifdef CONFIG_TARGET_SERIES_DALI
-#define MAX_UNICPU_LIMIT	1890000
+#define MAX_UNICPU_LIMIT	1188000
 #else
-#define MAX_UNICPU_LIMIT	1890000
+#define MAX_UNICPU_LIMIT	1242000
 #endif
 
 #define UPDATE_NOW_BITS		0xFF
@@ -413,12 +430,15 @@ enum {
 	DVFS_MAX_ID
 };
 
-
 int set_freq_limit(unsigned long id, unsigned int freq);
 
+unsigned int get_cpu_min_lock(unsigned int cpu);
 unsigned int get_min_lock(void);
+unsigned int get_cpu_max_lock(unsigned int cpu);
 unsigned int get_max_lock(void);
+void set_cpu_min_lock(unsigned int cpu, int freq);
 void set_min_lock(int freq);
+void set_cpu_max_lock(unsigned int cpu, int freq);
 void set_max_lock(int freq);
 
 #endif
@@ -568,7 +588,6 @@ extern struct cpufreq_governor cpufreq_gov_lulzactive;
 #define CPUFREQ_DEFAULT_GOVERNOR  (&cpufreq_gov_lulzactive)
 #endif
 
-
 /*********************************************************************
  *                     FREQUENCY TABLE HELPERS                       *
  *********************************************************************/
@@ -606,6 +625,5 @@ void cpufreq_frequency_table_get_attr(struct cpufreq_frequency_table *table,
 				      unsigned int cpu);
 
 void cpufreq_frequency_table_put_attr(unsigned int cpu);
-
-
+const char *cpufreq_get_current_driver(void);
 #endif /* _LINUX_CPUFREQ_H */

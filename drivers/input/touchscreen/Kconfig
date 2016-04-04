@@ -131,7 +131,7 @@ config TOUCHSCREEN_MXTS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mxts.
-	  
+
 config TOUCHSCREEN_MXT336S
 	tristate "Atmel MaxTouch 336S"
 	depends on I2C
@@ -144,7 +144,7 @@ config TOUCHSCREEN_MXT336S
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mxt336S.
-	  
+
 config TOUCHSCREEN_ATMEL_MXT540S
 	  tristate "Atmel MXT540S Touchscreen Interface"
 	  depends on I2C
@@ -1070,8 +1070,8 @@ config TOUCHSCREEN_MXT224
 	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called mxt224.	  
-	  
+	  module will be called mxt224.
+
 config TOUCHSCREEN_CYPRESS_TMA46X
 	tristate "CYPRESS TMA46X I2C Touchscreen"
 	depends on I2C
@@ -1147,4 +1147,9 @@ config TOUCHSCREEN_PREVENT_SLEEP
 	default y
 	help
 	This disables the sleep function of modified touchscreen drivers.
+
+config STATE_NOTIFIER
+	bool "State Notifier"
+	default y
+
 endif

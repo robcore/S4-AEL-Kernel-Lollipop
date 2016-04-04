@@ -73,10 +73,6 @@ config THERMAL_PM8XXX
 	  shifting over temperature shutdown control of the PMIC from hardware
 	  to software.
 
-choice
-	prompt "MSM Thermal Monitor Types"
-	default THERMAL_MONITOR
-
 config INTELLI_THERMAL
 	bool "Better thermal monitor for MSM"
 	depends on THERMAL_TSENS8960 || THERMAL_TSENS8974
@@ -87,7 +83,8 @@ config INTELLI_THERMAL
 
 config INTELLI_THERMAL_STATS
 	bool "Enable intelli_thermal statistics"
-	depends on THERMAL_MONITOR
+	depends on INTELLI_THERMAL
+	default n
 	help
 	  This enables intelli_thermal statistics
 
@@ -100,8 +97,6 @@ config THERMAL_MONITOR
 	  absence of a system wide thermal monitoring entity or until such an
 	  entity starts running in the userspace. Monitors TSENS temperature
 	  and limits the max frequency of the cores.
-
-endchoice
 
 config SPEAR_THERMAL
 	bool "SPEAr thermal sensor driver"

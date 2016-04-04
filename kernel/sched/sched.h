@@ -104,6 +104,8 @@ struct cfs_bandwidth {
 struct task_group {
 	struct cgroup_subsys_state css;
 
+	bool notify_on_migrate;
+
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* schedulable entities of this group on each cpu */
 	struct sched_entity **se;
@@ -420,6 +422,9 @@ struct rq {
 	u64 avg_idle;
 #endif
 
+	int cur_freq, max_freq, min_freq;
+	u64 cumulative_runnable_avg;
+
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 	u64 prev_irq_time;
 #endif
@@ -497,15 +502,10 @@ struct nr_stats_s {
 	seqcount_t ave_seqcnt;
 };
 
-/* 27 ~= 134217728ns = 134.2ms
- * 26 ~= 67108864ns = 67.1ms
- * 25 ~= 33554432ns = 33.5ms
- * 24 ~= 16777216ns = 16.8ms
- */
-#define NR_AVE_PERIOD_EXP 27
-#define NR_AVE_SCALE(x) ((x) << FSHIFT)
-#define NR_AVE_PERIOD (1 << NR_AVE_PERIOD_EXP)
-#define NR_AVE_DIV_PERIOD(x) ((x) >> NR_AVE_PERIOD_EXP)
+#define NR_AVE_PERIOD_EXP	28
+#define NR_AVE_SCALE(x)		((x) << FSHIFT)
+#define NR_AVE_PERIOD		(1 << NR_AVE_PERIOD_EXP)
+#define NR_AVE_DIV_PERIOD(x)	((x) >> NR_AVE_PERIOD_EXP)
 
 DECLARE_PER_CPU(struct nr_stats_s, runqueue_stats);
 #endif
@@ -552,12 +552,30 @@ static inline struct sched_domain *highest_flag_domain(int cpu, int flag)
 }
 
 DECLARE_PER_CPU(struct sched_domain *, sd_llc);
+DECLARE_PER_CPU(int, sd_llc_size);
 DECLARE_PER_CPU(int, sd_llc_id);
 
 #endif /* CONFIG_SMP */
 
 #include "stats.h"
 #include "auto_group.h"
+
+extern unsigned int sched_ravg_window;
+extern unsigned int pct_task_load(struct task_struct *p);
+extern void init_new_task_load(struct task_struct *p);
+
+static inline void
+inc_cumulative_runnable_avg(struct rq *rq, struct task_struct *p)
+{
+	rq->cumulative_runnable_avg += p->ravg.demand;
+}
+
+static inline void
+dec_cumulative_runnable_avg(struct rq *rq, struct task_struct *p)
+{
+	rq->cumulative_runnable_avg -= p->ravg.demand;
+	BUG_ON((s64)rq->cumulative_runnable_avg < 0);
+}
 
 #ifdef CONFIG_CGROUP_SCHED
 
@@ -577,6 +595,11 @@ DECLARE_PER_CPU(int, sd_llc_id);
 static inline struct task_group *task_group(struct task_struct *p)
 {
 	return p->sched_task_group;
+}
+
+static inline bool task_notify_on_migrate(struct task_struct *p)
+{
+	return task_group(p)->notify_on_migrate;
 }
 
 /* Change a task's cfs_rq and parent entity if it moves across CPUs/groups */
@@ -604,7 +627,10 @@ static inline struct task_group *task_group(struct task_struct *p)
 {
 	return NULL;
 }
-
+static inline bool task_notify_on_migrate(struct task_struct *p)
+{
+	return false;
+}
 #endif /* CONFIG_CGROUP_SCHED */
 
 static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
@@ -887,7 +913,9 @@ static inline void idle_balance(int cpu, struct rq *rq)
 
 #endif
 
+#ifdef CONFIG_SCHED_DEBUG
 extern void sysrq_sched_debug_show(void);
+#endif
 extern void sched_init_granularity(void);
 extern void update_max_interval(void);
 extern void update_group_power(struct sched_domain *sd, int cpu);
@@ -950,7 +978,7 @@ static inline unsigned int do_avg_nr_running(struct rq *rq)
 	nr = NR_AVE_SCALE(rq->nr_running);
 
 	if (deltax > NR_AVE_PERIOD)
-	ave_nr_running = nr;
+		ave_nr_running = nr;
 	else
 		ave_nr_running +=
 			NR_AVE_DIV_PERIOD(deltax * (nr - ave_nr_running));

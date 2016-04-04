@@ -88,10 +88,10 @@ struct cpufreq_governor cpufreq_gov_intellimm = {
 enum {DBS_NORMAL_SAMPLE, DBS_SUB_SAMPLE};
 
 struct cpu_dbs_info_s {
-	cputime64_t prev_cpu_idle;
-	cputime64_t prev_cpu_iowait;
-	cputime64_t prev_cpu_wall;
-	cputime64_t prev_cpu_nice;
+	u64 prev_cpu_idle;
+	u64 prev_cpu_iowait;
+	u64 prev_cpu_wall;
+	u64 prev_cpu_nice;
 	struct cpufreq_policy *cur_policy;
 	struct delayed_work work;
 	struct cpufreq_frequency_table *freq_table;
@@ -113,7 +113,7 @@ static DEFINE_PER_CPU(struct cpu_dbs_info_s, imm_cpu_dbs_info);
 static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info);
 static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info);
 
-static unsigned int dbs_enable;	
+static unsigned int dbs_enable;
 
 static DEFINE_PER_CPU(struct task_struct *, up_task);
 static spinlock_t input_boost_lock;
@@ -172,40 +172,6 @@ static struct dbs_tuners {
 	.freq_down_step_barrier = DEF_FREQ_DOWN_STEP_BARRIER,
 };
 
-static inline u64 get_cpu_idle_time_jiffy(unsigned int cpu, u64 *wall)
-{
-	u64 idle_time;
-	u64 cur_wall_time;
-	u64 busy_time;
-
-	cur_wall_time = jiffies64_to_cputime64(get_jiffies_64());
-
-	busy_time  = kcpustat_cpu(cpu).cpustat[CPUTIME_USER];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_SYSTEM];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_IRQ];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_SOFTIRQ];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_STEAL];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_NICE];
-
-	idle_time = cur_wall_time - busy_time;
-	if (wall)
-		*wall = jiffies_to_usecs(cur_wall_time);
-
-	return jiffies_to_usecs(idle_time);
-}
-
-static inline cputime64_t get_cpu_idle_time(unsigned int cpu, cputime64_t *wall)
-{
-	u64 idle_time = get_cpu_idle_time_us(cpu, NULL);
-
-	if (idle_time == -1ULL)
-		return get_cpu_idle_time_jiffy(cpu, wall);
-	else
-		idle_time += get_cpu_iowait_time_us(cpu, wall);
-
-	return idle_time;
-}
-
 static inline cputime64_t get_cpu_iowait_time(unsigned int cpu,
 						cputime64_t *wall)
 {
@@ -241,7 +207,7 @@ static unsigned int powersave_bias_target(struct cpufreq_policy *policy,
 	freq_reduc = freq_req * dbs_tuners_ins.powersave_bias / 1000;
 	freq_avg = freq_req - freq_reduc;
 
-	
+
 	index = 0;
 	cpufreq_frequency_table_target(policy, dbs_info->freq_table, freq_avg,
 			CPUFREQ_RELATION_H, &index);
@@ -251,7 +217,7 @@ static unsigned int powersave_bias_target(struct cpufreq_policy *policy,
 			CPUFREQ_RELATION_L, &index);
 	freq_hi = dbs_info->freq_table[index].frequency;
 
-	
+
 	if (freq_hi == freq_lo) {
 		dbs_info->freq_lo = 0;
 		dbs_info->freq_lo_jiffies = 0;
@@ -525,7 +491,7 @@ static ssize_t store_sampling_down_factor(struct kobject *a,
 		return -EINVAL;
 	dbs_tuners_ins.sampling_down_factor = input;
 
-	
+
 	for_each_online_cpu(j) {
 		struct cpu_dbs_info_s *dbs_info;
 		dbs_info = &per_cpu(imm_cpu_dbs_info, j);
@@ -549,12 +515,12 @@ static ssize_t store_ignore_nice_load(struct kobject *a, struct attribute *b,
 	if (input > 1)
 		input = 1;
 
-	if (input == dbs_tuners_ins.ignore_nice) { 
+	if (input == dbs_tuners_ins.ignore_nice) {
 		return count;
 	}
 	dbs_tuners_ins.ignore_nice = input;
 
-	
+
 	for_each_online_cpu(j) {
 		struct cpu_dbs_info_s *dbs_info;
 		dbs_info = &per_cpu(imm_cpu_dbs_info, j);
@@ -1287,7 +1253,7 @@ static void dbs_input_event(struct input_handle *handle, unsigned int type,
 
 	if ((dbs_tuners_ins.powersave_bias == POWERSAVE_BIAS_MAXLEVEL) ||
 		(dbs_tuners_ins.powersave_bias == POWERSAVE_BIAS_MINLEVEL)) {
-		
+
 		return;
 	}
 
@@ -1295,12 +1261,12 @@ static void dbs_input_event(struct input_handle *handle, unsigned int type,
 		dbs_tuners_ins.powersave_bias = 0;
 	}
 	else if (type == EV_ABS && code == ABS_MT_TRACKING_ID) {
-		
+
 		if (value != -1) {
 			input_event_counter++;
 			input_event_min_freq =
 			  input_event_min_freq_array[num_online_cpus() - 1];
-			
+
 		}
 		else {
 			if (likely(input_event_counter > 0))
@@ -1333,7 +1299,7 @@ static void dbs_input_event(struct input_handle *handle, unsigned int type,
 				break;
 #endif
 			dbs_info = &per_cpu(imm_cpu_dbs_info, i);
-			 if (dbs_info->cur_policy &&             
+			 if (dbs_info->cur_policy &&
 				dbs_info->cur_policy->cur <
 				input_event_min_freq) {
 				dbs_info->input_event_freq =
@@ -1349,7 +1315,7 @@ static int dbs_input_connect(struct input_handler *handler,
 {
 	struct input_handle *handle;
 	int error;
-	
+
 	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
 	if (!handle)
 		return -ENOMEM;
@@ -1390,7 +1356,7 @@ static const struct input_device_id dbs_ids[] = {
 			BIT_MASK(ABS_MT_POSITION_X) |
 			BIT_MASK(ABS_MT_POSITION_Y) },
 	},
-	
+
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT |
 			INPUT_DEVICE_ID_MATCH_ABSBIT,
@@ -1398,7 +1364,7 @@ static const struct input_device_id dbs_ids[] = {
 		.absbit = { [BIT_WORD(ABS_X)] =
 			BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
 	},
-	
+
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT,
 		.evbit = { BIT_MASK(EV_KEY) },
@@ -1592,13 +1558,13 @@ static int __init cpufreq_gov_dbs_init(void)
 	idle_time = get_cpu_idle_time_us(cpu, NULL);
 	put_cpu();
 	if (idle_time != -1ULL) {
-		
+
 		dbs_tuners_ins.up_threshold = MICRO_FREQUENCY_UP_THRESHOLD;
 		dbs_tuners_ins.down_differential =
 					MICRO_FREQUENCY_DOWN_DIFFERENTIAL;
 		min_sampling_rate = MICRO_FREQUENCY_MIN_SAMPLE_RATE;
 	} else {
-		
+
 		min_sampling_rate =
 			MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10);
 	}

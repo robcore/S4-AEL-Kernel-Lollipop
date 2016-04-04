@@ -145,11 +145,11 @@ struct smartmax_info_s {
 	struct cpufreq_policy *cur_policy;
 	struct cpufreq_frequency_table *freq_table;
 	struct delayed_work work;
-	cputime64_t prev_cpu_idle;
-	cputime64_t prev_cpu_iowait;
-	cputime64_t prev_cpu_wall;
-	cputime64_t prev_cpu_nice;
-	cputime64_t freq_change_time;
+	u64 prev_cpu_idle;
+	u64 prev_cpu_iowait;
+	u64 prev_cpu_wall;
+	u64 prev_cpu_nice;
+	u64 freq_change_time;
 	unsigned int cur_cpu_load;
 	unsigned int old_freq;
 	int ramp_dir;
@@ -220,37 +220,6 @@ static
 struct cpufreq_governor cpufreq_gov_smartmax = { .name = "smartmax", .governor =
 		cpufreq_governor_smartmax, .max_transition_latency = 9000000, .owner =
 		THIS_MODULE , };
-
-static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
-		cputime64_t *wall) {
-	u64 idle_time;
-	u64 cur_wall_time;
-	u64 busy_time;
-
-	cur_wall_time = jiffies64_to_cputime64(get_jiffies_64());
-
-	busy_time  = kcpustat_cpu(cpu).cpustat[CPUTIME_USER];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_SYSTEM];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_IRQ];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_SOFTIRQ];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_STEAL];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_NICE];
-
-	idle_time = cur_wall_time - busy_time;
-	if (wall)
-		*wall = jiffies_to_usecs(cur_wall_time);
-
-	return jiffies_to_usecs(idle_time);
-}
-
-static inline cputime64_t get_cpu_idle_time(unsigned int cpu, cputime64_t *wall) {
-	u64 idle_time = get_cpu_idle_time_us(cpu, wall);
-
-	if (idle_time == -1ULL)
-		return get_cpu_idle_time_jiffy(cpu, wall);
-
-	return idle_time;
-}
 
 static inline cputime64_t get_cpu_iowait_time(unsigned int cpu,
 		cputime64_t *wall) {
@@ -382,7 +351,7 @@ static void cpufreq_smartmax_freq_change(struct smartmax_info_s *this_smartmax) 
 	cpu = this_smartmax->cpu;
 
 	dprintk(SMARTMAX_DEBUG_ALG, "%d: %s\n", old_freq, __func__);
-	
+
 	if (old_freq != policy->cur) {
 		// frequency was changed by someone else?
 		dprintk(SMARTMAX_DEBUG_ALG, "%d: frequency changed by 3rd party to %d\n",
@@ -419,7 +388,7 @@ static void cpufreq_smartmax_freq_change(struct smartmax_info_s *this_smartmax) 
 	if (new_freq!=0){
 		target_freq(policy, this_smartmax, new_freq, old_freq, relation);
 	}
-	
+
 	this_smartmax->ramp_dir = 0;
 }
 
@@ -459,7 +428,7 @@ static void cpufreq_smartmax_timer(struct smartmax_info_s *this_smartmax) {
 #endif
 
 	cur = policy->cur;
-		
+
 	dprintk(SMARTMAX_DEBUG_ALG, "%d: %s cpu %d %lld\n", cur, __func__, cpu, now);
 
 
@@ -540,13 +509,13 @@ static void cpufreq_smartmax_timer(struct smartmax_info_s *this_smartmax) {
 	cpufreq_smartmax_get_ramp_direction(debug_load, cur, this_smartmax, policy, now);
 
 	// no changes
-	if (this_smartmax->ramp_dir == 0)		
+	if (this_smartmax->ramp_dir == 0)
 		return;
 
 	// boost - but not block ramp up steps based on load if requested
 	if (boost_running && time_before64 (now, boost_end_time)) {
 		dprintk(SMARTMAX_DEBUG_BOOST, "%d: boost running %llu %llu\n", cur, now, boost_end_time);
-		
+
 		if (this_smartmax->ramp_dir == -1)
 			return;
 		else {
@@ -785,13 +754,13 @@ static ssize_t store_touch_poke_freq(struct kobject *a, struct attribute *b,
 	res = strict_strtoul(buf, 0, &input);
 	if (res >= 0){
 		touch_poke_freq = input;
-	
+
 		if (touch_poke_freq == 0)
 			touch_poke = false;
 		else
 			touch_poke = true;
 	} else
-		return -EINVAL;	
+		return -EINVAL;
 	return count;
 }
 
@@ -851,7 +820,7 @@ static ssize_t store_boost_freq(struct kobject *a, struct attribute *b,
 		else
 			boost = true;
 	} else
-		return -EINVAL;	
+		return -EINVAL;
 	return count;
 }
 
@@ -902,7 +871,7 @@ static ssize_t store_io_is_busy(struct kobject *a, struct attribute *b,
 		}
 		io_is_busy = input;
 	} else
-		return -EINVAL;	
+		return -EINVAL;
 	return count;
 }
 
@@ -927,7 +896,7 @@ static ssize_t store_ignore_nice(struct kobject *a, struct attribute *b,
 		/* we need to re-evaluate prev_cpu_idle */
 		update_idle_time(true);
 	} else
-		return -EINVAL;	
+		return -EINVAL;
 	return count;
 }
 
@@ -953,24 +922,24 @@ define_global_rw_attr(ramp_up_during_boost);
 define_global_rw_attr(awake_ideal_freq);
 define_global_rw_attr(suspend_ideal_freq);
 
-static struct attribute * smartmax_attributes[] = { 
+static struct attribute * smartmax_attributes[] = {
 	&debug_mask_attr.attr,
-	&up_rate_attr.attr, 
-	&down_rate_attr.attr, 
-	&ramp_up_step_attr.attr, 
+	&up_rate_attr.attr,
+	&down_rate_attr.attr,
+	&ramp_up_step_attr.attr,
 	&ramp_down_step_attr.attr,
-	&max_cpu_load_attr.attr, 
+	&max_cpu_load_attr.attr,
 	&min_cpu_load_attr.attr,
-	&sampling_rate_attr.attr, 
+	&sampling_rate_attr.attr,
 	&touch_poke_freq_attr.attr,
-	&input_boost_duration_attr.attr, 
-	&boost_freq_attr.attr, 
-	&boost_duration_attr.attr, 
+	&input_boost_duration_attr.attr,
+	&boost_freq_attr.attr,
+	&boost_duration_attr.attr,
 	&io_is_busy_attr.attr,
-	&ignore_nice_attr.attr, 
-	&ramp_up_during_boost_attr.attr, 
+	&ignore_nice_attr.attr,
+	&ramp_up_during_boost_attr.attr,
 	&awake_ideal_freq_attr.attr,
-	&suspend_ideal_freq_attr.attr,		
+	&suspend_ideal_freq_attr.attr,
 	NULL , };
 
 static struct attribute_group smartmax_attr_group = { .attrs =
@@ -992,7 +961,7 @@ static int cpufreq_smartmax_boost_task(void *data) {
 
 		if (boost_running)
 			continue;
-		
+
 		/* we always boost cpu 0 */
 		this_smartmax = &per_cpu(smartmax_info, 0);
 		if (!this_smartmax)
@@ -1009,7 +978,7 @@ static int cpufreq_smartmax_boost_task(void *data) {
 
 		if (policy->cur < cur_boost_freq) {
 			boost_running = true;
-		
+
 			now = ktime_to_ns(ktime_get());
 			boost_end_time = now + cur_boost_duration;
 			dprintk(SMARTMAX_DEBUG_BOOST, "%s %llu %llu\n", __func__, now, boost_end_time);
@@ -1018,7 +987,7 @@ static int cpufreq_smartmax_boost_task(void *data) {
 			this_smartmax->prev_cpu_idle = get_cpu_idle_time(0, &this_smartmax->prev_cpu_wall);
 		}
 		mutex_unlock(&this_smartmax->timer_mutex);
-				
+
 		unlock_policy_rwsem_write(0);
 	}
 
@@ -1141,7 +1110,7 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 		update_idle_time(false);
 
 		dbs_enable++;
-		
+
 		if (dbs_enable == 1) {
 			if (!boost_task_alive) {
 				boost_task = kthread_create (
@@ -1179,7 +1148,7 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 			latency = new_policy->cpuinfo.transition_latency / 1000;
 			if (latency == 0)
 				latency = 1;
-			
+
 			min_sampling_rate = max(sampling_rate, MIN_LATENCY_MULTIPLIER * latency);
 			sampling_rate = max(min_sampling_rate, latency * LATENCY_MULTIPLIER);
 		}
@@ -1221,7 +1190,7 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 			unregister_early_suspend(&smartmax_early_suspend_handler);
 #endif
 		}
-		
+
 		mutex_unlock(&dbs_mutex);
 		break;
 	}
@@ -1261,7 +1230,7 @@ static int __init cpufreq_smartmax_init(void) {
 	smartmax_early_suspend_handler.resume = smartmax_late_resume;
 	smartmax_early_suspend_handler.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 100;
 #endif
-	
+
 	return cpufreq_register_governor(&cpufreq_gov_smartmax);
 }
 

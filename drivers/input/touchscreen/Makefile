@@ -98,6 +98,7 @@ obj-$(CONFIG_TOUCHSCREEN_FT5X06)	+= ft5x06_ts.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4)		+= synaptics_i2c_rmi4.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_RMI4_DEV)	+= synaptics_rmi_dev.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE)	+= synaptics_fw_update.o
+obj-$(CONFIG_STATE_NOTIFIER)		+= state_notifier.o
 obj-$(CONFIG_TOUCHSCREEN_MMS144)        += mms_ts_144.o
 obj-$(CONFIG_TOUCHSCREEN_ZINITIX_BT532)	+= zinitix_bt_532.o
 obj-$(CONFIG_TOUCHSCREEN_CYPRESS_TMA46X)	+= cyttsp4_core.o cyttsp4_i2c.o cyttsp4_bus.o cyttsp4_mtb.o cyttsp4_mt_common.o cyttsp4_device_access.o cyttsp4_loader.o

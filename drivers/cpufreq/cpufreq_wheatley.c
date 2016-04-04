@@ -78,10 +78,10 @@ struct cpufreq_governor cpufreq_gov_wheatley = {
 enum {DBS_NORMAL_SAMPLE, DBS_SUB_SAMPLE};
 
 struct cpu_dbs_info_s {
-    cputime64_t prev_cpu_idle;
-    cputime64_t prev_cpu_iowait;
-    cputime64_t prev_cpu_wall;
-    cputime64_t prev_cpu_nice;
+    u64 prev_cpu_idle;
+    u64 prev_cpu_iowait;
+    u64 prev_cpu_wall;
+    u64 prev_cpu_nice;
     struct cpufreq_policy *cur_policy;
     struct delayed_work work;
     struct cpufreq_frequency_table *freq_table;
@@ -130,41 +130,6 @@ static struct dbs_tuners {
     .target_residency = DEF_TARGET_RESIDENCY,
     .allowed_misses = DEF_ALLOWED_MISSES,
 };
-
-static inline u64 get_cpu_idle_time_jiffy(unsigned int cpu,
-						  u64 *wall)
-{
-	u64 idle_time;
-	u64 cur_wall_time;
-	u64 busy_time;
-
-	cur_wall_time = jiffies64_to_cputime64(get_jiffies_64());
-
-	busy_time  = kcpustat_cpu(cpu).cpustat[CPUTIME_USER];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_SYSTEM];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_IRQ];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_SOFTIRQ];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_STEAL];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_NICE];
-
-	idle_time = cur_wall_time - busy_time;
-	if (wall)
-		*wall = jiffies_to_usecs(cur_wall_time);
-
-	return jiffies_to_usecs(idle_time);
-}
-
-static inline cputime64_t get_cpu_idle_time(unsigned int cpu, cputime64_t *wall)
-{
-    u64 idle_time = get_cpu_idle_time_us(cpu, NULL);
-
-    if (idle_time == -1ULL)
-	return get_cpu_idle_time_jiffy(cpu, wall);
-    else
-	idle_time += get_cpu_iowait_time_us(cpu, wall);
-
-    return idle_time;
-}
 
 static inline cputime64_t get_cpu_iowait_time(unsigned int cpu, cputime64_t *wall)
 {
@@ -553,7 +518,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	if (deepidle_state) {
 	    deepidle_time = deepidle_state->time;
 	    deepidle_usage = deepidle_state->usage;
-		    
+
 	    total_idletime += (unsigned long)(deepidle_time - j_dbs_info->prev_idletime);
 	    total_usage += (unsigned long)(deepidle_usage - j_dbs_info->prev_idleusage);
 
@@ -563,7 +528,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 */
     }
 
-    if (total_usage > 0 && total_idletime / total_usage >= dbs_tuners_ins.target_residency) { 
+    if (total_usage > 0 && total_idletime / total_usage >= dbs_tuners_ins.target_residency) {
 	if (num_misses > 0)
 	    num_misses--;
     } else {
@@ -572,7 +537,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
     }
 
     /* Check for frequency increase */
-    if (max_load_freq > dbs_tuners_ins.up_threshold * policy->cur 
+    if (max_load_freq > dbs_tuners_ins.up_threshold * policy->cur
 	|| num_misses <= dbs_tuners_ins.allowed_misses) {
 	/* If switching to max speed, apply sampling_down_factor */
 	if (policy->cur < policy->max)

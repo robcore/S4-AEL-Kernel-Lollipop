@@ -54,10 +54,10 @@
 #define MIN_FREQUENCY_UP_THRESHOLD		(11)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
 #define MIN_FREQUENCY_DOWN_DIFFERENTIAL		(1)
-#define DEFAULT_FREQ_BOOST_TIME			(2000000)
+#define DEFAULT_FREQ_BOOST_TIME			(1000000)
 #define DEF_SAMPLING_RATE			(50000)
 #define BOOSTED_SAMPLING_RATE			(15000)
-#define DBS_INPUT_EVENT_MIN_FREQ		(1026000)
+#define DBS_INPUT_EVENT_MIN_FREQ		(810000)
 #define DBS_SYNC_FREQ				(702000)
 #define DBS_OPTIMAL_FREQ			(1566000)
 
@@ -186,45 +186,10 @@ static struct dbs_tuners {
 	.sync_freq = DBS_SYNC_FREQ,
 	.optimal_freq = DBS_OPTIMAL_FREQ,
 	.freq_boost_time = DEFAULT_FREQ_BOOST_TIME,
-	.two_phase_freq = 0,
+	.two_phase_freq = 1728000,
 };
 
-static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
-							cputime64_t *wall)
-{
-	u64 idle_time;
-	u64 cur_wall_time;
-	u64 busy_time;
-
-	cur_wall_time = jiffies64_to_cputime64(get_jiffies_64());
-
-	busy_time  = kcpustat_cpu(cpu).cpustat[CPUTIME_USER];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_SYSTEM];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_IRQ];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_SOFTIRQ];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_STEAL];
-	busy_time += kcpustat_cpu(cpu).cpustat[CPUTIME_NICE];
-
-	idle_time = cur_wall_time - busy_time;
-	if (wall)
-		*wall = jiffies_to_usecs(cur_wall_time);
-
-	return jiffies_to_usecs(idle_time);
-}
-
-static inline cputime64_t get_cpu_idle_time(unsigned int cpu, cputime64_t *wall)
-{
-	u64 idle_time = get_cpu_idle_time_us(cpu, NULL);
-
-	if (idle_time == -1ULL)
-		return get_cpu_idle_time_jiffy(cpu, wall);
-	else
-		idle_time += get_cpu_iowait_time_us(cpu, wall);
-
-	return idle_time;
-}
-
-static inline u64 get_cpu_iowait_time(unsigned int cpu, u64 *wall)
+static inline cputime64_t get_cpu_iowait_time(unsigned int cpu, cputime64_t *wall)
 {
 	u64 iowait_time = get_cpu_iowait_time_us(cpu, wall);
 
@@ -357,7 +322,7 @@ show_one(boosttime, freq_boost_time);
 show_one(boostfreq, boostfreq);
 show_one(two_phase_freq, two_phase_freq);
 
-#ifdef CONFIG_CPUFREQ_LIMIT_MAX_FREQ 
+#ifdef CONFIG_CPUFREQ_LIMIT_MAX_FREQ
 void set_lmf_browsing_state(bool onOff);
 void set_lmf_active_max_freq(unsigned long freq);
 void set_lmf_inactive_max_freq(unsigned long freq);
@@ -1227,13 +1192,13 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
 #ifdef CONFIG_CPUFREQ_LIMIT_MAX_FREQ
 
-enum {	
-	SET_MIN = 0,	
+enum {
+	SET_MIN = 0,
 	SET_MAX
 };
 
-enum {	
-	BOOT_CPU0,	
+enum {
+	BOOT_CPU0,
 	NON_BOOT_CPU1,
 	NON_BOOT_CPU2,
 	NON_BOOT_CPU3,
@@ -1263,7 +1228,7 @@ static unsigned long time_int = 0;
 static unsigned long time_int1 = 0;
 static unsigned long load_state_total0  = 0;
 static unsigned long load_state_total1  = 0;
-static unsigned long load_limit_index = 0;	
+static unsigned long load_limit_index = 0;
 static unsigned long load_limit_total[NUM_ACTIVE_LOAD_ARRAY];
 static unsigned long msecs_limit_total = 0;
 static bool active_state = true;
@@ -1372,7 +1337,7 @@ static void do_dbs_timer(struct work_struct *work)
 				/* set freq to 1.566GHz */
 				//pr_info("LMF: CPU0 set max freq to: %lu\n", lmf_active_max_limit);
 				cpufreq_set_limits(BOOT_CPU, SET_MAX, lmf_active_max_limit);
-				
+
 				//pr_info("LMF: CPUX set max freq to: %lu\n", lmf_active_max_limit);
 				if (cpu_online(NON_BOOT_CPU1) ||
 					cpu_online(NON_BOOT_CPU2) ||
@@ -1386,7 +1351,7 @@ static void do_dbs_timer(struct work_struct *work)
 					cpufreq_set_limits_off(NON_BOOT_CPU3, SET_MAX, lmf_active_max_limit);
 				}
 			}
-			
+
 			jiffies_old = 0;
 			time_int = 0;
 			time_int1 = 0;
@@ -1422,7 +1387,7 @@ static void do_dbs_timer(struct work_struct *work)
 				lmf_old_state = true;
 			}
 
-			if (jiffies_old == 0) 
+			if (jiffies_old == 0)
 			{
 				jiffies_old = jiffies_cur;
 			}
@@ -1432,10 +1397,10 @@ static void do_dbs_timer(struct work_struct *work)
 				jiffies_old = jiffies_cur;
 				policy = dbs_info->cur_policy;
 				load_state_cpu = ((policy->cur) * delay_msec)/10000;
-				
+
 				time_int += delay_msec;
-				load_state_total0 += load_state_cpu;			
-				
+				load_state_total0 += load_state_cpu;
+
 				/* average */
 				if (time_int >= SAMPLE_DURATION_MSEC)
 				{
@@ -1453,7 +1418,7 @@ static void do_dbs_timer(struct work_struct *work)
 					msecs_limit_total += time_int;
 					load_limit_total[load_limit_index++] = average;
 
-					//pr_warn("LMF: average = %ld.%ld, (%ld:%ld) (%ld:%ld) (%ld:%ld)\n", 
+					//pr_warn("LMF: average = %ld.%ld, (%ld:%ld) (%ld:%ld) (%ld:%ld)\n",
 					//	average, average_dec, time_int, time_int1, load_state_total0, load_state_total1, load_limit_index-1, msecs_limit_total);
 
 					time_int = 0;
@@ -1468,7 +1433,7 @@ static void do_dbs_timer(struct work_struct *work)
 						{
 							load_limit_index = 0;
 						}
-						
+
 						if (msecs_limit_total > ACTIVE_DURATION_MSEC)
 						{
 							for (i=0; i<NUM_ACTIVE_LOAD_ARRAY; i++)
@@ -1489,7 +1454,7 @@ static void do_dbs_timer(struct work_struct *work)
 								/* set freq to 1.134GHz */
 								//pr_info("LMF: CPU0 set max freq to: %lu\n", lmf_inactive_max_limit);
 								cpufreq_set_limits(BOOT_CPU, SET_MAX, lmf_inactive_max_limit);
-								
+
 								//pr_info("LMF: CPUX set max freq to: %lu\n", lmf_inactive_max_limit);
 								if (cpu_online(NON_BOOT_CPU1) ||
 									cpu_online(NON_BOOT_CPU2) ||
@@ -1515,7 +1480,7 @@ static void do_dbs_timer(struct work_struct *work)
 						{
 							load_limit_index = 0;
 						}
-						
+
 						if (msecs_limit_total > INACTIVE_DURATION_MSEC)
 						{
 							for (i=0; i<NUM_INACTIVE_LOAD_ARRAY; i++)
@@ -1536,7 +1501,7 @@ static void do_dbs_timer(struct work_struct *work)
 								/* set freq to 1.566GHz */
 								//pr_info("LMF: CPU0 set max freq to: %lu\n", lmf_active_max_limit);
 								cpufreq_set_limits(BOOT_CPU, SET_MAX, lmf_active_max_limit);
-								
+
 								//pr_info("LMF: CPUX set max freq to: %lu\n", lmf_active_max_limit);
 								if (cpu_online(NON_BOOT_CPU1) ||
 									cpu_online(NON_BOOT_CPU2) ||
@@ -1559,7 +1524,7 @@ static void do_dbs_timer(struct work_struct *work)
 					}
 				}
 			}
-		}	
+		}
 	}
 #endif
 

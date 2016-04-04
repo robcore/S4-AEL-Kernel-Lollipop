@@ -2670,7 +2670,7 @@ config MSM_SLEEP_STATS_DEVICE
 
 config MSM_RUN_QUEUE_STATS
 	bool "Enable collection and exporting of MSM Run Queue stats to userspace"
-	depends on (MSM_SOC_REV_A || ARCH_MSM8X60 || ARCH_MSM8960)
+	default n
 	help
 	 This option enalbes statistics collection on Run Queue. A daemon
          in user mode, called MPDecision will be using this data to decide
@@ -3322,7 +3322,7 @@ config SEC_FACTORY
 	help
 	  Enable Features only For FACTORY BINARY.
 
-config INTELLI_PLUG
+config INTELLI_HOTPLUG
         bool "Enable intelli-plug cpu hotplug driver"
         help
           Generic Intelli-plug cpu hotplug driver for ARM SOCs
