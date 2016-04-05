@@ -83,10 +83,10 @@ struct cpufreq_governor cpufreq_gov_abyssplugv2 = {
 enum {BDS_NORMAL_SAMPLE, BDS_SUB_SAMPLE};
 
 struct cpu_bds_info_s {
-	cputime64_t prev_cpu_idle;
-	cputime64_t prev_cpu_iowait;
-	cputime64_t prev_cpu_wall;
-	cputime64_t prev_cpu_nice;
+	u64 prev_cpu_idle;
+	u64 prev_cpu_iowait;
+	u64 prev_cpu_wall;
+	u64 prev_cpu_nice;
 	struct cpufreq_policy *cur_policy;
 	struct delayed_work work;
 	struct cpufreq_frequency_table *freq_table;
@@ -576,7 +576,7 @@ static void bds_check_cpu(struct cpu_bds_info_s *this_bds_info)
 		j_bds_info->prev_cpu_iowait = cur_iowait_time;
 
 		if (bds_tuners_ins.ignore_nice) {
-			cputime64_t cur_nice;
+			u64 cur_nice;
 			unsigned long cur_nice_jiffies;
 
 			cur_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE] -
@@ -958,7 +958,7 @@ static int cpufreq_governor_bds(struct cpufreq_policy *policy,
 
 static int __init cpufreq_gov_bds_init(void)
 {
-	cputime64_t wall;
+	u64 wall;
 	u64 idle_time;
 	unsigned int i;
 	int cpu = get_cpu();
@@ -1016,6 +1016,7 @@ module_param_call(enable_bds_input_event, set_enable_bds_input_event_param, para
 
 MODULE_AUTHOR("Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>");
 MODULE_AUTHOR("Alexey Starikovskiy <alexey.y.starikovskiy@intel.com>");
+MODULE_AUTHOR("Dennis Rassmann <showp1984@gmail.com>");
 MODULE_DESCRIPTION("'cpufreq_abyssplugv2' - An abyssplug cpufreq governor based on ondemand");
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_ABYSSPLUGV2
@@ -1024,4 +1025,3 @@ fs_initcall(cpufreq_gov_bds_init);
 module_init(cpufreq_gov_bds_init);
 #endif
 module_exit(cpufreq_gov_bds_exit);
-

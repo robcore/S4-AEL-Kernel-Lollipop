@@ -1,0 +1,720 @@
+From 53fc852065a572f818ab01635b707b2d5a87035f Mon Sep 17 00:00:00 2001
+From: Tejun Heo <tj@kernel.org>
+Date: Tue, 30 Apr 2013 15:27:12 -0700
+Subject: [PATCH] dump_stack: consolidate dump_stack() implementations and
+ unify their behaviors
+
+Both dump_stack() and show_stack() are currently implemented by each
+architecture.  show_stack(NULL, NULL) dumps the backtrace for the
+current task as does dump_stack().  On some archs, dump_stack() prints
+extra information - pid, utsname and so on - in addition to the
+backtrace while the two are identical on other archs.
+
+The usages in arch-independent code of the two functions indicate
+show_stack(NULL, NULL) should print out bare backtrace while
+dump_stack() is used for debugging purposes when something went wrong,
+so it does make sense to print additional information on the task which
+triggered dump_stack().
+
+There's no reason to require archs to implement two separate but mostly
+identical functions.  It leads to unnecessary subtle information.
+
+This patch expands the dummy fallback dump_stack() implementation in
+lib/dump_stack.c such that it prints out debug information (taken from
+x86) and invokes show_stack(NULL, NULL) and drops arch-specific
+dump_stack() implementations in all archs except blackfin.  Blackfin's
+dump_stack() does something wonky that I don't understand.
+
+Debug information can be printed separately by calling
+dump_stack_print_info() so that arch-specific dump_stack()
+implementation can still emit the same debug information.  This is used
+in blackfin.
+
+This patch brings the following behavior changes.
+
+* On some archs, an extra level in backtrace for show_stack() could be
+  printed.  This is because the top frame was determined in
+  dump_stack() on those archs while generic dump_stack() can't do that
+  reliably.  It can be compensated by inlining dump_stack() but not
+  sure whether that'd be necessary.
+
+* Most archs didn't use to print debug info on dump_stack().  They do
+  now.
+
+An example WARN dump follows.
+
+ WARNING: at kernel/workqueue.c:4841 init_workqueues+0x35/0x505()
+ Hardware name: empty
+ Modules linked in:
+ CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.9.0-rc1-work+ #9
+  0000000000000009 ffff88007c861e08 ffffffff81c614dc ffff88007c861e48
+  ffffffff8108f50f ffffffff82228240 0000000000000040 ffffffff8234a03c
+  0000000000000000 0000000000000000 0000000000000000 ffff88007c861e58
+ Call Trace:
+  [<ffffffff81c614dc>] dump_stack+0x19/0x1b
+  [<ffffffff8108f50f>] warn_slowpath_common+0x7f/0xc0
+  [<ffffffff8108f56a>] warn_slowpath_null+0x1a/0x20
+  [<ffffffff8234a071>] init_workqueues+0x35/0x505
+  ...
+
+v2: CPU number added to the generic debug info as requested by s390
+    folks and dropped the s390 specific dump_stack().  This loses %ksp
+    from the debug message which the maintainers think isn't important
+    enough to keep the s390-specific dump_stack() implementation.
+
+    dump_stack_print_info() is moved to kernel/printk.c from
+    lib/dump_stack.c.  Because linkage is per objecct file,
+    dump_stack_print_info() living in the same lib file as generic
+    dump_stack() means that archs which implement custom dump_stack()
+    - at this point, only blackfin - can't use dump_stack_print_info()
+    as that will bring in the generic version of dump_stack() too.  v1
+    The v1 patch broke build on blackfin due to this issue.  The build
+    breakage was reported by Fengguang Wu.
+
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Acked-by: David S. Miller <davem@davemloft.net>
+Acked-by: Vineet Gupta <vgupta@synopsys.com>
+Acked-by: Jesper Nilsson <jesper.nilsson@axis.com>
+Acked-by: Vineet Gupta <vgupta@synopsys.com>
+Acked-by: Martin Schwidefsky <schwidefsky@de.ibm.com>	[s390 bits]
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Mike Frysinger <vapier@gentoo.org>
+Cc: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Bjorn Helgaas <bhelgaas@google.com>
+Cc: Sam Ravnborg <sam@ravnborg.org>
+Acked-by: Richard Kuo <rkuo@codeaurora.org>		[hexagon bits]
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+
+Conflicts:
+	kernel/printk.c
+---
+ arch/alpha/kernel/traps.c        |  7 -------
+ arch/arm/kernel/traps.c          |  7 -------
+ arch/avr32/kernel/process.c      |  8 --------
+ arch/blackfin/kernel/dumpstack.c |  1 +
+ arch/c6x/kernel/traps.c          |  9 ---------
+ arch/cris/kernel/traps.c         |  7 -------
+ arch/frv/kernel/traps.c          | 11 -----------
+ arch/h8300/kernel/traps.c        |  7 -------
+ arch/hexagon/kernel/traps.c      |  8 --------
+ arch/ia64/kernel/process.c       |  8 --------
+ arch/m32r/kernel/traps.c         |  9 ---------
+ arch/m68k/kernel/traps.c         | 12 ------------
+ arch/microblaze/kernel/traps.c   |  6 ------
+ arch/mips/kernel/traps.c         | 13 -------------
+ arch/mn10300/kernel/traps.c      | 11 -----------
+ arch/openrisc/kernel/traps.c     | 11 -----------
+ arch/parisc/kernel/traps.c       |  8 --------
+ arch/powerpc/kernel/process.c    |  6 ------
+ arch/score/kernel/traps.c        | 10 ----------
+ arch/sh/kernel/dumpstack.c       | 17 +++++++++++++++++
+ arch/sparc/kernel/process_32.c   | 11 -----------
+ arch/sparc/kernel/traps_64.c     |  7 -------
+ arch/um/kernel/sysrq.c           | 12 ------------
+ arch/unicore32/kernel/traps.c    |  6 ------
+ arch/x86/kernel/dumpstack.c      | 18 ------------------
+ arch/xtensa/kernel/traps.c       |  8 --------
+ include/linux/printk.h           |  5 +++++
+ kernel/printk.c                  | 18 ++++++++++++++++++
+ lib/dump_stack.c                 | 11 ++++++++---
+ 29 files changed, 49 insertions(+), 223 deletions(-)
+
+diff --git a/arch/alpha/kernel/traps.c b/arch/alpha/kernel/traps.c
+index 80d987c..770f911 100644
+--- a/arch/alpha/kernel/traps.c
++++ b/arch/alpha/kernel/traps.c
+@@ -169,13 +169,6 @@ void show_stack(struct task_struct *task, unsigned long *sp)
+ 	dik_show_trace(sp);
+ }
+ 
+-void dump_stack(void)
+-{
+-	show_stack(NULL, NULL);
+-}
+-
+-EXPORT_SYMBOL(dump_stack);
+-
+ void
+ die_if_kernel(char * str, struct pt_regs *regs, long err, unsigned long *r9_15)
+ {
+diff --git a/arch/arm/kernel/traps.c b/arch/arm/kernel/traps.c
+index 487b097..ec6f4d6 100644
+--- a/arch/arm/kernel/traps.c
++++ b/arch/arm/kernel/traps.c
+@@ -223,13 +223,6 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
+ }
+ #endif
+ 
+-void dump_stack(void)
+-{
+-	dump_backtrace(NULL, NULL);
+-}
+-
+-EXPORT_SYMBOL(dump_stack);
+-
+ void show_stack(struct task_struct *tsk, unsigned long *sp)
+ {
+ 	dump_backtrace(NULL, tsk);
+diff --git a/arch/avr32/kernel/process.c b/arch/avr32/kernel/process.c
+index 92c5af9..785cad1 100644
+--- a/arch/avr32/kernel/process.c
++++ b/arch/avr32/kernel/process.c
+@@ -251,14 +251,6 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
+ 	show_stack_log_lvl(tsk, (unsigned long)stack, NULL, "");
+ }
+ 
+-void dump_stack(void)
+-{
+-	unsigned long stack;
+-
+-	show_trace_log_lvl(current, &stack, NULL, "");
+-}
+-EXPORT_SYMBOL(dump_stack);
+-
+ static const char *cpu_modes[] = {
+ 	"Application", "Supervisor", "Interrupt level 0", "Interrupt level 1",
+ 	"Interrupt level 2", "Interrupt level 3", "Exception", "NMI"
+diff --git a/arch/blackfin/kernel/dumpstack.c b/arch/blackfin/kernel/dumpstack.c
+index 5cfbaa2..95ba6d9 100644
+--- a/arch/blackfin/kernel/dumpstack.c
++++ b/arch/blackfin/kernel/dumpstack.c
+@@ -168,6 +168,7 @@ void dump_stack(void)
+ #endif
+ 	trace_buffer_save(tflags);
+ 	dump_bfin_trace_buffer();
++	dump_stack_print_info(KERN_DEFAULT);
+ 	show_stack(current, &stack);
+ 	trace_buffer_restore(tflags);
+ }
+diff --git a/arch/c6x/kernel/traps.c b/arch/c6x/kernel/traps.c
+index 1be74e5..d0b96ef 100644
+--- a/arch/c6x/kernel/traps.c
++++ b/arch/c6x/kernel/traps.c
+@@ -67,15 +67,6 @@ void show_regs(struct pt_regs *regs)
+ 	pr_err("A31: %08lx  B31: %08lx\n", regs->a31, regs->b31);
+ }
+ 
+-void dump_stack(void)
+-{
+-	unsigned long stack;
+-
+-	show_stack(current, &stack);
+-}
+-EXPORT_SYMBOL(dump_stack);
+-
+-
+ void die(char *str, struct pt_regs *fp, int nr)
+ {
+ 	console_verbose();
+diff --git a/arch/cris/kernel/traps.c b/arch/cris/kernel/traps.c
+index a11ad32..0ffda73 100644
+--- a/arch/cris/kernel/traps.c
++++ b/arch/cris/kernel/traps.c
+@@ -147,13 +147,6 @@ show_stack(void)
+ #endif
+ 
+ void
+-dump_stack(void)
+-{
+-	show_stack(NULL, NULL);
+-}
+-EXPORT_SYMBOL(dump_stack);
+-
+-void
+ set_nmi_handler(void (*handler)(struct pt_regs *))
+ {
+ 	nmi_handler = handler;
+diff --git a/arch/frv/kernel/traps.c b/arch/frv/kernel/traps.c
+index 5cfd142..cfcd802 100644
+--- a/arch/frv/kernel/traps.c
++++ b/arch/frv/kernel/traps.c
+@@ -466,17 +466,6 @@ asmlinkage void compound_exception(unsigned long esfr1,
+ 	BUG();
+ } /* end compound_exception() */
+ 
+-/*****************************************************************************/
+-/*
+- * The architecture-independent backtrace generator
+- */
+-void dump_stack(void)
+-{
+-	show_stack(NULL, NULL);
+-}
+-
+-EXPORT_SYMBOL(dump_stack);
+-
+ void show_stack(struct task_struct *task, unsigned long *sp)
+ {
+ }
+diff --git a/arch/h8300/kernel/traps.c b/arch/h8300/kernel/traps.c
+index 7833aa3..cfe494d 100644
+--- a/arch/h8300/kernel/traps.c
++++ b/arch/h8300/kernel/traps.c
+@@ -164,10 +164,3 @@ void show_trace_task(struct task_struct *tsk)
+ {
+ 	show_stack(tsk,(unsigned long *)tsk->thread.esp0);
+ }
+-
+-void dump_stack(void)
+-{
+-	show_stack(NULL,NULL);
+-}
+-
+-EXPORT_SYMBOL(dump_stack);
+diff --git a/arch/hexagon/kernel/traps.c b/arch/hexagon/kernel/traps.c
+index f08857d..366358c 100644
+--- a/arch/hexagon/kernel/traps.c
++++ b/arch/hexagon/kernel/traps.c
+@@ -191,14 +191,6 @@ void show_stack(struct task_struct *task, unsigned long *fp)
+ 	do_show_stack(task, fp, 0);
+ }
+ 
+-void dump_stack(void)
+-{
+-	unsigned long *fp;
+-	asm("%0 = r30" : "=r" (fp));
+-	show_stack(current, fp);
+-}
+-EXPORT_SYMBOL(dump_stack);
+-
+ int die(const char *str, struct pt_regs *regs, long err)
+ {
+ 	static struct {
+diff --git a/arch/ia64/kernel/process.c b/arch/ia64/kernel/process.c
+index bcf89b4..0bc9773 100644
+--- a/arch/ia64/kernel/process.c
++++ b/arch/ia64/kernel/process.c
+@@ -98,14 +98,6 @@ show_stack (struct task_struct *task, unsigned long *sp)
+ }
+ 
+ void
+-dump_stack (void)
+-{
+-	show_stack(NULL, NULL);
+-}
+-
+-EXPORT_SYMBOL(dump_stack);
+-
+-void
+ show_regs (struct pt_regs *regs)
+ {
+ 	unsigned long ip = regs->cr_iip + ia64_psr(regs)->ri;
+diff --git a/arch/m32r/kernel/traps.c b/arch/m32r/kernel/traps.c
+index 3bcb207..5623ea3 100644
+--- a/arch/m32r/kernel/traps.c
++++ b/arch/m32r/kernel/traps.c
+@@ -169,15 +169,6 @@ void show_stack(struct task_struct *task, unsigned long *sp)
+ 	show_trace(task, sp);
+ }
+ 
+-void dump_stack(void)
+-{
+-	unsigned long stack;
+-
+-	show_trace(current, &stack);
+-}
+-
+-EXPORT_SYMBOL(dump_stack);
+-
+ static void show_registers(struct pt_regs *regs)
+ {
+ 	int i = 0;
+diff --git a/arch/m68k/kernel/traps.c b/arch/m68k/kernel/traps.c
+index 388e5cc..edf2520 100644
+--- a/arch/m68k/kernel/traps.c
++++ b/arch/m68k/kernel/traps.c
+@@ -992,18 +992,6 @@ void show_stack(struct task_struct *task, unsigned long *stack)
+ }
+ 
+ /*
+- * The architecture-independent backtrace generator
+- */
+-void dump_stack(void)
+-{
+-	unsigned long stack;
+-
+-	show_trace(&stack);
+-}
+-
+-EXPORT_SYMBOL(dump_stack);
+-
+-/*
+  * The vector number returned in the frame pointer may also contain
+  * the "fs" (Fault Status) bits on ColdFire. These are in the bottom
+  * 2 bits, and upper 2 bits. So we need to mask out the real vector
+diff --git a/arch/microblaze/kernel/traps.c b/arch/microblaze/kernel/traps.c
+index 5541ac5..ba6c758 100644
+--- a/arch/microblaze/kernel/traps.c
++++ b/arch/microblaze/kernel/traps.c
+@@ -77,9 +77,3 @@ void show_stack(struct task_struct *task, unsigned long *sp)
+ 
+ 	debug_show_held_locks(task);
+ }
+-
+-void dump_stack(void)
+-{
+-	show_stack(NULL, NULL);
+-}
+-EXPORT_SYMBOL(dump_stack);
+diff --git a/arch/mips/kernel/traps.c b/arch/mips/kernel/traps.c
+index cfdaaa4..da73841 100644
+--- a/arch/mips/kernel/traps.c
++++ b/arch/mips/kernel/traps.c
+@@ -201,19 +201,6 @@ void show_stack(struct task_struct *task, unsigned long *sp)
+ 	show_stacktrace(task, &regs);
+ }
+ 
+-/*
+- * The architecture-independent dump_stack generator
+- */
+-void dump_stack(void)
+-{
+-	struct pt_regs regs;
+-
+-	prepare_frametrace(&regs);
+-	show_backtrace(current, &regs);
+-}
+-
+-EXPORT_SYMBOL(dump_stack);
+-
+ static void show_code(unsigned int __user *pc)
+ {
+ 	long i;
+diff --git a/arch/mn10300/kernel/traps.c b/arch/mn10300/kernel/traps.c
+index 94a9c6d..4d9a2eb 100644
+--- a/arch/mn10300/kernel/traps.c
++++ b/arch/mn10300/kernel/traps.c
+@@ -293,17 +293,6 @@ void show_stack(struct task_struct *task, unsigned long *sp)
+ }
+ 
+ /*
+- * the architecture-independent dump_stack generator
+- */
+-void dump_stack(void)
+-{
+-	unsigned long stack;
+-
+-	show_stack(current, &stack);
+-}
+-EXPORT_SYMBOL(dump_stack);
+-
+-/*
+  * dump the register file in the specified exception frame
+  */
+ void show_registers_only(struct pt_regs *regs)
+diff --git a/arch/openrisc/kernel/traps.c b/arch/openrisc/kernel/traps.c
+index 5cce396..3d3f606 100644
+--- a/arch/openrisc/kernel/traps.c
++++ b/arch/openrisc/kernel/traps.c
+@@ -105,17 +105,6 @@ void show_trace_task(struct task_struct *tsk)
+ 	 */
+ }
+ 
+-/*
+- * The architecture-independent backtrace generator
+- */
+-void dump_stack(void)
+-{
+-	unsigned long stack;
+-
+-	show_stack(current, &stack);
+-}
+-EXPORT_SYMBOL(dump_stack);
+-
+ void show_registers(struct pt_regs *regs)
+ {
+ 	int i;
+diff --git a/arch/parisc/kernel/traps.c b/arch/parisc/kernel/traps.c
+index 71d7d72..7c8d300 100644
+--- a/arch/parisc/kernel/traps.c
++++ b/arch/parisc/kernel/traps.c
+@@ -158,14 +158,6 @@ void show_regs(struct pt_regs *regs)
+ 	}
+ }
+ 
+-
+-void dump_stack(void)
+-{
+-	show_stack(NULL, NULL);
+-}
+-
+-EXPORT_SYMBOL(dump_stack);
+-
+ static void do_show_stack(struct unwind_frame_info *info)
+ {
+ 	int i = 1;
+diff --git a/arch/powerpc/kernel/process.c b/arch/powerpc/kernel/process.c
+index c1aef40..24d61bc 100644
+--- a/arch/powerpc/kernel/process.c
++++ b/arch/powerpc/kernel/process.c
+@@ -1210,12 +1210,6 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
+ 	} while (count++ < kstack_depth_to_print);
+ }
+ 
+-void dump_stack(void)
+-{
+-	show_stack(current, NULL);
+-}
+-EXPORT_SYMBOL(dump_stack);
+-
+ #ifdef CONFIG_PPC64
+ /* Called with hard IRQs off */
+ void notrace __ppc64_runlatch_on(void)
+diff --git a/arch/score/kernel/traps.c b/arch/score/kernel/traps.c
+index 0e46fb1..a38f435 100644
+--- a/arch/score/kernel/traps.c
++++ b/arch/score/kernel/traps.c
+@@ -149,16 +149,6 @@ static void show_registers(struct pt_regs *regs)
+ 	printk(KERN_NOTICE "\n");
+ }
+ 
+-/*
+- * The architecture-independent dump_stack generator
+- */
+-void dump_stack(void)
+-{
+-	show_stack(current_thread_info()->task,
+-		   (long *) get_irq_regs()->regs[0]);
+-}
+-EXPORT_SYMBOL(dump_stack);
+-
+ void __die(const char *str, struct pt_regs *regs, const char *file,
+ 	const char *func, unsigned long line)
+ {
+diff --git a/arch/sh/kernel/dumpstack.c b/arch/sh/kernel/dumpstack.c
+index 3a6528c..55a1b6c 100644
+--- a/arch/sh/kernel/dumpstack.c
++++ b/arch/sh/kernel/dumpstack.c
+@@ -106,3 +106,20 @@ void show_trace(struct task_struct *tsk, unsigned long *sp,
+ 
+ 	debug_show_held_locks(tsk);
+ }
++
++void show_stack(struct task_struct *tsk, unsigned long *sp)
++{
++	unsigned long stack;
++
++	if (!tsk)
++		tsk = current;
++	if (tsk == current)
++		sp = (unsigned long *)current_stack_pointer;
++	else
++		sp = (unsigned long *)tsk->thread.sp;
++
++	stack = (unsigned long)sp;
++	dump_mem("Stack: ", stack, THREAD_SIZE +
++		 (unsigned long)task_stack_page(tsk));
++	show_trace(tsk, sp, NULL);
++}
+diff --git a/arch/sparc/kernel/process_32.c b/arch/sparc/kernel/process_32.c
+index efa0754..702f3cf 100644
+--- a/arch/sparc/kernel/process_32.c
++++ b/arch/sparc/kernel/process_32.c
+@@ -315,17 +315,6 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
+ 	printk("\n");
+ }
+ 
+-void dump_stack(void)
+-{
+-	unsigned long *ksp;
+-
+-	__asm__ __volatile__("mov	%%fp, %0"
+-			     : "=r" (ksp));
+-	show_stack(current, ksp);
+-}
+-
+-EXPORT_SYMBOL(dump_stack);
+-
+ /*
+  * Note: sparc64 has a pretty intricated thread_saved_pc, check it out.
+  */
+diff --git a/arch/sparc/kernel/traps_64.c b/arch/sparc/kernel/traps_64.c
+index c72fdf5..344d49e 100644
+--- a/arch/sparc/kernel/traps_64.c
++++ b/arch/sparc/kernel/traps_64.c
+@@ -2209,13 +2209,6 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
+ 	} while (++count < 16);
+ }
+ 
+-void dump_stack(void)
+-{
+-	show_stack(current, NULL);
+-}
+-
+-EXPORT_SYMBOL(dump_stack);
+-
+ static inline struct reg_window *kernel_stack_up(struct reg_window *rw)
+ {
+ 	unsigned long fp = rw->ins[6];
+diff --git a/arch/um/kernel/sysrq.c b/arch/um/kernel/sysrq.c
+index 0960de5..bf51874 100644
+--- a/arch/um/kernel/sysrq.c
++++ b/arch/um/kernel/sysrq.c
+@@ -35,18 +35,6 @@ void show_trace(struct task_struct *task, unsigned long * stack)
+ }
+ #endif
+ 
+-/*
+- * stack dumps generator - this is used by arch-independent code.
+- * And this is identical to i386 currently.
+- */
+-void dump_stack(void)
+-{
+-	unsigned long stack;
+-
+-	show_trace(current, &stack);
+-}
+-EXPORT_SYMBOL(dump_stack);
+-
+ /*Stolen from arch/i386/kernel/traps.c */
+ static const int kstack_depth_to_print = 24;
+ 
+diff --git a/arch/unicore32/kernel/traps.c b/arch/unicore32/kernel/traps.c
+index 2054f0d..6291c88 100644
+--- a/arch/unicore32/kernel/traps.c
++++ b/arch/unicore32/kernel/traps.c
+@@ -170,12 +170,6 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
+ 		c_backtrace(fp, mode);
+ }
+ 
+-void dump_stack(void)
+-{
+-	dump_backtrace(NULL, NULL);
+-}
+-EXPORT_SYMBOL(dump_stack);
+-
+ void show_stack(struct task_struct *tsk, unsigned long *sp)
+ {
+ 	dump_backtrace(NULL, tsk);
+diff --git a/arch/x86/kernel/dumpstack.c b/arch/x86/kernel/dumpstack.c
+index 1b81839..dbaa9d5 100644
+--- a/arch/x86/kernel/dumpstack.c
++++ b/arch/x86/kernel/dumpstack.c
+@@ -179,24 +179,6 @@ void show_stack(struct task_struct *task, unsigned long *sp)
+ 	show_stack_log_lvl(task, NULL, sp, 0, "");
+ }
+ 
+-/*
+- * The architecture-independent dump_stack generator
+- */
+-void dump_stack(void)
+-{
+-	unsigned long bp;
+-	unsigned long stack;
+-
+-	bp = stack_frame(current, NULL);
+-	printk("Pid: %d, comm: %.20s %s %s %.*s\n",
+-		current->pid, current->comm, print_tainted(),
+-		init_utsname()->release,
+-		(int)strcspn(init_utsname()->version, " "),
+-		init_utsname()->version);
+-	show_trace(NULL, NULL, &stack, bp);
+-}
+-EXPORT_SYMBOL(dump_stack);
+-
+ static arch_spinlock_t die_lock = __ARCH_SPIN_LOCK_UNLOCKED;
+ static int die_owner = -1;
+ static unsigned int die_nest_count;
+diff --git a/arch/xtensa/kernel/traps.c b/arch/xtensa/kernel/traps.c
+index bc1e14c..d3425a7 100644
+--- a/arch/xtensa/kernel/traps.c
++++ b/arch/xtensa/kernel/traps.c
+@@ -467,14 +467,6 @@ void show_stack(struct task_struct *task, unsigned long *sp)
+ 	show_trace(task, stack);
+ }
+ 
+-void dump_stack(void)
+-{
+-	show_stack(current, NULL);
+-}
+-
+-EXPORT_SYMBOL(dump_stack);
+-
+-
+ void show_code(unsigned int *pc)
+ {
+ 	long i;
+diff --git a/include/linux/printk.h b/include/linux/printk.h
+index 3416afa..e71ff81 100644
+--- a/include/linux/printk.h
++++ b/include/linux/printk.h
+@@ -118,6 +118,7 @@ extern int kptr_restrict;
+ 
+ void log_buf_kexec_setup(void);
+ void __init setup_log_buf(int early);
++void dump_stack_print_info(const char *log_lvl);
+ #else
+ static inline __printf(1, 0)
+ int vprintk(const char *s, va_list args)
+@@ -151,6 +152,10 @@ static inline void log_buf_kexec_setup(void)
+ static inline void setup_log_buf(int early)
+ {
+ }
++
++static inline void dump_stack_print_info(const char *log_lvl)
++{
++}
+ #endif
+ 
+ extern void dump_stack(void) __cold;
+diff --git a/kernel/printk.c b/kernel/printk.c
+index 6ecce2a..2327d6f 100644
+--- a/kernel/printk.c
++++ b/kernel/printk.c
+@@ -42,6 +42,7 @@
+ #include <linux/notifier.h>
+ #include <linux/rculist.h>
+ #include <linux/irq_work.h>
++#include <linux/utsname.h>
+ 
+ #include <asm/uaccess.h>
+ 
+@@ -1916,6 +1917,23 @@ void kmsg_dump(enum kmsg_dump_reason reason)
+ 		dumper->dump(dumper, reason, s1, l1, s2, l2);
+ 	rcu_read_unlock();
+ }
++
++/**
++ * dump_stack_print_info - print generic debug info for dump_stack()
++ * @log_lvl: log level
++ *
++ * Arch-specific dump_stack() implementations can use this function to
++ * print out the same debug information as the generic dump_stack().
++ */
++void dump_stack_print_info(const char *log_lvl)
++{
++	printk("%sCPU: %d PID: %d Comm: %.20s %s %s %.*s\n",
++	       log_lvl, raw_smp_processor_id(), current->pid, current->comm,
++	       print_tainted(), init_utsname()->release,
++	       (int)strcspn(init_utsname()->version, " "),
++	       init_utsname()->version);
++}
++
+ #ifdef CONFIG_PRINTK_NOCACHE
+ module_init(printk_remap_nocache);
+ #endif
+diff --git a/lib/dump_stack.c b/lib/dump_stack.c
+index 42f4f55..53bad09 100644
+--- a/lib/dump_stack.c
++++ b/lib/dump_stack.c
+@@ -5,11 +5,16 @@
+ 
+ #include <linux/kernel.h>
+ #include <linux/export.h>
++#include <linux/sched.h>
+ 
++/**
++ * dump_stack - dump the current task information and its stack trace
++ *
++ * Architectures can override this implementation by implementing its own.
++ */
+ void dump_stack(void)
+ {
+-	printk(KERN_NOTICE
+-		"This architecture does not implement dump_stack()\n");
++	dump_stack_print_info(KERN_DEFAULT);
++	show_stack(NULL, NULL);
+ }
+-
+ EXPORT_SYMBOL(dump_stack);

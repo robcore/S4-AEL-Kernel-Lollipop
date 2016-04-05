@@ -145,7 +145,7 @@
 static char profiles_file_version[20] = "0.3 beta7 OPO";
 #define PROFILE_TABLE_END ~1
 #define END_OF_PROFILES "end"
-#define PROFILE_MAX_FREQ (2841600)	// ZZ: max possible freq in system table for freq adaption (possible OC frequencies inclusive)
+#define PROFILE_MAX_FREQ (1890000)	// ZZ: max possible freq in system table for freq adaption (possible OC frequencies inclusive)
 
 struct zzmoove_profile {
 	unsigned int profile_number;
@@ -871,24 +871,24 @@ struct zzmoove_profile zzmoove_profiles[] = {
 		0,		// scaling_block_freq
 		0,		// scaling_block_threshold
 		2,		// scaling_block_force_down
-		1958400,	// scaling_fastdown_freq
+		1674000,	// scaling_fastdown_freq
 		95,		// scaling_fastdown_up_threshold
 		90,		// scaling_fastdown_down_threshold
-		652800,		// scaling_responsiveness_freq
+		810000,		// scaling_responsiveness_freq
 		20,		// scaling_responsiveness_up_threshold
 		1,		// scaling_proportional
 #ifdef ENABLE_INPUTBOOSTER
 		0,		// inputboost_cycles
 		80,		// inputboost_up_threshold
 		20,		// inputboost_punch_cycles
-		1728000,	// inputboost_punch_freq
+		1566000,	// inputboost_punch_freq
 		1,		// inputboost_punch_on_fingerdown
 		0,		// inputboost_punch_on_fingermove
 		0,		// inputboost_punch_on_epenmove
 		40,		// inputboost_typingbooster_up_threshold
 		3,		// inputboost_typingbooster_cores
 #endif /* ENABLE_INPUTBOOSTER */
-		1497600,	// music_max_freq
+		1458000,	// music_max_freq
 		422400,		// music_min_freq
 		2,		// music_min_cores
 		75,		// smooth_up

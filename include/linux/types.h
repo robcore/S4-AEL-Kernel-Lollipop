@@ -201,7 +201,6 @@ typedef __u32 __bitwise __wsum;
 #ifdef __KERNEL__
 typedef unsigned __bitwise__ gfp_t;
 typedef unsigned __bitwise__ fmode_t;
-typedef unsigned __bitwise__ oom_flags_t;
 
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 typedef u64 phys_addr_t;
@@ -247,15 +246,14 @@ struct ustat {
 };
 
 /**
- * struct callback_head - callback structure for use with RCU and task_work
+ * struct rcu_head - callback structure for use with RCU
  * @next: next update requests in a list
  * @func: actual update function to call after the grace period.
  */
-struct callback_head {
-	struct callback_head *next;
-	void (*func)(struct callback_head *head);
+struct rcu_head {
+	struct rcu_head *next;
+	void (*func)(struct rcu_head *head);
 };
-#define rcu_head callback_head
 
 #endif	/* __KERNEL__ */
 #endif /*  __ASSEMBLY__ */

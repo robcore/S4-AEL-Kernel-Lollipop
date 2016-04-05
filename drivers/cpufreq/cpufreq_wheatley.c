@@ -30,7 +30,7 @@
  * It helps to keep variable names smaller, simpler
  */
 
-#define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(10)
+#define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(20)
 #define DEF_FREQUENCY_UP_THRESHOLD		(80)
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
@@ -131,7 +131,7 @@ static struct dbs_tuners {
     .allowed_misses = DEF_ALLOWED_MISSES,
 };
 
-static inline cputime64_t get_cpu_iowait_time(unsigned int cpu, cputime64_t *wall)
+static inline u64 get_cpu_iowait_time(unsigned int cpu, u64 *wall)
 {
     u64 iowait_time = get_cpu_iowait_time_us(cpu, wall);
 
@@ -322,7 +322,7 @@ static ssize_t store_ignore_nice_load(struct kobject *a, struct attribute *b,
 	struct cpu_dbs_info_s *dbs_info;
 	dbs_info = &per_cpu(od_cpu_dbs_info, j);
 	dbs_info->prev_cpu_idle = get_cpu_idle_time(j,
-						    &dbs_info->prev_cpu_wall);
+						    &dbs_info->prev_cpu_wall, dbs_tuners_ins.io_is_busy);
 	if (dbs_tuners_ins.ignore_nice)
 	    dbs_info->prev_cpu_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE];
 
@@ -447,7 +447,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
     for_each_cpu(j, policy->cpus) {
 	struct cpu_dbs_info_s *j_dbs_info;
-	cputime64_t cur_wall_time, cur_idle_time, cur_iowait_time;
+	u64 cur_wall_time, cur_idle_time, cur_iowait_time;
 	unsigned int idle_time, wall_time, iowait_time;
 	unsigned int load, load_freq;
 	int freq_avg;
@@ -457,7 +457,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
 	j_dbs_info = &per_cpu(od_cpu_dbs_info, j);
 
-	cur_idle_time = get_cpu_idle_time(j, &cur_wall_time);
+	cur_idle_time = get_cpu_idle_time(j, &cur_wall_time, dbs_tuners_ins.io_is_busy);
 	cur_iowait_time = get_cpu_iowait_time(j, &cur_wall_time);
 
 	wall_time = (unsigned int) (cur_wall_time - j_dbs_info->prev_cpu_wall);
@@ -470,7 +470,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	j_dbs_info->prev_cpu_iowait = cur_iowait_time;
 
 	if (dbs_tuners_ins.ignore_nice) {
-	    cputime64_t cur_nice;
+	    u64 cur_nice;
 	    unsigned long cur_nice_jiffies;
 
 	    cur_nice = kcpustat_cpu(j).cpustat[CPUTIME_NICE] -
@@ -528,7 +528,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 */
     }
 
-    if (total_usage > 0 && total_idletime / total_usage >= dbs_tuners_ins.target_residency) {
+    if (total_usage > 0 && total_idletime / total_usage >= dbs_tuners_ins.target_residency) { 
 	if (num_misses > 0)
 	    num_misses--;
     } else {
@@ -537,7 +537,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
     }
 
     /* Check for frequency increase */
-    if (max_load_freq > dbs_tuners_ins.up_threshold * policy->cur
+    if (max_load_freq > dbs_tuners_ins.up_threshold * policy->cur 
 	|| num_misses <= dbs_tuners_ins.allowed_misses) {
 	/* If switching to max speed, apply sampling_down_factor */
 	if (policy->cur < policy->max)
@@ -678,7 +678,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	    j_dbs_info->cur_policy = policy;
 
 	    j_dbs_info->prev_cpu_idle = get_cpu_idle_time(j,
-							  &j_dbs_info->prev_cpu_wall);
+							  &j_dbs_info->prev_cpu_wall, dbs_tuners_ins.io_is_busy);
 	    if (dbs_tuners_ins.ignore_nice) {
 		j_dbs_info->prev_cpu_nice =
 		    kcpustat_cpu(j).cpustat[CPUTIME_NICE];
@@ -779,12 +779,6 @@ static void __exit cpufreq_gov_dbs_exit(void)
     cpufreq_unregister_governor(&cpufreq_gov_wheatley);
 }
 
-#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_WHEATLEY
-fs_initcall(cpufreq_gov_dbs_init);
-#else
-module_init(cpufreq_gov_dbs_init);
-#endif
-module_exit(cpufreq_gov_dbs_exit);
 
 MODULE_AUTHOR("Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>");
 MODULE_AUTHOR("Alexey Starikovskiy <alexey.y.starikovskiy@intel.com>");
@@ -792,3 +786,10 @@ MODULE_AUTHOR("Ezekeel <notezekeel@googlemail.com>");
 MODULE_DESCRIPTION("'cpufreq_wheatley' - A dynamic cpufreq governor for "
 		   "Low Latency Frequency Transition capable processors");
 MODULE_LICENSE("GPL");
+
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_WHEATLEY
+fs_initcall(cpufreq_gov_dbs_init);
+#else
+module_init(cpufreq_gov_dbs_init);
+#endif
+module_exit(cpufreq_gov_dbs_exit);
