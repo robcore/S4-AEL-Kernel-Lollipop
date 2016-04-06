@@ -25,7 +25,6 @@
 #include <linux/msm_tsens.h>
 #include <linux/workqueue.h>
 #include <linux/cpu.h>
-#include <mach/cpufreq.h>
 #include <linux/cpufreq.h>
 #include <linux/msm_tsens.h>
 #include <linux/msm_thermal.h>
@@ -90,7 +89,6 @@ static int limit_idx;
 static int limit_idx_low = 4;
 
 static int limit_idx_high;
-static int throttled;
 static int max_idx;
 static int max_tsens_num;
 static bool immediately_limit_stop = false;
@@ -168,23 +166,6 @@ static int msm_thermal_cpufreq_callback(struct notifier_block *nfb,
 static struct notifier_block msm_thermal_cpufreq_notifier = {
 	.notifier_call = msm_thermal_cpufreq_callback,
 };
-
-static int update_cpu_max_freq(int cpu, uint32_t max_freq)
-{
-	struct cpufreq_policy policy;
-	int ret = 0;
-
-	ret = msm_cpufreq_set_freq_limits(cpu, MSM_CPUFREQ_NO_LIMIT, max_freq);
-	if (ret)
-		return ret;
-
-	/*ret = cpufreq_update_policy(cpu);*/
-	policy.cpu = cpu;
-	
-	cpufreq_driver_target(&policy, max_freq, CPUFREQ_RELATION_L);
-
-	return ret;
-}
 
 static int msm_thermal_get_freq_table(void)
 {
@@ -317,7 +298,7 @@ static void __ref do_freq_control(long temp)
 		if ((limit_idx >= limit_idx_high) ||
 				immediately_limit_stop == true) {
 			limit_idx = limit_idx_high;
-			max_freq = MSM_CPUFREQ_NO_LIMIT;
+			max_freq = UINT_MAX;
 		} else
 			max_freq = table[limit_idx].frequency;
 	}
@@ -332,34 +313,16 @@ static void __ref do_freq_control(long temp)
 	if (max_freq == cpus[cpu].limited_max_freq)
 		return;
 
-	if (!throttled && max_freq > 0 && max_freq != MSM_CPUFREQ_NO_LIMIT) {
-		/*
-		 * We're about to throttle cpu maximum freq. Save
-		 * current policy->max frequency table index and
-		 * set max_freq accordingly.
-		 */
-		struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
-		max_idx = msm_cpufreq_get_index(policy, policy->max);
-		max_freq = table[max_idx -
-				msm_thermal_info_local.freq_step].frequency;
-		throttled = 1;
-	} else if (throttled && (max_freq < 0 ||
-				max_freq == MSM_CPUFREQ_NO_LIMIT))
-		throttled = 0;
-
 	/* Update new limits */
-	get_online_cpus();
 	for_each_possible_cpu(cpu) {
 		if (!(msm_thermal_info_local.freq_control_mask & BIT(cpu)))
 			continue;
 		cpus[cpu].limited_max_freq = max_freq;
-#ifdef CONFIG_MACH_LGE
-		if (cpus[cpu].limited_min_freq > 960000)
-			cpus[cpu].limited_min_freq = 0;
-#endif
-		update_cpu_max_freq(cpu, max_freq);
+		if (cpu_online(cpu)) {
+			if (cpufreq_update_policy(cpu))
+				pr_info("Unable to update policy for cpu:%d\n", cpu);
+		}
 	}
-	put_online_cpus();
 }
 
 static void __ref check_temp(struct work_struct *work)
@@ -421,6 +384,8 @@ static int __ref msm_thermal_cpu_callback(struct notifier_block *nfb,
 		}
 	}
 
+	if (debug_mode == 1)
+		pr_debug("voting for CPU%d to be online\n", cpu);
 	return NOTIFY_OK;
 }
 
@@ -442,12 +407,13 @@ static void __ref disable_msm_thermal(void)
 
 	get_online_cpus();
 	for_each_possible_cpu(cpu) {
-		if (cpus[cpu].limited_max_freq == MSM_CPUFREQ_NO_LIMIT &&
+		if (cpus[cpu].limited_max_freq == UINT_MAX &&
 				cpus[cpu].limited_min_freq == 0)
 			continue;
-		cpus[cpu].limited_max_freq = MSM_CPUFREQ_NO_LIMIT;
+		cpus[cpu].limited_max_freq = UINT_MAX;
 		cpus[cpu].limited_min_freq = 0;
-		update_cpu_max_freq(cpu, MSM_CPUFREQ_NO_LIMIT);
+		if (cpufreq_update_policy(cpu))
+			pr_info("Unable to update policy for cpu:%d\n", cpu);
 	}
 	put_online_cpus();
 }
@@ -610,11 +576,10 @@ static ssize_t __ref store_cc_enabled_dummy(struct kobject *kobj,
 		pr_err("%s: Invalid input %s\n", KBUILD_MODNAME, buf);
 
 	if (enabled == val)
-		goto done_store_cc;
+		return count;
 
 	enabled = val;
 
-done_store_cc:
 	return count;
 }
 
@@ -751,7 +716,7 @@ int __devinit msm_thermal_init(struct msm_thermal_data *pdata)
 
 	for_each_possible_cpu(cpu) {
 		cpus[cpu].cpu = cpu;
-		cpus[cpu].limited_max_freq = MSM_CPUFREQ_NO_LIMIT;
+		cpus[cpu].limited_max_freq = UINT_MAX;
 		cpus[cpu].limited_min_freq = 0;
 	}
 
