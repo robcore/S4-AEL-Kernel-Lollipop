@@ -1189,7 +1189,7 @@ static struct platform_device touchkey_i2c_gpio_device = {
 };
 
 static struct i2c_gpio_platform_data  cypress_touchkey_i2c_gpio_data_2 = {
-	.sda_pin		= GPIO_TOUCHKEY_SDA,	
+	.sda_pin		= GPIO_TOUCHKEY_SDA,
 	.scl_pin		= GPIO_TOUCHKEY_SCL_2,
 	.udelay			= 0,
 	.sda_is_open_drain	= 0,
@@ -3253,9 +3253,7 @@ static struct msm_thermal_data msm_thermal_pdata = {
 	.limit_temp_degC = 60,
 	.temp_hysteresis_degC = 10,
 	.freq_step = 2,
-#ifdef CONFIG_INTELLI_THERMAL
 	.freq_control_mask = 0xf,
-#endif
 	.core_limit_temp_degC = 70,
 	.core_temp_hysteresis_degC = 10,
 	.core_control_mask = 0xe,
@@ -3981,7 +3979,7 @@ static struct platform_device *early_common_devices[] __initdata = {
 	&apq8064_device_dmov,
 #if !defined(CONFIG_MACH_JACTIVE_ATT) && !defined(CONFIG_MACH_JACTIVE_EUR)
 	&apq8064_device_qup_spi_gsbi5,
-#endif	
+#endif
 };
 
 static struct platform_device *pm8921_common_devices[] __initdata = {
@@ -4011,7 +4009,7 @@ static struct platform_device *common_devices[] __initdata = {
 	&msm_device_wcnss_wlan,
 #if defined(CONFIG_MACH_JACTIVE_ATT) || defined(CONFIG_MACH_JACTIVE_EUR)
 	&apq8064_device_qup_spi_gsbi5,
-#endif	
+#endif
 	&msm_device_iris_fm,
 	&apq8064_fmem_device,
 #ifdef CONFIG_ANDROID_PMEM
@@ -5173,10 +5171,10 @@ static void sec_jack_init(void)
 		.pull			= PM_GPIO_PULL_NO,
 		.out_strength	= PM_GPIO_STRENGTH_HIGH,
 		.function		= PM_GPIO_FUNC_NORMAL,
-		.inv_int_pol	= 0,		
+		.inv_int_pol	= 0,
 		.vin_sel		= PM_GPIO_VIN_S4,
 		.output_buffer	= PM_GPIO_OUT_BUF_CMOS,
-		.output_value	= 1,		
+		.output_value	= 1,
 	};
 
 	static struct pm_gpio fsa8048_en_old = {
@@ -5184,10 +5182,10 @@ static void sec_jack_init(void)
 		.pull			= PM_GPIO_PULL_UP_30,
 		.out_strength	= PM_GPIO_STRENGTH_HIGH,
 		.function		= PM_GPIO_FUNC_NORMAL,
-		.inv_int_pol	= 0,		
+		.inv_int_pol	= 0,
 		.vin_sel		= PM_GPIO_VIN_S4,
 		.output_buffer	= PM_GPIO_OUT_BUF_CMOS,
-		.output_value	= 1,		
+		.output_value	= 1,
 	};
 
 	ret = gpio_request(PM8921_GPIO_PM_TO_SYS(PMIC_GPIO_EAR_MICBIAS_EN),
@@ -5333,7 +5331,7 @@ static void __init apq8064_common_init(void)
 	apq8064_ehci_host_init();
 	apq8064_init_buses();
 
-#ifdef CONFIG_CPU_FREQ_GOV_UBERDEMAND	
+#ifdef CONFIG_CPU_FREQ_GOV_UBERDEMAND
 	set_second_phase_freq(CONFIG_CPU_FREQ_GOV_UBERDEMAND_SECOND_PHASE_FREQ);
 #endif
 
@@ -5445,7 +5443,7 @@ static void __init apq8064_common_init(void)
 	if (!poweroff_charging) {
 		if (sec_tsp_synaptics_mode)
 			S5000_tsp_input_init(lcd_tsp_panel_version);
-#if defined(CONFIG_TOUCHSCREEN_ATMEL_MXTS)	
+#if defined(CONFIG_TOUCHSCREEN_ATMEL_MXTS)
 		else
 			mxt540s_tsp_input_init();
 #endif
