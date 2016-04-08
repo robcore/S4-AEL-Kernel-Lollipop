@@ -1,0 +1,1001 @@
+From bf786c1b998e9d6a762a24047c95bd08abf74ec6 Mon Sep 17 00:00:00 2001
+From: alucard24 <dmbaoh2@gmail.com>
+Date: Thu, 28 Aug 2014 18:26:21 +0200
+Subject: [PATCH] Upgraded SMP && platsmp. It works only for APQ8064, MSM8960,
+ 8x60 platform.
+
+---
+ arch/arm/include/asm/smp.h            |  14 ---
+ arch/arm/kernel/smp.c                 |  44 +++------
+ arch/arm/mach-msm/board-8064.c        |   7 ++
+ arch/arm/mach-msm/board-8930.c        |   7 ++
+ arch/arm/mach-msm/board-8960.c        |   5 +
+ arch/arm/mach-msm/board-jactive_att.c |   2 +
+ arch/arm/mach-msm/board-jactive_eur.c |   2 +
+ arch/arm/mach-msm/board-jf_att.c      |   2 +
+ arch/arm/mach-msm/board-jf_cri.c      |   2 +
+ arch/arm/mach-msm/board-jf_dcm.c      |   2 +
+ arch/arm/mach-msm/board-jf_eur.c      |   2 +
+ arch/arm/mach-msm/board-jf_ktt.c      |   2 +
+ arch/arm/mach-msm/board-jf_lgt.c      |   2 +
+ arch/arm/mach-msm/board-jf_skt.c      |   2 +
+ arch/arm/mach-msm/board-jf_spr.c      |   2 +
+ arch/arm/mach-msm/board-jf_tmo.c      |   2 +
+ arch/arm/mach-msm/board-jf_usc.c      |   2 +
+ arch/arm/mach-msm/board-jf_vzw.c      |   2 +
+ arch/arm/mach-msm/board-jfve_eur.c    |   2 +
+ arch/arm/mach-msm/board-msm8x60.c     |   7 ++
+ arch/arm/mach-msm/hotplug.c           |  27 +-----
+ arch/arm/mach-msm/platsmp.c           | 174 +++++++++++++++-------------------
+ arch/arm/mach-msm/platsmp.h           |   5 +-
+ 23 files changed, 148 insertions(+), 170 deletions(-)
+
+diff --git a/arch/arm/include/asm/smp.h b/arch/arm/include/asm/smp.h
+index 581f4fa..bf3ac67 100644
+--- a/arch/arm/include/asm/smp.h
++++ b/arch/arm/include/asm/smp.h
+@@ -60,15 +60,6 @@ extern int boot_secondary(unsigned int cpu, struct task_struct *);
+  */
+ asmlinkage void secondary_start_kernel(void);
+ 
+-/*
+- * Perform platform specific initialisation of the specified CPU.
+- */
+-extern void platform_secondary_init(unsigned int cpu);
+-
+-/*
+- * Initialize cpu_possible map, and enable coherency
+- */
+-extern void platform_smp_prepare_cpus(unsigned int);
+ 
+ /*
+  * Initial data for bringing up a secondary CPU.
+@@ -81,15 +72,10 @@ struct secondary_data {
+ extern struct secondary_data secondary_data;
+ 
+ extern int __cpu_disable(void);
+-extern int platform_cpu_disable(unsigned int cpu);
+ 
+ extern void __cpu_die(unsigned int cpu);
+ extern void cpu_die(void);
+ 
+-extern void platform_cpu_die(unsigned int cpu);
+-extern int platform_cpu_kill(unsigned int cpu);
+-extern void platform_cpu_enable(unsigned int cpu);
+-
+ extern void arch_send_call_function_single_ipi(int cpu);
+ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
+ 
+diff --git a/arch/arm/kernel/smp.c b/arch/arm/kernel/smp.c
+index 3fa4066..fb365ea 100644
+--- a/arch/arm/kernel/smp.c
++++ b/arch/arm/kernel/smp.c
+@@ -74,6 +74,7 @@ void __init smp_set_ops(struct smp_operations *ops)
+ };
+ 
+ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
++
+ {
+ 	int ret;
+ 
+@@ -114,25 +115,13 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *idle)
+ }
+ 
+ /* platform specific SMP operations */
+-void __attribute__((weak)) __init smp_init_cpus(void)
++void __init smp_init_cpus(void)
+ {
+ 	if (smp_ops.smp_init_cpus)
+ 		smp_ops.smp_init_cpus();
+ }
+ 
+-void __attribute__((weak)) __init platform_smp_prepare_cpus(unsigned int max_cpus)
+-{
+-	if (smp_ops.smp_prepare_cpus)
+-		smp_ops.smp_prepare_cpus(max_cpus);
+-}
+-
+-void __attribute__((weak)) __cpuinit platform_secondary_init(unsigned int cpu)
+-{
+-	if (smp_ops.smp_secondary_init)
+-		smp_ops.smp_secondary_init(cpu);
+-}
+-
+-int __attribute__((weak)) __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
++int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
+ {
+ 	if (smp_ops.smp_boot_secondary)
+ 		return smp_ops.smp_boot_secondary(cpu, idle);
+@@ -142,20 +131,14 @@ int __attribute__((weak)) __cpuinit boot_secondary(unsigned int cpu, struct task
+ #ifdef CONFIG_HOTPLUG_CPU
+ static void percpu_timer_stop(void);
+ 
+-int __attribute__((weak)) platform_cpu_kill(unsigned int cpu)
++static int platform_cpu_kill(unsigned int cpu)
+ {
+ 	if (smp_ops.cpu_kill)
+ 		return smp_ops.cpu_kill(cpu);
+ 	return 1;
+ }
+ 
+-void __attribute__((weak)) platform_cpu_die(unsigned int cpu)
+-{
+-	if (smp_ops.cpu_die)
+-		smp_ops.cpu_die(cpu);
+-}
+-
+-int __attribute__((weak)) platform_cpu_disable(unsigned int cpu)
++static int platform_cpu_disable(unsigned int cpu)
+ {
+ 	if (smp_ops.cpu_disable)
+ 		return smp_ops.cpu_disable(cpu);
+@@ -171,7 +154,7 @@ int __attribute__((weak)) platform_cpu_disable(unsigned int cpu)
+ /*
+  * __cpu_disable runs on the processor to be shutdown.
+  */
+-int __cpu_disable(void)
++int __cpuinit __cpu_disable(void)
+ {
+ 	unsigned int cpu = smp_processor_id();
+ 	struct task_struct *p;
+@@ -223,7 +206,7 @@ static DECLARE_COMPLETION(cpu_died);
+  * called on the thread which is asking for a CPU to be shutdown -
+  * waits until shutdown has completed, or it is timed out.
+  */
+-void __cpu_die(unsigned int cpu)
++void __cpuinit __cpu_die(unsigned int cpu)
+ {
+ 	if (!wait_for_completion_timeout(&cpu_died, msecs_to_jiffies(5000))) {
+ 		pr_err("CPU%u: cpu didn't die\n", cpu);
+@@ -293,7 +276,8 @@ void __ref cpu_die(void)
+ 	 * The return path should not be used for platforms which can
+ 	 * power off the CPU.
+ 	 */
+-	platform_cpu_die(cpu);
++	if (smp_ops.cpu_die)
++		smp_ops.cpu_die(cpu);
+ 
+ 	/*
+ 	 * Do not return to the idle loop - jump back to the secondary
+@@ -358,7 +342,8 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
+ 	/*
+ 	 * Give the platform a chance to do its own initialisation.
+ 	 */
+-	platform_secondary_init(cpu);
++	if (smp_ops.smp_secondary_init)
++		smp_ops.smp_secondary_init(cpu);
+ 
+ 	notify_cpu_starting(cpu);
+ 
+@@ -433,8 +418,8 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
+ 		/*
+ 		 * Initialise the present map, which describes the set of CPUs
+ 		 * actually populated at the present time. A platform should
+-		 * re-initialize the map in platform_smp_prepare_cpus() if
+-		 * present != possible (e.g. physical hotplug).
++		 * re-initialize the map in the platforms smp_prepare_cpus()
++		 * if present != possible (e.g. physical hotplug).
+ 		 */
+ 		init_cpu_present(cpu_possible_mask);
+ 
+@@ -442,7 +427,8 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
+ 		 * Initialise the SCU if there are more than one CPU
+ 		 * and let them know where to start.
+ 		 */
+-		platform_smp_prepare_cpus(max_cpus);
++		if (smp_ops.smp_prepare_cpus)
++			smp_ops.smp_prepare_cpus(max_cpus);
+ 	}
+ }
+ 
+diff --git a/arch/arm/mach-msm/board-8064.c b/arch/arm/mach-msm/board-8064.c
+index 16064ce..efeaf4d 100644
+--- a/arch/arm/mach-msm/board-8064.c
++++ b/arch/arm/mach-msm/board-8064.c
+@@ -87,6 +87,7 @@
+ #include "pm.h"
+ #include "pm-boot.h"
+ #include "devices-msm8x60.h"
++#include "platsmp.h"
+ #include "smd_private.h"
+ #include "sysmon.h"
+ 
+@@ -3455,6 +3456,7 @@ MACHINE_START(APQ8064_CDP, "QCT APQ8064 CDP")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(APQ8064_MTP, "QCT APQ8064 MTP")
+@@ -3467,6 +3469,7 @@ MACHINE_START(APQ8064_MTP, "QCT APQ8064 MTP")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(APQ8064_LIQUID, "QCT APQ8064 LIQUID")
+@@ -3479,6 +3482,7 @@ MACHINE_START(APQ8064_LIQUID, "QCT APQ8064 LIQUID")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MPQ8064_CDP, "QCT MPQ8064 CDP")
+@@ -3491,6 +3495,7 @@ MACHINE_START(MPQ8064_CDP, "QCT MPQ8064 CDP")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MPQ8064_HRD, "QCT MPQ8064 HRD")
+@@ -3503,6 +3508,7 @@ MACHINE_START(MPQ8064_HRD, "QCT MPQ8064 HRD")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MPQ8064_DTV, "QCT MPQ8064 DTV")
+@@ -3515,5 +3521,6 @@ MACHINE_START(MPQ8064_DTV, "QCT MPQ8064 DTV")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+ 
+diff --git a/arch/arm/mach-msm/board-8930.c b/arch/arm/mach-msm/board-8930.c
+index 688bb34..fc8e12f 100644
+--- a/arch/arm/mach-msm/board-8930.c
++++ b/arch/arm/mach-msm/board-8930.c
+@@ -105,6 +105,7 @@
+ #include "msm_watchdog.h"
+ #include "board-8930.h"
+ #include "acpuclock-krait.h"
++#include "platsmp.h"
+ 
+ static struct platform_device msm_fm_platform_init = {
+ 	.name = "iris_fm",
+@@ -3213,6 +3214,7 @@ MACHINE_START(MSM8930_CDP, "QCT MSM8930 CDP")
+ 	.init_early = msm8930_allocate_memory_regions,
+ 	.init_very_early = msm8930_early_memory,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MSM8930_MTP, "QCT MSM8930 MTP")
+@@ -3225,6 +3227,7 @@ MACHINE_START(MSM8930_MTP, "QCT MSM8930 MTP")
+ 	.init_early = msm8930_allocate_memory_regions,
+ 	.init_very_early = msm8930_early_memory,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MSM8930_FLUID, "QCT MSM8930 FLUID")
+@@ -3237,6 +3240,7 @@ MACHINE_START(MSM8930_FLUID, "QCT MSM8930 FLUID")
+ 	.init_early = msm8930_allocate_memory_regions,
+ 	.init_very_early = msm8930_early_memory,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MSM8627_CDP, "QCT MSM8627 CDP")
+@@ -3249,6 +3253,7 @@ MACHINE_START(MSM8627_CDP, "QCT MSM8627 CDP")
+ 	.init_early = msm8930_allocate_memory_regions,
+ 	.init_very_early = msm8930_early_memory,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MSM8627_MTP, "QCT MSM8627 MTP")
+@@ -3261,6 +3266,7 @@ MACHINE_START(MSM8627_MTP, "QCT MSM8627 MTP")
+ 	.init_early = msm8930_allocate_memory_regions,
+ 	.init_very_early = msm8930_early_memory,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MSM8930_EVT, "QRD8930 SGLTE EVT")
+@@ -3273,4 +3279,5 @@ MACHINE_START(MSM8930_EVT, "QRD8930 SGLTE EVT")
+ 	.init_early = msm8930_allocate_memory_regions,
+ 	.init_very_early = msm8930_early_memory,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-8960.c b/arch/arm/mach-msm/board-8960.c
+index e236517..d4c4db8 100644
+--- a/arch/arm/mach-msm/board-8960.c
++++ b/arch/arm/mach-msm/board-8960.c
+@@ -103,6 +103,7 @@
+ #include "smd_private.h"
+ #include "pm-boot.h"
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ 
+ #if defined(CONFIG_BT) && defined(CONFIG_BT_HCIUART_ATH3K)
+ #include <linux/wlan_plat.h>
+@@ -3473,6 +3474,7 @@ MACHINE_START(MSM8960_CDP, "QCT MSM8960 CDP")
+ 	.init_early = msm8960_allocate_memory_regions,
+ 	.init_very_early = msm8960_early_memory,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MSM8960_MTP, "QCT MSM8960 MTP")
+@@ -3485,6 +3487,7 @@ MACHINE_START(MSM8960_MTP, "QCT MSM8960 MTP")
+ 	.init_early = msm8960_allocate_memory_regions,
+ 	.init_very_early = msm8960_early_memory,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MSM8960_FLUID, "QCT MSM8960 FLUID")
+@@ -3497,6 +3500,7 @@ MACHINE_START(MSM8960_FLUID, "QCT MSM8960 FLUID")
+ 	.init_early = msm8960_allocate_memory_regions,
+ 	.init_very_early = msm8960_early_memory,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MSM8960_LIQUID, "QCT MSM8960 LIQUID")
+@@ -3509,4 +3513,5 @@ MACHINE_START(MSM8960_LIQUID, "QCT MSM8960 LIQUID")
+ 	.init_early = msm8960_allocate_memory_regions,
+ 	.init_very_early = msm8960_early_memory,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-jactive_att.c b/arch/arm/mach-msm/board-jactive_att.c
+index 9a5ecd6..79877bf 100644
+--- a/arch/arm/mach-msm/board-jactive_att.c
++++ b/arch/arm/mach-msm/board-jactive_att.c
+@@ -101,6 +101,7 @@
+ #include <linux/platform_data/ram_console.h>
+ 
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ #include "board-8064.h"
+ #include "spm.h"
+ #include <mach/mpm.h>
+@@ -5603,4 +5604,5 @@ MACHINE_START(JF, "SAMSUNG JF")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-jactive_eur.c b/arch/arm/mach-msm/board-jactive_eur.c
+index d2e48b1..f50ce2e 100644
+--- a/arch/arm/mach-msm/board-jactive_eur.c
++++ b/arch/arm/mach-msm/board-jactive_eur.c
+@@ -101,6 +101,7 @@
+ #include <linux/platform_data/ram_console.h>
+ 
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ #include "board-8064.h"
+ #include "spm.h"
+ #include <mach/mpm.h>
+@@ -5479,4 +5480,5 @@ MACHINE_START(JF, "SAMSUNG JF")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-jf_att.c b/arch/arm/mach-msm/board-jf_att.c
+index 33b0656..dfaee30 100644
+--- a/arch/arm/mach-msm/board-jf_att.c
++++ b/arch/arm/mach-msm/board-jf_att.c
+@@ -101,6 +101,7 @@
+ #include <linux/platform_data/ram_console.h>
+ 
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ #include "board-8064.h"
+ #include "spm.h"
+ #include <mach/mpm.h>
+@@ -5665,4 +5666,5 @@ MACHINE_START(JF, "SAMSUNG JF")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-jf_cri.c b/arch/arm/mach-msm/board-jf_cri.c
+index 9ea6247..568b309 100644
+--- a/arch/arm/mach-msm/board-jf_cri.c
++++ b/arch/arm/mach-msm/board-jf_cri.c
+@@ -99,6 +99,7 @@
+ #include <linux/platform_data/ram_console.h>
+ 
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ #include "board-8064.h"
+ #include "spm.h"
+ #include <mach/mpm.h>
+@@ -5596,4 +5597,5 @@ MACHINE_START(JF, "SAMSUNG JF")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-jf_dcm.c b/arch/arm/mach-msm/board-jf_dcm.c
+index 812d0fa..b9ba30e 100644
+--- a/arch/arm/mach-msm/board-jf_dcm.c
++++ b/arch/arm/mach-msm/board-jf_dcm.c
+@@ -101,6 +101,7 @@
+ #include <linux/platform_data/ram_console.h>
+ 
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ #include "board-8064.h"
+ #include "spm.h"
+ #include <mach/mpm.h>
+@@ -5852,4 +5853,5 @@ MACHINE_START(JF, "SAMSUNG JF")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-jf_eur.c b/arch/arm/mach-msm/board-jf_eur.c
+index 2c06278..6bfe2bd 100644
+--- a/arch/arm/mach-msm/board-jf_eur.c
++++ b/arch/arm/mach-msm/board-jf_eur.c
+@@ -101,6 +101,7 @@
+ #include <linux/platform_data/ram_console.h>
+ 
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ #include "board-8064.h"
+ #include "spm.h"
+ #include <mach/mpm.h>
+@@ -5591,4 +5592,5 @@ MACHINE_START(JF, "SAMSUNG JF")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-jf_ktt.c b/arch/arm/mach-msm/board-jf_ktt.c
+index a119485..5535688 100644
+--- a/arch/arm/mach-msm/board-jf_ktt.c
++++ b/arch/arm/mach-msm/board-jf_ktt.c
+@@ -101,6 +101,7 @@
+ #include <linux/platform_data/ram_console.h>
+ 
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ #include "board-8064.h"
+ #include "spm.h"
+ #include <mach/mpm.h>
+@@ -5768,4 +5769,5 @@ MACHINE_START(JF, "SAMSUNG JF")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-jf_lgt.c b/arch/arm/mach-msm/board-jf_lgt.c
+index 11602fc..c352c39 100644
+--- a/arch/arm/mach-msm/board-jf_lgt.c
++++ b/arch/arm/mach-msm/board-jf_lgt.c
+@@ -99,6 +99,7 @@
+ #include <linux/platform_data/ram_console.h>
+ 
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ #include "board-8064.h"
+ #include "spm.h"
+ #include <mach/mpm.h>
+@@ -5763,4 +5764,5 @@ MACHINE_START(JF, "SAMSUNG JF")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-jf_skt.c b/arch/arm/mach-msm/board-jf_skt.c
+index a119485..5535688 100644
+--- a/arch/arm/mach-msm/board-jf_skt.c
++++ b/arch/arm/mach-msm/board-jf_skt.c
+@@ -101,6 +101,7 @@
+ #include <linux/platform_data/ram_console.h>
+ 
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ #include "board-8064.h"
+ #include "spm.h"
+ #include <mach/mpm.h>
+@@ -5768,4 +5769,5 @@ MACHINE_START(JF, "SAMSUNG JF")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-jf_spr.c b/arch/arm/mach-msm/board-jf_spr.c
+index 3826283..a0f55014 100644
+--- a/arch/arm/mach-msm/board-jf_spr.c
++++ b/arch/arm/mach-msm/board-jf_spr.c
+@@ -99,6 +99,7 @@
+ #include <linux/platform_data/ram_console.h>
+ 
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ #include "board-8064.h"
+ #include "spm.h"
+ #include <mach/mpm.h>
+@@ -5587,4 +5588,5 @@ MACHINE_START(JF, "SAMSUNG JF")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-jf_tmo.c b/arch/arm/mach-msm/board-jf_tmo.c
+index 22d059a..91a0982 100644
+--- a/arch/arm/mach-msm/board-jf_tmo.c
++++ b/arch/arm/mach-msm/board-jf_tmo.c
+@@ -99,6 +99,7 @@
+ #include <linux/platform_data/ram_console.h>
+ 
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ #include "board-8064.h"
+ #include "spm.h"
+ #include <mach/mpm.h>
+@@ -5552,4 +5553,5 @@ MACHINE_START(JF, "SAMSUNG JF")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-jf_usc.c b/arch/arm/mach-msm/board-jf_usc.c
+index 38e0ad4..a7d1757 100644
+--- a/arch/arm/mach-msm/board-jf_usc.c
++++ b/arch/arm/mach-msm/board-jf_usc.c
+@@ -99,6 +99,7 @@
+ #include <linux/platform_data/ram_console.h>
+ 
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ #include "board-8064.h"
+ #include "spm.h"
+ #include <mach/mpm.h>
+@@ -5583,4 +5584,5 @@ MACHINE_START(JF, "SAMSUNG JF")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-jf_vzw.c b/arch/arm/mach-msm/board-jf_vzw.c
+index 483b1eb..045cfa7 100644
+--- a/arch/arm/mach-msm/board-jf_vzw.c
++++ b/arch/arm/mach-msm/board-jf_vzw.c
+@@ -99,6 +99,7 @@
+ #include <linux/platform_data/ram_console.h>
+ 
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ #include "board-8064.h"
+ #include "spm.h"
+ #include <mach/mpm.h>
+@@ -5590,4 +5591,5 @@ MACHINE_START(JF, "SAMSUNG JF")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-jfve_eur.c b/arch/arm/mach-msm/board-jfve_eur.c
+index 661d6d3..b2401d3 100644
+--- a/arch/arm/mach-msm/board-jfve_eur.c
++++ b/arch/arm/mach-msm/board-jfve_eur.c
+@@ -101,6 +101,7 @@
+ #include <linux/platform_data/ram_console.h>
+ 
+ #include "msm_watchdog.h"
++#include "platsmp.h"
+ #include "board-8064.h"
+ #include "spm.h"
+ #include <mach/mpm.h>
+@@ -5480,4 +5481,5 @@ MACHINE_START(JF, "SAMSUNG JF")
+ 	.init_early = apq8064_allocate_memory_regions,
+ 	.init_very_early = apq8064_early_reserve,
+ 	.restart = msm_restart,
++	.smp = &msm8960_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/board-msm8x60.c b/arch/arm/mach-msm/board-msm8x60.c
+index 34c2ff2..fc07d9f 100644
+--- a/arch/arm/mach-msm/board-msm8x60.c
++++ b/arch/arm/mach-msm/board-msm8x60.c
+@@ -103,6 +103,7 @@
+ #include "clock.h"
+ #include "pm-boot.h"
+ #include "board-storage-common-a.h"
++#include "platsmp.h"
+ 
+ #include <linux/msm_ion.h>
+ #include <mach/ion.h>
+@@ -10491,6 +10492,7 @@ MACHINE_START(MSM8X60_SURF, "QCT MSM8X60 SURF")
+ 	.timer = &msm_timer,
+ 	.init_early = msm8x60_charm_init_early,
+ 	.restart = msm_restart,
++	.smp = &scorpion_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MSM8X60_FFA, "QCT MSM8X60 FFA")
+@@ -10502,6 +10504,7 @@ MACHINE_START(MSM8X60_FFA, "QCT MSM8X60 FFA")
+ 	.timer = &msm_timer,
+ 	.init_early = msm8x60_charm_init_early,
+ 	.restart = msm_restart,
++	.smp = &scorpion_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MSM8X60_FLUID, "QCT MSM8X60 FLUID")
+@@ -10513,6 +10516,7 @@ MACHINE_START(MSM8X60_FLUID, "QCT MSM8X60 FLUID")
+ 	.timer = &msm_timer,
+ 	.init_early = msm8x60_charm_init_early,
+ 	.restart = msm_restart,
++	.smp = &scorpion_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MSM8X60_FUSION, "QCT MSM8X60 FUSION SURF")
+@@ -10524,6 +10528,7 @@ MACHINE_START(MSM8X60_FUSION, "QCT MSM8X60 FUSION SURF")
+ 	.timer = &msm_timer,
+ 	.init_early = msm8x60_charm_init_early,
+ 	.restart = msm_restart,
++	.smp = &scorpion_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MSM8X60_FUSN_FFA, "QCT MSM8X60 FUSION FFA")
+@@ -10535,6 +10540,7 @@ MACHINE_START(MSM8X60_FUSN_FFA, "QCT MSM8X60 FUSION FFA")
+ 	.timer = &msm_timer,
+ 	.init_early = msm8x60_charm_init_early,
+ 	.restart = msm_restart,
++	.smp = &scorpion_smp_ops,
+ MACHINE_END
+ 
+ MACHINE_START(MSM8X60_DRAGON, "QCT MSM8X60 DRAGON")
+@@ -10546,4 +10552,5 @@ MACHINE_START(MSM8X60_DRAGON, "QCT MSM8X60 DRAGON")
+ 	.timer = &msm_timer,
+ 	.init_early = msm8x60_charm_init_early,
+ 	.restart = msm_restart,
++	.smp = &scorpion_smp_ops,
+ MACHINE_END
+diff --git a/arch/arm/mach-msm/hotplug.c b/arch/arm/mach-msm/hotplug.c
+index 174a50a..e7b0a9b 100644
+--- a/arch/arm/mach-msm/hotplug.c
++++ b/arch/arm/mach-msm/hotplug.c
+@@ -12,8 +12,8 @@
+ #include <linux/smp.h>
+ #include <linux/cpu.h>
+ #include <linux/ratelimit.h>
++#include <linux/notifier.h>
+ 
+-#include <asm/cacheflush.h>
+ #include <asm/smp_plat.h>
+ #include <asm/vfp.h>
+ 
+@@ -22,6 +22,7 @@
+ 
+ #include "pm.h"
+ #include "spm.h"
++#include "platsmp.h"
+ 
+ extern volatile int pen_release;
+ 
+@@ -31,9 +32,6 @@ static DEFINE_PER_CPU(unsigned int, warm_boot_flag);
+ 
+ static inline void cpu_enter_lowpower(void)
+ {
+-	/* Just flush the cache. Changing the coherency is not yet
+-	 * available on msm. */
+-	flush_cache_all();
+ }
+ 
+ static inline void cpu_leave_lowpower(void)
+@@ -65,22 +63,12 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
+ 	}
+ }
+ 
+-int platform_cpu_kill(unsigned int cpu)
+-{
+-	int ret = 0;
+-
+-	if (cpumask_test_and_clear_cpu(cpu, &cpu_dying_mask))
+-		ret = msm_pm_wait_cpu_shutdown(cpu);
+-
+-	return ret ? 0 : 1;
+-}
+-
+ /*
+  * platform-specific code to shutdown a CPU
+  *
+  * Called with IRQs disabled
+  */
+-void platform_cpu_die(unsigned int cpu)
++void __ref msm_cpu_die(unsigned int cpu)
+ {
+ 	int spurious = 0;
+ 
+@@ -102,15 +90,6 @@ void platform_cpu_die(unsigned int cpu)
+ 		pr_warn("CPU%u: %u spurious wakeup calls\n", cpu, spurious);
+ }
+ 
+-int platform_cpu_disable(unsigned int cpu)
+-{
+-	/*
+-	 * we don't allow CPU 0 to be shutdown (it is still too special
+-	 * e.g. clock tick interrupts)
+-	 */
+-	return cpu == 0 ? -EPERM : 0;
+-}
+-
+ #define CPU_SHIFT	0
+ #define CPU_MASK	0xF
+ #define CPU_OF(n)	(((n) & CPU_MASK) << CPU_SHIFT)
+diff --git a/arch/arm/mach-msm/platsmp.c b/arch/arm/mach-msm/platsmp.c
+index d3c7797..3b863da 100644
+--- a/arch/arm/mach-msm/platsmp.c
++++ b/arch/arm/mach-msm/platsmp.c
+@@ -1,13 +1,14 @@
+ /*
+  *  Copyright (C) 2002 ARM Ltd.
+  *  All Rights Reserved
+- *  Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
++ *  Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 as
+  * published by the Free Software Foundation.
+  */
+ 
++#include <linux/init.h>
+ #include <linux/kernel.h>
+ #include <linux/init.h>
+ #include <linux/cpumask.h>
+@@ -27,15 +28,13 @@
+ #include <mach/msm_iomap.h>
+ 
+ #include "pm.h"
++#include "platsmp.h"
+ #include "scm-boot.h"
+ #include "spm.h"
+ 
+ #define VDD_SC1_ARRAY_CLAMP_GFS_CTL 0x15A0
+ #define SCSS_CPU1CORE_RESET 0xD80
+ #define SCSS_DBG_STATUS_CORE_PWRDUP 0xE64
+-
+-extern void msm_secondary_startup(void);
+-
+ /*
+  * control for which core is the next to come out of the secondary
+  * boot "holding pen".
+@@ -47,7 +46,7 @@ volatile int pen_release = -1;
+  * observers, irrespective of whether they're taking part in coherency
+  * or not.  This is necessary for the hotplug code to work reliably.
+  */
+-static void __cpuinit write_pen_release(int val)
++void __cpuinit write_pen_release(int val)
+ {
+ 	pen_release = val;
+ 	smp_wmb();
+@@ -57,7 +56,7 @@ static void __cpuinit write_pen_release(int val)
+ 
+ static DEFINE_SPINLOCK(boot_lock);
+ 
+-void __cpuinit platform_secondary_init(unsigned int cpu)
++static void __cpuinit msm_secondary_init(unsigned int cpu)
+ {
+ 	WARN_ON(msm_platform_secondary_init(cpu));
+ 
+@@ -97,23 +96,8 @@ static int __cpuinit scorpion_release_secondary(void)
+ 	return 0;
+ }
+ 
+-static int __cpuinit krait_release_secondary_sim(unsigned long base, int cpu)
+-{
+-	void *base_ptr = ioremap_nocache(base + (cpu * 0x10000), SZ_4K);
+-	if (!base_ptr)
+-		return -ENODEV;
+-
+-	if (machine_is_msm8974_sim()) {
+-		writel_relaxed(0x800, base_ptr+0x04);
+-		writel_relaxed(0x3FFF, base_ptr+0x14);
+-	}
+-
+-	mb();
+-	iounmap(base_ptr);
+-	return 0;
+-}
+-
+-static int __cpuinit krait_release_secondary(unsigned long base, int cpu)
++static int __cpuinit msm8960_release_secondary(unsigned long base,
++						unsigned int cpu)
+ {
+ 	void *base_ptr = ioremap_nocache(base + (cpu * 0x10000), SZ_4K);
+ 	if (!base_ptr)
+@@ -144,87 +128,13 @@ static int __cpuinit krait_release_secondary(unsigned long base, int cpu)
+ 	return 0;
+ }
+ 
+-static int __cpuinit krait_release_secondary_p3(unsigned long base, int cpu)
+-{
+-	void *base_ptr = ioremap_nocache(base + (cpu * 0x10000), SZ_4K);
+-	if (!base_ptr)
+-		return -ENODEV;
+-
+-	secondary_cpu_hs_init(base_ptr);
+-
+-	writel_relaxed(0x021, base_ptr+0x04);
+-	mb();
+-	udelay(2);
+-
+-	writel_relaxed(0x020, base_ptr+0x04);
+-	mb();
+-	udelay(2);
+-
+-	writel_relaxed(0x000, base_ptr+0x04);
+-	mb();
+-
+-	writel_relaxed(0x080, base_ptr+0x04);
+-	mb();
+-	iounmap(base_ptr);
+-	return 0;
+-}
+-
+-static int __cpuinit release_secondary(unsigned int cpu)
++static int __cpuinit release_from_pen(unsigned int cpu)
+ {
+-	BUG_ON(cpu >= get_core_count());
+-
+-	if (cpu_is_msm8x60())
+-		return scorpion_release_secondary();
+-
+-	if (machine_is_msm8974_sim())
+-		return krait_release_secondary_sim(0xf9088000, cpu);
+-
+-	if (soc_class_is_msm8960() || soc_class_is_msm8930() ||
+-	    soc_class_is_apq8064())
+-		return krait_release_secondary(0x02088000, cpu);
+-
+-	if (cpu_is_msm8974())
+-		return krait_release_secondary_p3(0xf9088000, cpu);
+-
+-	WARN(1, "unknown CPU case in release_secondary\n");
+-	return -EINVAL;
+-}
+-
+-DEFINE_PER_CPU(int, cold_boot_done);
+-static int cold_boot_flags[] = {
+-	0,
+-	SCM_FLAG_COLDBOOT_CPU1,
+-	SCM_FLAG_COLDBOOT_CPU2,
+-	SCM_FLAG_COLDBOOT_CPU3,
+-};
+-
+-int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
+-{
+-	int ret;
+-	unsigned int flag = 0;
+ 	unsigned long timeout;
+ 
+-	pr_debug("Starting secondary CPU %d\n", cpu);
+-
+ 	/* Set preset_lpj to avoid subsequent lpj recalculations */
+ 	preset_lpj = loops_per_jiffy;
+ 
+-	if (cpu > 0 && cpu < ARRAY_SIZE(cold_boot_flags))
+-		flag = cold_boot_flags[cpu];
+-	else
+-		__WARN();
+-
+-	if (per_cpu(cold_boot_done, cpu) == false) {
+-		ret = scm_set_boot_addr(virt_to_phys(msm_secondary_startup),
+-					flag);
+-		if (ret == 0)
+-			release_secondary(cpu);
+-		else
+-			printk(KERN_DEBUG "Failed to set secondary core boot "
+-					  "address\n");
+-		per_cpu(cold_boot_done, cpu) = true;
+-	}
+-
+ 	/*
+ 	 * set synchronisation state between this boot processor
+ 	 * and the secondary one
+@@ -265,11 +175,37 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
+ 
+ 	return pen_release != -1 ? -ENOSYS : 0;
+ }
++
++DEFINE_PER_CPU(int, cold_boot_done);
++
++static int __cpuinit scorpion_boot_secondary(unsigned int cpu,
++				      struct task_struct *idle)
++{
++	pr_debug("Starting secondary CPU %d\n", cpu);
++
++	if (per_cpu(cold_boot_done, cpu) == false) {
++		scorpion_release_secondary();
++		per_cpu(cold_boot_done, cpu) = true;
++	}
++	return release_from_pen(cpu);
++}
++
++static int __cpuinit msm8960_boot_secondary(unsigned int cpu, struct task_struct *idle)
++{
++	pr_debug("Starting secondary CPU %d\n", cpu);
++
++	if (per_cpu(cold_boot_done, cpu) == false) {
++		msm8960_release_secondary(0x02088000, cpu);
++		per_cpu(cold_boot_done, cpu) = true;
++	}
++	return release_from_pen(cpu);
++}
++
+ /*
+  * Initialise the CPU possible map early - this describes the CPUs
+  * which may be present or become present in the system.
+  */
+-void __init smp_init_cpus(void)
++static void __init msm_smp_init_cpus(void)
+ {
+ 	unsigned int i, ncores = get_core_count();
+ 
+@@ -285,6 +221,44 @@ void __init smp_init_cpus(void)
+ 	set_smp_cross_call(gic_raise_softirq);
+ }
+ 
+-void __init platform_smp_prepare_cpus(unsigned int max_cpus)
++static int cold_boot_flags[] __initdata = {
++	0,
++	SCM_FLAG_COLDBOOT_CPU1,
++	SCM_FLAG_COLDBOOT_CPU2,
++	SCM_FLAG_COLDBOOT_CPU3,
++};
++
++static void __init msm_platform_smp_prepare_cpus(unsigned int max_cpus)
+ {
++	int cpu, map;
++	unsigned int flags = 0;
++
++	for_each_present_cpu(cpu) {
++		map = cpu_logical_map(cpu);
++		if (map > ARRAY_SIZE(cold_boot_flags)) {
++			set_cpu_present(cpu, false);
++			__WARN();
++			continue;
++		}
++		flags |= cold_boot_flags[map];
++	}
++
++	if (scm_set_boot_addr(virt_to_phys(msm_secondary_startup), flags))
++		pr_warn("Failed to set CPU boot address\n");
+ }
++
++struct smp_operations msm8960_smp_ops __initdata = {
++	.smp_init_cpus = msm_smp_init_cpus,
++	.smp_prepare_cpus = msm_platform_smp_prepare_cpus,
++	.smp_secondary_init = msm_secondary_init,
++	.smp_boot_secondary = msm8960_boot_secondary,
++	.cpu_die = msm_cpu_die
++};
++
++struct smp_operations scorpion_smp_ops __initdata = {
++	.smp_init_cpus = msm_smp_init_cpus,
++	.smp_prepare_cpus = msm_platform_smp_prepare_cpus,
++	.smp_secondary_init = msm_secondary_init,
++	.smp_boot_secondary = scorpion_boot_secondary,
++	.cpu_die = msm_cpu_die
++};
+diff --git a/arch/arm/mach-msm/platsmp.h b/arch/arm/mach-msm/platsmp.h
+index 1d176d2..598ab6c 100644
+--- a/arch/arm/mach-msm/platsmp.h
++++ b/arch/arm/mach-msm/platsmp.h
+@@ -24,8 +24,7 @@ int platform_cpu_kill(unsigned int cpu);
+ void platform_cpu_die(unsigned int cpu);
+ int platform_cpu_disable(unsigned int cpu);
+ 
+-extern struct smp_operations arm_smp_ops __initdata;
++extern void msm_cpu_die(unsigned int cpu);
++
+ extern struct smp_operations msm8960_smp_ops __initdata;
+-extern struct smp_operations msm8974_smp_ops __initdata;
+-extern struct smp_operations msm8625_smp_ops __initdata;
+ extern struct smp_operations scorpion_smp_ops __initdata;

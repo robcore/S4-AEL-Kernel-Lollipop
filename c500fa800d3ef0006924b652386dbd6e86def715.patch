@@ -1,0 +1,24 @@
+From c500fa800d3ef0006924b652386dbd6e86def715 Mon Sep 17 00:00:00 2001
+From: shminer <332574643@qq.com>
+Date: Fri, 3 Apr 2015 13:01:58 +0800
+Subject: [PATCH] increase limit temp
+
+---
+ drivers/thermal/intelli/msm_thermal.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/thermal/intelli/msm_thermal.c b/drivers/thermal/intelli/msm_thermal.c
+index b75382f..ecb8167 100644
+--- a/drivers/thermal/intelli/msm_thermal.c
++++ b/drivers/thermal/intelli/msm_thermal.c
+@@ -1436,8 +1436,8 @@ static void do_freq_control(long temp)
+ 	uint32_t max_freq = cpus[cpu].limited_max_freq;
+ 
+ 	if (safety == 1) {
+-		if (msm_thermal_info.limit_temp_degC > 82)
+-			msm_thermal_info.limit_temp_degC = 82;
++		if (msm_thermal_info.limit_temp_degC > 88)
++			msm_thermal_info.limit_temp_degC = 88;
+ 	}
+ 
+ 	if (temp >= msm_thermal_info.limit_temp_degC) {

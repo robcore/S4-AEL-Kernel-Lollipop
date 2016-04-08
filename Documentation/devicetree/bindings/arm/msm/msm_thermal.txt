@@ -38,6 +38,7 @@ Example:
 		qcom,limit-temp = <60>;
 		qcom,temp-hysteresis = <10>;
 		qcom,freq-step = <2>;
+		qcom,freq-control-mask = <0xf>
 		qcom,core-limit-temp = <90>;
 		qcom,core-temp-hysterisis = <10>;
 		qcom,core-control-mask = <7>;

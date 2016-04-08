@@ -1,0 +1,60 @@
+From 49c829a33e5f5bf4084fbced6e15387356c0d427 Mon Sep 17 00:00:00 2001
+From: spock1104 <spock1104@gmail.com>
+Date: Thu, 31 Dec 2015 01:08:15 -0500
+Subject: [PATCH] fix and enable intelli-thermal
+
+---
+ arch/arm/configs/x5_spr_us_defconfig | 3 ++-
+ drivers/thermal/Kconfig              | 3 ++-
+ include/linux/msm_thermal.h          | 4 ----
+ 3 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm/configs/x5_spr_us_defconfig b/arch/arm/configs/x5_spr_us_defconfig
+index 7cfe994..e86a4d9 100644
+--- a/arch/arm/configs/x5_spr_us_defconfig
++++ b/arch/arm/configs/x5_spr_us_defconfig
+@@ -2220,7 +2220,8 @@ CONFIG_THERMAL_HWMON=y
+ # CONFIG_THERMAL_TSENS is not set
+ # CONFIG_THERMAL_TSENS8960 is not set
+ CONFIG_THERMAL_TSENS8974=y
+-CONFIG_THERMAL_MONITOR=y
++CONFIG_INTELLI_THERMAL_V2=y
++# CONFIG_THERMAL_MONITOR is not set
+ CONFIG_THERMAL_QPNP=y
+ CONFIG_THERMAL_QPNP_ADC_TM=y
+ # CONFIG_WATCHDOG is not set
+diff --git a/drivers/thermal/Kconfig b/drivers/thermal/Kconfig
+index 793cb9e..f66cf0b 100644
+--- a/drivers/thermal/Kconfig
++++ b/drivers/thermal/Kconfig
+@@ -89,13 +89,14 @@ config THERMAL_MONITOR
+ 	bool "Monitor thermal state and limit CPU Frequency"
+ 	depends on THERMAL_TSENS8960 || THERMAL_TSENS8974
+ 	depends on CPU_FREQ_MSM
+-	default n
+ 	help
+ 	  This enables thermal monitoring capability in the kernel in the
+ 	  absence of a system wide thermal monitoring entity or until such an
+ 	  entity starts running in the userspace. Monitors TSENS temperature
+ 	  and limits the max frequency of the cores.
+ 
++endchoice
++
+ config SPEAR_THERMAL
+ 	bool "SPEAr thermal sensor driver"
+ 	depends on THERMAL
+diff --git a/include/linux/msm_thermal.h b/include/linux/msm_thermal.h
+index b28e54c..c3d6a83 100644
+--- a/include/linux/msm_thermal.h
++++ b/include/linux/msm_thermal.h
+@@ -36,10 +36,6 @@ struct msm_thermal_data {
+ 	int32_t psm_temp_hyst_degC;
+ 	int32_t ocr_temp_degC;
+ 	int32_t ocr_temp_hyst_degC;
+-#ifdef CONFIG_INTELLI_THERMAL_V2
+-	int32_t ocr_temp_degC;
+-	int32_t ocr_temp_hyst_degC;
+-#endif
+ };
+ 
+ #if defined(CONFIG_THERMAL_MONITOR) ||\
