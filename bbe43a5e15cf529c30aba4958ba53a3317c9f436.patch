@@ -1,0 +1,22 @@
+From bbe43a5e15cf529c30aba4958ba53a3317c9f436 Mon Sep 17 00:00:00 2001
+From: Rudolf Tammekivi <rtammekivi@gmail.com>
+Date: Fri, 13 Mar 2015 20:43:02 +0200
+Subject: [PATCH] msm_fb: Enable MDP4 IGC LUT
+
+---
+ drivers/video/msm/mdp4_overlay.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/drivers/video/msm/mdp4_overlay.c b/drivers/video/msm/mdp4_overlay.c
+index f6a19b9..d2d4246 100755
+--- a/drivers/video/msm/mdp4_overlay.c
++++ b/drivers/video/msm/mdp4_overlay.c
+@@ -12,6 +12,8 @@
+  *
+  */
+ 
++#define MDP4_IGC_LUT_ENABLE 1
++
+ #include <linux/module.h>
+ #include <linux/kernel.h>
+ #include <linux/sched.h>

@@ -1,0 +1,27 @@
+From 49e23d0749f4b3228663e95df961d299ff0459dc Mon Sep 17 00:00:00 2001
+From: c_sridur <sridur@codeaurora.org>
+Date: Fri, 23 Jan 2015 14:49:59 +0530
+Subject: [PATCH] msm_vidc: Frame height is not updating for low resolution
+ clip
+
+Fix: Update frame height preoperly for height lesser than 64
+
+Change-Id: I17cf166a40f77fcea74e7d0c19af801e6e6244d5
+Signed-off-by: c_sridur <sridur@codeaurora.org>
+---
+ drivers/video/msm/vidc/1080p/ddl/vcd_ddl_properties.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/video/msm/vidc/1080p/ddl/vcd_ddl_properties.c b/drivers/video/msm/vidc/1080p/ddl/vcd_ddl_properties.c
+index 95b20eb..e3e265d 100755
+--- a/drivers/video/msm/vidc/1080p/ddl/vcd_ddl_properties.c
++++ b/drivers/video/msm/vidc/1080p/ddl/vcd_ddl_properties.c
+@@ -2344,7 +2344,7 @@ u32 ddl_set_default_decoder_buffer_req(struct ddl_decoder_data *decoder,
+ 	}
+ 	input_buf_req->align = DDL_LINEAR_BUFFER_ALIGN_BYTES;
+ 	decoder->min_input_buf_req = *input_buf_req;
+-	if (frame_height_actual) {
++	if (frame_height_actual && frame_size->height > MDP_MIN_TILE_HEIGHT) {
+ 		frame_size->height = frame_height_actual;
+ 		ddl_calculate_stride(frame_size, !decoder->progressive_only);
+ 	}
