@@ -1,0 +1,66 @@
+From 7d443a846b8bdda8db742706fc67f885349c4e08 Mon Sep 17 00:00:00 2001
+From: Andrew Dodd <atd7@cornell.edu>
+Date: Thu, 18 Apr 2013 18:55:53 -0400
+Subject: [PATCH] msm_rotator: Fast YUV logic improvements from Sony kernels
+
+This plus the other patches improves landscape videos,
+but portrait orientation videos still cause issues.
+
+Starting to look like the longterm goal needs to be a CAF rebase,
+or a whole pile of cherrypicking from upstream.  We've cherrypicked
+nearly all the rotator patches we can.  Other possibility is
+stuff from the Sony APQ8064 kernel that wasn't in the big mako
+bulk update.
+
+Change-Id: Id321ca8290d99e9b4789b4d5f4cd048f14029545
+---
+ drivers/char/msm_rotator.c | 36 ++++++++++++++++++++++++++----------
+ 1 file changed, 26 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/char/msm_rotator.c b/drivers/char/msm_rotator.c
+index 3294a60..746399d 100644
+--- a/drivers/char/msm_rotator.c
++++ b/drivers/char/msm_rotator.c
+@@ -1437,16 +1437,32 @@ static int msm_rotator_start(unsigned long arg,
+ 	case MDP_Y_CRCB_H2V2:
+ 	case MDP_Y_CRCB_H2V2_TILE:
+ 	case MDP_Y_CBCR_H2V2_TILE:
+-		if (rotator_hw_revision >= ROTATOR_REVISION_V2 &&
+-			!(info.downscale_ratio &&
+-			(info.rotations & MDP_ROT_90)))
+-			fast_yuv_en = !fast_yuv_invalid_size_checker(
+-						info.rotations,
+-						info.src.width,
+-						dst_w,
+-						dst_h,
+-						dst_w,
+-						is_planar420);
++		if (rotator_hw_revision >= ROTATOR_REVISION_V2) {
++
++			if (!info.downscale_ratio) {
++				fast_yuv_en = !fast_yuv_invalid_size_checker(
++							     info.rotations,
++							     info.src.width,
++							     dst_w,
++							     dst_h,
++							     dst_w,
++							     is_planar420);
++			} else if ((info.src.width == 1920) &&
++				   (info.downscale_ratio == 1) &&
++				   (!info.rotations)) {
++				/*
++				 * Also allow fast_yuv when down scaling
++				 * 1080p to 720p without rotations
++				 */
++				fast_yuv_en = !fast_yuv_invalid_size_checker(
++							     info.rotations,
++							     info.src.width,
++							     info.dst.width,
++							     info.dst.height,
++							     info.dst.width,
++							     is_planar420);
++			}
++		}
+ 	break;
+ 	default:
+ 		fast_yuv_en = 0;

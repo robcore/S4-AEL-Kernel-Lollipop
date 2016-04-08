@@ -1,0 +1,60 @@
+From bee60e59756b0dc889c5b733ff19fa0e51ff74ef Mon Sep 17 00:00:00 2001
+From: Kuogee Hsieh <khsieh@codeaurora.org>
+Date: Wed, 27 Mar 2013 17:41:49 -0700
+Subject: [PATCH] msm_fb: display: exit properly when rotator max session
+ reached
+
+When rotator session reach maximum, it should exit without calling
+put_img since no get_img had been called.
+
+CRs-fixed: 466462
+Change-Id: I951570227ebd81da6dad19c1b897cde84f8d0451
+Signed-off-by: Kuogee Hsieh <khsieh@codeaurora.org>
+---
+ drivers/char/msm_rotator.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/char/msm_rotator.c b/drivers/char/msm_rotator.c
+index 5c7a586..3294a60 100644
+--- a/drivers/char/msm_rotator.c
++++ b/drivers/char/msm_rotator.c
+@@ -1092,7 +1092,8 @@ static int msm_rotator_do_rotate(unsigned long arg)
+ 		pr_err("%s() : Attempt to use invalid session_id %d\n",
+ 			__func__, s);
+ 		rc = -EINVAL;
+-		goto do_rotate_unlock_mutex;
++		mutex_unlock(&msm_rotator_dev->rotator_lock);
++		return rc;
+ 	}
+ 
+ 	img_info = &(msm_rotator_dev->rot_session[s]->img_info);
+@@ -1100,7 +1101,8 @@ static int msm_rotator_do_rotate(unsigned long arg)
+ 		dev_dbg(msm_rotator_dev->device,
+ 			"%s() : Session_id %d not enabled\n", __func__, s);
+ 		rc = -EINVAL;
+-		goto do_rotate_unlock_mutex;
++		mutex_unlock(&msm_rotator_dev->rotator_lock);
++		return rc;
+ 	}
+ 
+ 	if (msm_rotator_get_plane_sizes(img_info->src.format,
+@@ -1109,7 +1111,8 @@ static int msm_rotator_do_rotate(unsigned long arg)
+ 					&src_planes)) {
+ 		pr_err("%s: invalid src format\n", __func__);
+ 		rc = -EINVAL;
+-		goto do_rotate_unlock_mutex;
++		mutex_unlock(&msm_rotator_dev->rotator_lock);
++		return rc;
+ 	}
+ 	if (msm_rotator_get_plane_sizes(img_info->dst.format,
+ 					img_info->dst.width,
+@@ -1117,7 +1120,8 @@ static int msm_rotator_do_rotate(unsigned long arg)
+ 					&dst_planes)) {
+ 		pr_err("%s: invalid dst format\n", __func__);
+ 		rc = -EINVAL;
+-		goto do_rotate_unlock_mutex;
++		mutex_unlock(&msm_rotator_dev->rotator_lock);
++		return rc;
+ 	}
+ 
+ 	rc = get_img(&info.src, ROTATOR_SRC_DOMAIN, (unsigned long *)&in_paddr,
