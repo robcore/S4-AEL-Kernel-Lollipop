@@ -1,0 +1,22 @@
+From 908fab04ba6bec159832dfff43c4827ea78b4bc9 Mon Sep 17 00:00:00 2001
+From: XileForce <rdaguiar360@gmail.com>
+Date: Wed, 10 Jun 2015 14:22:52 -0700
+Subject: [PATCH] mmap.c :Fixes for VMA Caching
+
+---
+ mm/mmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 3aa5c2d..56dc2fa 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2803,7 +2803,7 @@ void exit_mmap(struct mm_struct *mm)
+ 
+ 	mm->mmap = NULL;
+ 	mm->mm_rb = RB_ROOT;
+-	mm->mmap_cache = NULL;
++	vmacache_invalidate(mm);
+ 	up_write(&mm->mmap_sem);
+ 
+ 	WARN_ON(mm->nr_ptes > (FIRST_USER_ADDRESS+PMD_SIZE-1)>>PMD_SHIFT);
