@@ -1,0 +1,39 @@
+From 200b7c9960c4abf0a244e012674596cd27eea86c Mon Sep 17 00:00:00 2001
+From: friedrich420 <kelpidorou@yahoo.com>
+Date: Sun, 7 Feb 2016 14:38:54 +0200
+Subject: [PATCH] Async I/O latency to a ssd greatly increased, 34% gain
+ [kleikamp]
+
+---
+ fs/aio.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/fs/aio.c b/fs/aio.c
+index ded94c4..16afb60 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -1152,7 +1152,6 @@ long do_io_submit(aio_context_t ctx_id, long nr,
+ 	struct kioctx *ctx;
+ 	long ret = 0;
+ 	int i = 0;
+-	struct blk_plug plug;
+ 
+ 	if (unlikely(nr < 0))
+ 		return -EINVAL;
+@@ -1169,8 +1168,6 @@ long do_io_submit(aio_context_t ctx_id, long nr,
+ 		return -EINVAL;
+ 	}
+ 
+-	blk_start_plug(&plug);
+-
+ 	/*
+ 	 * AKPM: should this return a partial result if some of the IOs were
+ 	 * successfully submitted?
+@@ -1193,7 +1190,6 @@ long do_io_submit(aio_context_t ctx_id, long nr,
+ 		if (ret)
+ 			break;
+ 	}
+-	blk_finish_plug(&plug);
+ 
+ 	put_ioctx(ctx);
+ 	return i ? i : ret;
