@@ -314,7 +314,7 @@ const_debug unsigned int sysctl_sched_yield_sleep_duration = 50;
  * Maximum possible frequency across all cpus. Task demand and cpu
  * capacity (cpu_power) metrics could be scaled in reference to it.
  */
-static unsigned int max_possible_freq = 1;
+static unsigned int max_possible_freq = 1890000;
 
 /*
  * __task_rq_lock - lock the rq @p resides on.
@@ -6524,7 +6524,7 @@ static const struct cpumask *cpu_cpu_mask(int cpu)
 	return cpumask_of_node(cpu_to_node(cpu));
 }
 
-int sched_smt_power_savings = 0, sched_mc_power_savings = 0;
+int sched_smt_power_savings = 0, sched_mc_power_savings = 2;
 
 struct sd_data {
 	struct sched_domain **__percpu sd;
