@@ -1203,9 +1203,64 @@ static void dapm_seq_check_event(struct snd_soc_dapm_context *dapm,
 	}
 }
 
+static int snd_soc_dai_params(struct snd_soc_dapm_widget *w, int event)
+{
+	struct snd_soc_dai *dai;
+	const struct snd_soc_pcm_stream *config = w->params + w->params_select;
+	struct snd_pcm_substream substream;
+	struct snd_pcm_hw_params *params = NULL;
+	u64 fmt;
+	int ret = 0;
+
+	if (WARN_ON(!config))
+		return -EINVAL;
+
+	dai = w->priv;
+
+	if (config->formats) {
+		fmt = ffs(config->formats) - 1;
+	} else {
+		dev_warn(w->dapm->dev, "ASoC: Invalid format %llx specified\n",
+			 config->formats);
+		fmt = 0;
+	}
+
+	/* Currently very limited parameter selection */
+	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	if (!params) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	snd_mask_set(hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT), fmt);
+
+	hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE)->min =
+		config->rate_min;
+	hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE)->max =
+		config->rate_max;
+
+	hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS)->min
+		= config->channels_min;
+	hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS)->max
+		= config->channels_max;
+
+	memset(&substream, 0, sizeof(substream));
+	if (w->id == snd_soc_dapm_dai_in)
+		substream.stream = SNDRV_PCM_STREAM_CAPTURE;
+	else
+		substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
+
+	ret = soc_dai_hw_params(&substream, params, dai);
+	if (ret < 0)
+		goto out;
+out:
+	kfree(params);
+	return ret;
+}
+
 /* Apply the coalesced changes from a DAPM sequence */
 static void dapm_seq_run_coalesced(struct snd_soc_dapm_context *dapm,
-				   struct list_head *pending)
+				   struct list_head *pending,
+				   int event)
 {
 	struct snd_soc_card *card = dapm->card;
 	struct snd_soc_dapm_widget *w;
