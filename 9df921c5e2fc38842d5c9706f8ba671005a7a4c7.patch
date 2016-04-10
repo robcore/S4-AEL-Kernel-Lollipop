@@ -1,0 +1,56 @@
+From 9df921c5e2fc38842d5c9706f8ba671005a7a4c7 Mon Sep 17 00:00:00 2001
+From: Tatyana Brokhman <tlinder@codeaurora.org>
+Date: Wed, 1 May 2013 14:35:20 +0300
+Subject: [PATCH] block: urgent: Fix dispatching of URGENT mechanism
+
+There are cases when blk_peek_request is called not from blk_fetch_request
+thus the URGENT request may be started but the flag q->dispatched_urgent is
+not updated.
+
+Change-Id: I4fb588823f1b2949160cbd3907f4729767932e12
+CRs-fixed: 471736
+CRs-fixed: 473036
+Signed-off-by: Tatyana Brokhman <tlinder@codeaurora.org>
+---
+ block/blk-core.c | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/block/blk-core.c b/block/blk-core.c
+index c1cdda6..1702045 100644
+--- a/block/blk-core.c
++++ b/block/blk-core.c
+@@ -1122,7 +1122,7 @@ int blk_reinsert_request(struct request_queue *q, struct request *rq)
+ 		 * urgent requests. We want to be able to track this
+ 		 * down.
+ 		 */
+-		pr_err("%s(): requeueing an URGENT request", __func__);
++		pr_err("%s(): reinserting an URGENT request", __func__);
+ 		WARN_ON(!q->dispatched_urgent);
+ 		q->dispatched_urgent = false;
+ 	}
+@@ -2017,6 +2017,10 @@ struct request *blk_peek_request(struct request_queue *q)
+ 			 * not be passed by new incoming requests
+ 			 */
+ 			rq->cmd_flags |= REQ_STARTED;
++			if (rq->cmd_flags & REQ_URGENT) {
++				WARN_ON(q->dispatched_urgent);
++				q->dispatched_urgent = true;
++			}
+ 			trace_block_rq_issue(q, rq);
+ 		}
+ 
+@@ -2150,13 +2154,8 @@ struct request *blk_fetch_request(struct request_queue *q)
+ 	struct request *rq;
+ 
+ 	rq = blk_peek_request(q);
+-	if (rq) {
+-		if (rq->cmd_flags & REQ_URGENT) {
+-			WARN_ON(q->dispatched_urgent);
+-			q->dispatched_urgent = true;
+-		}
++	if (rq)
+ 		blk_start_request(rq);
+-	}
+ 	return rq;
+ }
+ EXPORT_SYMBOL(blk_fetch_request);
