@@ -1,0 +1,48 @@
+From 7b82a9c23acda5b4c2c0f934393382a861930078 Mon Sep 17 00:00:00 2001
+From: Neeti Desai <neetid@codeaurora.org>
+Date: Fri, 14 Jun 2013 17:39:33 -0700
+Subject: [PATCH] msm: Increase the kernel virtual area to include lowmem
+
+Even though lowmem is accounted for in vmalloc space, allocation
+comes only from the region bounded by VMALLOC_START and VMALLOC_END.
+The kernel virtual area can now allocate from any unmapped region
+starting from PAGE_OFFSET.
+
+Change-Id: I291b9eb443d3f7445fd979bd7b09e9241ff22ba3
+Signed-off-by: Neeti Desai <neetid@codeaurora.org>
+---
+ mm/vmalloc.c | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 2cf31f2..a07bf7b 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1416,15 +1416,26 @@ struct vm_struct *__get_vm_area_caller(unsigned long size, unsigned long flags,
+  */
+ struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
+ {
++#ifdef CONFIG_ENABLE_VMALLOC_SAVING
++	return __get_vm_area_node(size, 1, flags, PAGE_OFFSET, VMALLOC_END,
++				-1, GFP_KERNEL, __builtin_return_address(0));
++#else
+ 	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
+ 				-1, GFP_KERNEL, __builtin_return_address(0));
++#endif
++
+ }
+ 
+ struct vm_struct *get_vm_area_caller(unsigned long size, unsigned long flags,
+ 				void *caller)
+ {
+-	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
++#ifdef CONFIG_ENABLE_VMALLOC_SAVING
++	return __get_vm_area_node(size, 1, flags, PAGE_OFFSET, VMALLOC_END,
+ 						-1, GFP_KERNEL, caller);
++#else
++	return __get_vm_area_node(size, 1, flags, VMALLOC_START, VMALLOC_END,
++				-1, GFP_KERNEL, __builtin_return_address(0));
++#endif
+ }
+ 
+ static struct vm_struct *find_vm_area(const void *addr)
