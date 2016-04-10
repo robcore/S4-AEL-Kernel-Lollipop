@@ -961,6 +961,7 @@ static int tabla_config_compander(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = w->codec;
 	struct tabla_priv *tabla = snd_soc_codec_get_drvdata(codec);
 	u32 rate = tabla->comp_fs[w->shift];
+
 	pr_debug("%s: compander #%d enable %d event %d widget name %s\n",
 		 __func__, w->shift + 1,
 		 tabla->comp_enabled[w->shift], event , w->name);
@@ -4102,7 +4103,7 @@ static int tabla_volatile(struct snd_soc_codec *ssc, unsigned int reg)
 }
 
 #define TABLA_FORMATS (SNDRV_PCM_FMTBIT_S16_LE)
-#ifndef CONFIG_SOUND_CONTROL_HAX_GPL
+#ifndef CONFIG_SOUND_CONTROL_HAX_3_GPL
 static
 #endif
 int tabla_write(struct snd_soc_codec *codec, unsigned int reg,
@@ -4120,11 +4121,11 @@ int tabla_write(struct snd_soc_codec *codec, unsigned int reg,
 
 	return wcd9xxx_reg_write(codec->control_data, reg, value);
 }
-#ifdef CONFIG_SOUND_CONTROL_HAX_GPL
+#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
 EXPORT_SYMBOL(tabla_write);
 #endif
 
-#ifndef CONFIG_SOUND_CONTROL_HAX_GPL
+#ifndef CONFIG_SOUND_CONTROL_HAX_3_GPL
 static
 #endif
 unsigned int tabla_read(struct snd_soc_codec *codec,
@@ -4149,7 +4150,7 @@ unsigned int tabla_read(struct snd_soc_codec *codec,
 	return val;
 }
 
-#ifdef CONFIG_SOUND_CONTROL_HAX_GPL
+#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
 EXPORT_SYMBOL(tabla_read);
 #endif
 
@@ -4421,10 +4422,6 @@ static int tabla_set_channel_map(struct snd_soc_dai *dai,
 			tabla->dai[dai->id - 1].ch_act = 0;
 			tabla->dai[dai->id - 1].ch_tot = rx_num;
 		}
-		printk("=[WCD]=%s: APQ->", __func__);
-		for(i = 0; i < rx_num ; i++)
-			printk("[%d]",tabla->dai[dai->id - 1].ch_num[i]);
-		printk(" WCD channel mapping\n");
 	} else if (dai->id == AIF1_CAP || dai->id == AIF2_CAP ||
 		   dai->id == AIF3_CAP) {
 		tabla->dai[dai->id - 1].ch_tot = tx_num;
@@ -4437,7 +4434,7 @@ static int tabla_set_channel_map(struct snd_soc_dai *dai,
 			pr_info("%s: ch_act = %d, ch_tot = %d\n", __func__,
 				tabla->dai[dai->id - 1].ch_act,
 				tabla->dai[dai->id - 1].ch_tot);
-			return 1;
+			return 0;
 		}
 
 		tabla->dai[dai->id - 1].ch_act = 0;
@@ -5206,10 +5203,6 @@ static int tabla_codec_enable_slimrx(struct snd_soc_dapm_widget *w,
 				break;
 			}
 		}
-		if (j == ARRAY_SIZE(tabla_dai)) {
-			pr_err("%s: PMU: Invalid tabla_dai index\n", __func__);
-			return ret;
-		}
 		if (tabla_p->dai[j].ch_act == tabla_p->dai[j].ch_tot) {
 			ret = tabla_codec_enable_chmask(tabla_p,
 							SND_SOC_DAPM_POST_PMU,
@@ -5235,10 +5228,6 @@ static int tabla_codec_enable_slimrx(struct snd_soc_dapm_widget *w,
 					--tabla_p->dai[j].ch_act;
 				break;
 			}
-		}
-		if (j == ARRAY_SIZE(tabla_dai)) {
-			pr_err("%s: PMD: Invalid tabla_dai index\n", __func__);
-			return ret;
 		}
 		if (!tabla_p->dai[j].ch_act) {
 #ifdef CONFIG_SND_SOC_ES325
@@ -5316,10 +5305,6 @@ static int tabla_codec_enable_slimtx(struct snd_soc_dapm_widget *w,
 				break;
 			}
 		}
-		if (j == ARRAY_SIZE(tabla_dai)) {
-			pr_err("%s: PMU: Invalid tabla_dai index\n", __func__);
-			return ret;
-		}
 		if (tabla_p->dai[j].ch_act == tabla_p->dai[j].ch_tot) {
 			ret = tabla_codec_enable_chmask(tabla_p,
 							SND_SOC_DAPM_POST_PMU,
@@ -5344,10 +5329,6 @@ static int tabla_codec_enable_slimtx(struct snd_soc_dapm_widget *w,
 				--tabla_p->dai[j].ch_act;
 				break;
 			}
-		}
-		if (j == ARRAY_SIZE(tabla_dai)) {
-			pr_err("%s: PMD: Invalid tabla_dai index\n", __func__);
-			return ret;
 		}
 		if (!tabla_p->dai[j].ch_act) {
 #ifdef CONFIG_SND_SOC_ES325
@@ -8932,7 +8913,7 @@ static int tabla_codec_probe(struct snd_soc_codec *codec)
 	int i;
 	int ch_cnt;
 
-#ifdef CONFIG_SOUND_CONTROL_HAX_GPL
+#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
 	pr_info("tabla codec probe...\n");
 	fauxsound_codec_ptr = codec;
 #endif
