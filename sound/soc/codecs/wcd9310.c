@@ -1183,36 +1183,36 @@ static const struct snd_kcontrol_new tabla_snd_controls[] = {
 	SOC_ENUM_EXT("EAR PA Gain", tabla_ear_pa_gain_enum[0],
 		tabla_pa_gain_get, tabla_pa_gain_put),
 
-	SOC_SINGLE_TLV("LINEOUT1 Volume", TABLA_A_RX_LINE_1_GAIN, 0, 12, 1,
+	SOC_SINGLE_TLV("LINEOUT1 Volume", TABLA_A_RX_LINE_1_GAIN, 0, 13, 1,
 		line_gain),
-	SOC_SINGLE_TLV("LINEOUT2 Volume", TABLA_A_RX_LINE_2_GAIN, 0, 12, 1,
+	SOC_SINGLE_TLV("LINEOUT2 Volume", TABLA_A_RX_LINE_2_GAIN, 0, 13, 1,
 		line_gain),
-	SOC_SINGLE_TLV("LINEOUT3 Volume", TABLA_A_RX_LINE_3_GAIN, 0, 12, 1,
+	SOC_SINGLE_TLV("LINEOUT3 Volume", TABLA_A_RX_LINE_3_GAIN, 0, 13, 1,
 		line_gain),
-	SOC_SINGLE_TLV("LINEOUT4 Volume", TABLA_A_RX_LINE_4_GAIN, 0, 12, 1,
+	SOC_SINGLE_TLV("LINEOUT4 Volume", TABLA_A_RX_LINE_4_GAIN, 0, 13, 1,
 		line_gain),
-	SOC_SINGLE_TLV("LINEOUT5 Volume", TABLA_A_RX_LINE_5_GAIN, 0, 12, 1,
+	SOC_SINGLE_TLV("LINEOUT5 Volume", TABLA_A_RX_LINE_5_GAIN, 0, 13, 1,
 		line_gain),
 
-	SOC_SINGLE_TLV("HPHL Volume", TABLA_A_RX_HPH_L_GAIN, 0, 12, 1,
+	SOC_SINGLE_TLV("HPHL Volume", TABLA_A_RX_HPH_L_GAIN, 0, 13, 1,
 		line_gain),
-	SOC_SINGLE_TLV("HPHR Volume", TABLA_A_RX_HPH_R_GAIN, 0, 12, 1,
+	SOC_SINGLE_TLV("HPHR Volume", TABLA_A_RX_HPH_R_GAIN, 0, 13, 1,
 		line_gain),
 
 	SOC_SINGLE_S8_TLV("RX1 Digital Volume", TABLA_A_CDC_RX1_VOL_CTL_B2_CTL,
-		-84, 40, digital_gain),
+		-84, 60, digital_gain),
 	SOC_SINGLE_S8_TLV("RX2 Digital Volume", TABLA_A_CDC_RX2_VOL_CTL_B2_CTL,
-		-84, 40, digital_gain),
+		-84, 60, digital_gain),
 	SOC_SINGLE_S8_TLV("RX3 Digital Volume", TABLA_A_CDC_RX3_VOL_CTL_B2_CTL,
-		-84, 40, digital_gain),
+		-84, 60, digital_gain),
 	SOC_SINGLE_S8_TLV("RX4 Digital Volume", TABLA_A_CDC_RX4_VOL_CTL_B2_CTL,
-		-84, 40, digital_gain),
+		-84, 60, digital_gain),
 	SOC_SINGLE_S8_TLV("RX5 Digital Volume", TABLA_A_CDC_RX5_VOL_CTL_B2_CTL,
-		-84, 40, digital_gain),
+		-84, 60, digital_gain),
 	SOC_SINGLE_S8_TLV("RX6 Digital Volume", TABLA_A_CDC_RX6_VOL_CTL_B2_CTL,
-		-84, 40, digital_gain),
+		-84, 60, digital_gain),
 	SOC_SINGLE_S8_TLV("RX7 Digital Volume", TABLA_A_CDC_RX7_VOL_CTL_B2_CTL,
-		-84, 40, digital_gain),
+		-84, 60, digital_gain),
 
 	SOC_SINGLE_S8_TLV("DEC1 Volume", TABLA_A_CDC_TX1_VOL_CTL_GAIN, -84, 40,
 		digital_gain),
@@ -4440,11 +4440,11 @@ static int tabla_set_channel_map(struct snd_soc_dai *dai,
 		tabla->dai[dai->id - 1].ch_act = 0;
 		for (i = 0; i < tx_num; i++)
 			tabla->dai[dai->id - 1].ch_num[i]  = tx_slot[i];
-			
+
 		printk("=[WCD]=%s: APQ<-", __func__);
 		for(i = 0; i < tx_num ; i++)
 			printk("[%d]",tabla->dai[dai->id - 1].ch_num[i]);
-		printk(" WCD channel mapping\n");			
+		printk(" WCD channel mapping\n");
 	}
 	return 0;
 }
@@ -8492,7 +8492,7 @@ static const struct tabla_reg_mask_val tabla_1_1_reg_defaults[] = {
 	TABLA_REG_VAL(TABLA_A_CDC_CLSG_FREQ_THRESH_B2_CTL, 0x05),
 	TABLA_REG_VAL(TABLA_A_CDC_CLSG_FREQ_THRESH_B3_CTL, 0x06),
 	TABLA_REG_VAL(TABLA_A_CDC_CLSG_FREQ_THRESH_B4_CTL, 0x0C),
-	TABLA_REG_VAL(TABLA_A_CDC_CLSG_GAIN_THRESH_CTL, 0x0D)	
+	TABLA_REG_VAL(TABLA_A_CDC_CLSG_GAIN_THRESH_CTL, 0x0D)
 };
 
 static const struct tabla_reg_mask_val tabla_2_0_reg_defaults[] = {

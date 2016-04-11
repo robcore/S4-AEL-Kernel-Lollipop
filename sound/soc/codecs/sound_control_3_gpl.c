@@ -31,7 +31,8 @@ extern int wcd9xxx_hw_revision;
 static int snd_ctrl_locked = 0;
 static int snd_rec_ctrl_locked = 0;
 
-unsigned int tabla_read(struct snd_soc_codec *codec, unsigned int reg);
+unsigned int tabla_read(struct snd_soc_codec *codec,
+				unsigned int reg);
 int tabla_write(struct snd_soc_codec *codec, unsigned int reg,
 		unsigned int value);
 
@@ -247,7 +248,7 @@ static ssize_t speaker_gain_show(struct kobject *kobj,
 {
         return sprintf(buf, "%u %u\n",
 			tabla_read(fauxsound_codec_ptr,
-				TABLA_A_CDC_RX3_VOL_CTL_B2_CTL),
+				TABLA_A_CDC_RX2_VOL_CTL_B2_CTL),
 			tabla_read(fauxsound_codec_ptr,
 				TABLA_A_CDC_RX4_VOL_CTL_B2_CTL));
 
@@ -262,7 +263,7 @@ static ssize_t speaker_gain_store(struct kobject *kobj,
 
 	if (calc_checksum(lval, rval, chksum)) {
 		tabla_write(fauxsound_codec_ptr,
-			TABLA_A_CDC_RX3_VOL_CTL_B2_CTL, lval);
+			TABLA_A_CDC_RX2_VOL_CTL_B2_CTL, lval);
 		tabla_write(fauxsound_codec_ptr,
 			TABLA_A_CDC_RX4_VOL_CTL_B2_CTL, rval);
 	}
