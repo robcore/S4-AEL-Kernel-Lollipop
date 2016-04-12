@@ -2170,11 +2170,8 @@ static int tabla_codec_enable_clock_block(struct snd_soc_codec *codec,
 			tabla_codec_enable_config_mode(codec, 0);
 		}
 	}
-#ifndef CONFIG_MACH_M2
+
 	snd_soc_update_bits(codec, TABLA_A_CLK_BUFF_EN1, 0x01, 0x01);
-#else
-	snd_soc_update_bits(codec, TABLA_A_CLK_BUFF_EN1, 0x05, 0x05);
-#endif
 	snd_soc_update_bits(codec, TABLA_A_CLK_BUFF_EN2, 0x02, 0x00);
 	/* on MCLK */
 	snd_soc_update_bits(codec, TABLA_A_CLK_BUFF_EN2, 0x04, 0x04);
@@ -3651,11 +3648,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"RX1 MIX2", NULL, "ANC1 MUX"},
 	{"RX2 MIX2", NULL, "ANC2 MUX"},
 
-#ifdef CONFIG_MACH_M2
-	{"CP", NULL, "EAR_RX_BIAS"},
-#else
 	{"CP", NULL, "RX_BIAS"},
-#endif
 	{"LINEOUT1 DAC", NULL, "RX_BIAS"},
 	{"LINEOUT2 DAC", NULL, "RX_BIAS"},
 	{"LINEOUT3 DAC", NULL, "RX_BIAS"},
@@ -8314,7 +8307,7 @@ static irqreturn_t tabla_slimbus_irq(int irq, void *data)
 				pr_debug("%s: port %x disconnect value %x\n",
 					__func__, i*8 + j, val);
 				port_id = i*8 + j;
-				for (k = 0; k < ARRAY_SIZE(tabla_dai); k++) {
+				for (k = 0; k < ARRAY_SIZE(tabla_p->dai); k++) {
 					ch_mask_temp = 1 << port_id;
 					if (ch_mask_temp &
 						tabla_p->dai[k].ch_mask) {
@@ -8442,7 +8435,7 @@ static int tabla_handle_pdata(struct tabla_priv *tabla)
 		snd_soc_update_bits(codec, TABLA_A_RX_HPH_OCP_CTL,
 			0xE0, (pdata->ocp.hph_ocp_limit << 5));
 	}
-#ifndef CONFIG_MACH_M2
+
 	for (i = 0; i < ARRAY_SIZE(pdata->regulator); i++) {
 		if (!strncmp(pdata->regulator[i].name, "CDC_VDDA_RX", 11)) {
 			if (pdata->regulator[i].min_uV == 1800000 &&
@@ -8463,7 +8456,6 @@ static int tabla_handle_pdata(struct tabla_priv *tabla)
 			break;
 		}
 	}
-#endif
 done:
 	return rc;
 }
@@ -8671,9 +8663,6 @@ static void tabla_codec_init_reg(struct snd_soc_codec *codec)
 				      tabla_2_higher_codec_reg_init_val[i].mask,
 				      tabla_2_higher_codec_reg_init_val[i].val);
 	}
-#ifdef CONFIG_MACH_M2
-	snd_soc_write(codec, TABLA_A_BIAS_REF_CTL, 0x1E);
-#endif
 }
 
 static void tabla_update_reg_address(struct tabla_priv *priv)

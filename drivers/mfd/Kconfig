@@ -7,7 +7,7 @@ menu "Multifunction device drivers"
 
 config MFD_CORE
 	tristate
-	default y
+	default n
 
 config MFD_88PM860X
 	bool "Support Marvell 88PM8606/88PM8607"
@@ -1066,7 +1066,7 @@ config WCD9310_CODEC
         tristate "WCD9310 Codec"
         select SLIMBUS
         select MFD_CORE
-        default y
+        default n
         help
           Enables the WCD9310 core driver. The core driver provides
           read/write capability to registers which are part of the

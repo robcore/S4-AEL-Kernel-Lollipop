@@ -408,9 +408,6 @@ int snd_ctl_replace(struct snd_card *card, struct snd_kcontrol *kcontrol,
 		goto error;
 	}
 	id = kcontrol->id;
-	if (id.index > UINT_MAX - kcontrol->count)
-		goto error;
-
 	down_write(&card->controls_rwsem);
 	old = snd_ctl_find_id(card, &id);
 	if (!old) {
