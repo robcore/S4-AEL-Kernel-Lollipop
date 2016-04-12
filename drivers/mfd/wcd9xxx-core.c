@@ -108,6 +108,22 @@ int wcd9xxx_reg_read(struct wcd9xxx *wcd9xxx, unsigned short reg)
 }
 EXPORT_SYMBOL_GPL(wcd9xxx_reg_read);
 
+#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
+int wcd9xxx_reg_read_safe(struct wcd9xxx *wcd9xxx, unsigned short reg)
+{
+        u8 val;
+        int ret;
+
+        ret = wcd9xxx_read(wcd9xxx, reg, 1, &val, false);
+
+        if (ret < 0)
+                return ret;
+        else
+                return val;
+}
+EXPORT_SYMBOL_GPL(wcd9xxx_reg_read_safe);
+#endif
+
 static int wcd9xxx_write(struct wcd9xxx *wcd9xxx, unsigned short reg,
 			int bytes, void *src, bool interface_reg)
 {
@@ -761,7 +777,6 @@ struct wcd9xxx_i2c *get_i2c_wcd9xxx_device_info(u16 reg)
 	int value = 0;
 	struct wcd9xxx_i2c *wcd9xxx = NULL;
 	value = ((reg & mask) >> 8) & 0x000f;
-
 	switch (value) {
 	case 0:
 		wcd9xxx = &wcd9xxx_modules[0];
@@ -778,7 +793,6 @@ struct wcd9xxx_i2c *get_i2c_wcd9xxx_device_info(u16 reg)
 	default:
 		break;
 	}
-
 	return wcd9xxx;
 }
 
@@ -904,7 +918,6 @@ static int wcd9xxx_i2c_get_client_index(struct i2c_client *client,
 		*wcd9xx_index = WCD9XXX_I2C_DIGITAL_2;
 	break;
 	default:
-		ret = -EINVAL;
 	break;
 	}
 	return ret;
@@ -913,8 +926,8 @@ static int wcd9xxx_i2c_get_client_index(struct i2c_client *client,
 static int __devinit wcd9xxx_i2c_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct wcd9xxx *wcd9xxx = NULL;
-	struct wcd9xxx_pdata *pdata = NULL;
+	struct wcd9xxx *wcd9xxx;
+	struct wcd9xxx_pdata *pdata;
 	int val = 0;
 	int ret = 0;
 	int i2c_mode = 0;
