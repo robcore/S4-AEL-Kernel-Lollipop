@@ -1,0 +1,39 @@
+From 3edbd8fd8e46490d7fe3d9cb6dc83164eca14681 Mon Sep 17 00:00:00 2001
+From: Stephen Boyd <sboyd@codeaurora.org>
+Date: Wed, 24 Apr 2013 14:19:46 -0700
+Subject: [PATCH] mmc: sdhci-msm: Read version register properly
+
+The version register is only 16 bits wide but we use a readl to
+read it. Normally this wouldn't be a problem, but the register
+offset is 0xfe, something that is not word aligned. This causes
+crashes on THUMB2 kernels. Use readw instead to read the register
+properly and avoid any alignment issues.
+
+Change-Id: I3b8b14ce2f741631ef7554e3763d1d7f145077a8
+Signed-off-by: Stephen Boyd <sboyd@codeaurora.org>
+---
+ drivers/mmc/host/sdhci-msm.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/mmc/host/sdhci-msm.c b/drivers/mmc/host/sdhci-msm.c
+index 49222b9..cb036dd 100644
+--- a/drivers/mmc/host/sdhci-msm.c
++++ b/drivers/mmc/host/sdhci-msm.c
+@@ -2064,7 +2064,7 @@ static int __devinit sdhci_msm_probe(struct platform_device *pdev)
+ 	struct resource *core_memres = NULL;
+ 	int ret = 0, dead = 0;
+ 	u32 vdd_max_current;
+-	u32 host_version;
++	u16 host_version;
+ 
+ 	pr_debug("%s: Enter %s\n", dev_name(&pdev->dev), __func__);
+ 	msm_host = devm_kzalloc(&pdev->dev, sizeof(struct sdhci_msm_host),
+@@ -2192,7 +2192,7 @@ static int __devinit sdhci_msm_probe(struct platform_device *pdev)
+ 	host->quirks2 |= SDHCI_QUIRK2_BROKEN_PRESET_VALUE;
+ 	host->quirks2 |= SDHCI_QUIRK2_USE_RESERVED_MAX_TIMEOUT;
+ 
+-	host_version = readl_relaxed((host->ioaddr + SDHCI_HOST_VERSION));
++	host_version = readw_relaxed((host->ioaddr + SDHCI_HOST_VERSION));
+ 	dev_dbg(&pdev->dev, "Host Version: 0x%x Vendor Version 0x%x\n",
+ 		host_version, ((host_version & SDHCI_VENDOR_VER_MASK) >>
+ 		  SDHCI_VENDOR_VER_SHIFT));
