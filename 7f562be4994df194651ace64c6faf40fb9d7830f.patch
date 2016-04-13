@@ -1,0 +1,28 @@
+From 7f562be4994df194651ace64c6faf40fb9d7830f Mon Sep 17 00:00:00 2001
+From: nadlabak <pavel@doshaska.net>
+Date: Mon, 29 Dec 2014 19:56:20 +0100
+Subject: [PATCH] ASoC: msm: Fix qcom aac enc - allow alloc of less buffers
+
+Commit "SoC: msm: Add Buffer overflow check" strictly enforces
+buffer count to 8, otherwise allocation will fail, which breaks
+qcom hw aac encoder. To fix it, allow the buffer count to be 8
+or less.
+
+Change-Id: Ia554bde6058abd7ff5447fd69b517217eb83d59c
+---
+ sound/soc/msm/qdsp6/q6asm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sound/soc/msm/qdsp6/q6asm.c b/sound/soc/msm/qdsp6/q6asm.c
+index 8b1a2c4..d059df2 100644
+--- a/sound/soc/msm/qdsp6/q6asm.c
++++ b/sound/soc/msm/qdsp6/q6asm.c
+@@ -509,7 +509,7 @@ int q6asm_audio_client_buf_alloc(unsigned int dir,
+ 			return 0;
+ 		}
+ 
+-		if (bufcnt != FRAME_NUM)
++		if (bufcnt > FRAME_NUM)
+ 			goto fail;
+ 		mutex_lock(&ac->cmd_lock);
+ 		buf = kzalloc(((sizeof(struct audio_buffer))*bufcnt),
