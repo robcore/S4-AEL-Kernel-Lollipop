@@ -51,9 +51,7 @@ ip:
 		struct ipv6hdr _iph;
 ipv6:
 		iph = skb_header_pointer(skb, nhoff, sizeof(_iph), &_iph);
-
-		/* CVE-2013-4348 issue : make sure iph->ihl is not zero ... */
-		if (!iph || iph->ihl < 5)
+		if (!iph)
 			return false;
 
 		ip_proto = iph->nexthdr;
