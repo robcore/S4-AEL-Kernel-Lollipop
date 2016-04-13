@@ -1687,9 +1687,9 @@ static int sitar_codec_enable_lineout(struct snd_soc_dapm_widget *w,
 		snd_soc_update_bits(codec, lineout_gain_reg, 0x10, 0x10);
 		break;
 	case SND_SOC_DAPM_POST_PMU:
-		pr_debug("%s: sleeping 16 ms after %s PA turn on\n",
+		pr_debug("%s: sleeping 32 ms after %s PA turn on\n",
 				__func__, w->name);
-		usleep_range(16000, 16000);
+		usleep_range(32000, 32000);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		if (sitar_is_hph_pa_on(codec))
@@ -1767,7 +1767,7 @@ static int sitar_codec_enable_anc(struct snd_soc_dapm_widget *w,
 	const char *filename;
 	const struct firmware *fw;
 	int i;
-	int ret = 0;
+	int ret;
 	int num_anc_slots;
 	struct anc_header *anc_head;
 	struct sitar_priv *sitar = snd_soc_codec_get_drvdata(codec);
@@ -2537,9 +2537,9 @@ static int sitar_hph_pa_event(struct snd_soc_dapm_widget *w,
 			SITAR_ACQUIRE_LOCK(sitar->codec_resource_lock);
 			sitar_codec_switch_micbias(codec, 0);
 			SITAR_RELEASE_LOCK(sitar->codec_resource_lock);
-			pr_debug("%s: sleep 10 ms after %s PA disable.\n",
+			pr_debug("%s: sleep 30 ms after %s PA disable.\n",
 					__func__, w->name);
-			usleep_range(10000, 10000);
+			usleep_range(30000, 30000);
 			hphlr_count = 0;
 		}
 

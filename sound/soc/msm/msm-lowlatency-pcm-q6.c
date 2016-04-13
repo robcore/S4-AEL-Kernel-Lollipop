@@ -44,12 +44,12 @@ struct snd_msm_volume {
 	unsigned volume;
 };
 
-#define PLAYBACK_NUM_PERIODS		8
+#define PLAYBACK_NUM_PERIODS		2
 #define PLAYBACK_MAX_PERIOD_SIZE	4096
-#define PLAYBACK_MIN_PERIOD_SIZE	1024
-#define CAPTURE_NUM_PERIODS		4
-#define CAPTURE_MIN_PERIOD_SIZE		512
-#define CAPTURE_MAX_PERIOD_SIZE		4096
+#define PLAYBACK_MIN_PERIOD_SIZE	512
+#define CAPTURE_NUM_PERIODS		2
+#define CAPTURE_MIN_PERIOD_SIZE		128
+#define CAPTURE_MAX_PERIOD_SIZE		1024
 
 static struct snd_pcm_hardware msm_pcm_hardware_capture = {
 	.info =                 (SNDRV_PCM_INFO_MMAP |
