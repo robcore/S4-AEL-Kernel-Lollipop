@@ -385,8 +385,6 @@ EXPORT_SYMBOL_GPL(device_set_wakeup_enable);
  */
 static void wakeup_source_activate(struct wakeup_source *ws)
 {
-	freeze_wake();
-
 	ws->active = true;
 	ws->active_count++;
 	ws->last_time = ktime_get();
