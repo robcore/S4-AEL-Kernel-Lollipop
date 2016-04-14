@@ -1,0 +1,23 @@
+From 602e83e310e814de6bb3ae7f373d8f7b1d2c0ead Mon Sep 17 00:00:00 2001
+From: Alucard24 <dmbaoh2@gmail.com>
+Date: Sun, 13 Apr 2014 02:55:57 +0200
+Subject: [PATCH] workqueue: small correction
+
+---
+ kernel/workqueue.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+index 34194ba..f3d1341 100644
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -876,7 +876,8 @@ static struct worker *find_worker_executing_work(struct global_cwq *gcwq,
+ 	struct hlist_node *tmp;
+ 
+ 	hash_for_each_possible(gcwq->busy_hash, worker, tmp, hentry, (unsigned long)work)
+-		if (worker->current_work == work)
++		if (worker->current_work == work &&
++		    worker->current_func == work->func)
+ 			return worker;
+ 
+ 	return NULL;
