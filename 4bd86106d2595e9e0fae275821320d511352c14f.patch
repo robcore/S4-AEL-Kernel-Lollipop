@@ -1,0 +1,37 @@
+From 4bd86106d2595e9e0fae275821320d511352c14f Mon Sep 17 00:00:00 2001
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Date: Thu, 18 Oct 2012 16:31:37 -0700
+Subject: [PATCH] workqueue: cancel_delayed_work() should return %false if work
+ item is idle
+
+57b30ae77b ("workqueue: reimplement cancel_delayed_work() using
+try_to_grab_pending()") made cancel_delayed_work() always return %true
+unless someone else is also trying to cancel the work item, which is
+broken - if the target work item is idle, the return value should be
+%false.
+
+try_to_grab_pending() indicates that the target work item was idle by
+zero return value.  Use it for return.  Note that this brings
+cancel_delayed_work() in line with __cancel_work_timer() in return
+value handling.
+
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Signed-off-by: Tejun Heo <tj@kernel.org>
+LKML-Reference: <444a6439-b1a4-4740-9e7e-bc37267cfe73@default>
+---
+ kernel/workqueue.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+index b08ff03..238e561 100644
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -2985,7 +2985,7 @@ bool cancel_delayed_work(struct delayed_work *dwork)
+ 
+ 	set_work_cpu_and_clear_pending(&dwork->work, work_cpu(&dwork->work));
+ 	local_irq_restore(flags);
+-	return true;
++	return ret;
+ }
+ EXPORT_SYMBOL(cancel_delayed_work);
+ 
