@@ -256,7 +256,7 @@ struct workqueue_struct *system_nrt_wq __read_mostly;
 struct workqueue_struct *system_unbound_wq __read_mostly;
 struct workqueue_struct *system_freezable_wq __read_mostly;
 struct workqueue_struct *system_nrt_freezable_wq __read_mostly;
-EXPORT_SYMBOL(system_wq);
+EXPORT_SYMBOL_GPL(system_wq);
 EXPORT_SYMBOL_GPL(system_highpri_wq);
 EXPORT_SYMBOL_GPL(system_long_wq);
 EXPORT_SYMBOL_GPL(system_nrt_wq);
@@ -1119,7 +1119,7 @@ queue_work_on(int cpu, struct workqueue_struct *wq, struct work_struct *work)
 	}
 	return ret;
 }
-EXPORT_SYMBOL(queue_work_on);
+EXPORT_SYMBOL_GPL(queue_work_on);
 
 static void delayed_work_timer_fn(unsigned long __data)
 {
@@ -1201,7 +1201,7 @@ int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 	}
 	return ret;
 }
-EXPORT_SYMBOL(queue_delayed_work_on);
+EXPORT_SYMBOL_GPL(queue_delayed_work_on);
 
 /**
  * worker_enter_idle - enter idle state
