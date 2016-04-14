@@ -67,18 +67,9 @@ enum {
 	WORK_STRUCT_FLAG_BITS	= WORK_STRUCT_COLOR_SHIFT +
 				  WORK_STRUCT_COLOR_BITS,
 
-	/* data contains off-queue information when !WORK_STRUCT_CWQ */
-	WORK_OFFQ_FLAG_BASE	= WORK_STRUCT_FLAG_BITS,
-
-	WORK_OFFQ_CANCELING	= (1 << WORK_OFFQ_FLAG_BASE),
-
-	WORK_OFFQ_FLAG_BITS	= 1,
-	WORK_OFFQ_CPU_SHIFT	= WORK_OFFQ_FLAG_BASE + WORK_OFFQ_FLAG_BITS,
-
-	/* convenience constants */
 	WORK_STRUCT_FLAG_MASK	= (1UL << WORK_STRUCT_FLAG_BITS) - 1,
 	WORK_STRUCT_WQ_DATA_MASK = ~WORK_STRUCT_FLAG_MASK,
-	WORK_STRUCT_NO_CPU	= (unsigned long)WORK_CPU_NONE << WORK_OFFQ_CPU_SHIFT,
+	WORK_STRUCT_NO_CPU	= WORK_CPU_NONE << WORK_STRUCT_FLAG_BITS,
 
 	/* bit mask for work_busy() return values */
 	WORK_BUSY_PENDING	= 1 << 0,
@@ -374,28 +365,23 @@ __alloc_workqueue_key(const char *fmt, unsigned int flags, int max_active,
 
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
-extern bool queue_work_on(int cpu, struct workqueue_struct *wq,
+extern int queue_work(struct workqueue_struct *wq, struct work_struct *work);
+extern int queue_work_on(int cpu, struct workqueue_struct *wq,
 			struct work_struct *work);
-extern bool queue_work(struct workqueue_struct *wq, struct work_struct *work);
-extern bool queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
+extern int queue_delayed_work(struct workqueue_struct *wq,
 			struct delayed_work *work, unsigned long delay);
-extern bool queue_delayed_work(struct workqueue_struct *wq,
+extern int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 			struct delayed_work *work, unsigned long delay);
-extern bool mod_delayed_work_on(int cpu, struct workqueue_struct *wq,
-			struct delayed_work *dwork, unsigned long delay);
-extern bool mod_delayed_work(struct workqueue_struct *wq,
-			struct delayed_work *dwork, unsigned long delay);
 
 extern void flush_workqueue(struct workqueue_struct *wq);
 extern void drain_workqueue(struct workqueue_struct *wq);
 extern void flush_scheduled_work(void);
 
-extern bool schedule_work_on(int cpu, struct work_struct *work);
-extern bool schedule_work(struct work_struct *work);
-extern bool schedule_delayed_work_on(int cpu, struct delayed_work *work,
-				     unsigned long delay);
-extern bool schedule_delayed_work(struct delayed_work *work,
-				  unsigned long delay);
+extern int schedule_work(struct work_struct *work);
+extern int schedule_work_on(int cpu, struct work_struct *work);
+extern int schedule_delayed_work(struct delayed_work *work, unsigned long delay);
+extern int schedule_delayed_work_on(int cpu, struct delayed_work *work,
+					unsigned long delay);
 extern int schedule_on_each_cpu(work_func_t func);
 extern int keventd_up(void);
 
