@@ -13,7 +13,6 @@ struct epm_chan_request {
 	int32_t physical;
 };
 
-#ifdef __KERNEL__
 struct epm_psoc_init_resp {
 	uint8_t	cmd;
 	uint8_t	version;
@@ -97,7 +96,7 @@ struct epm_chan_properties {
 	uint32_t gain;
 };
 
-
+#ifdef __KERNEL__
 struct epm_adc_platform_data {
 	struct epm_chan_properties *channel;
 	uint32_t num_channels;

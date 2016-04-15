@@ -1331,7 +1331,7 @@ static void calculate_cc_uah(struct pm8921_bms_chip *chip, int cc, int *val)
 
 int pm8921_bms_cc_uah(int *cc_uah)
 {
-	int cc=0;
+	int cc;
 
 	*cc_uah = 0;
 
