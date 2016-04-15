@@ -1,0 +1,101 @@
+From 51a3dbf72a03176dddfce53261fe4a64f6643af9 Mon Sep 17 00:00:00 2001
+From: Simmi Pateriya <simmip@codeaurora.org>
+Date: Wed, 16 Jan 2013 00:17:02 +0530
+Subject: [PATCH] ASoC: msm8960: Change boot sequence of msm-pcm-hostless
+ platform driver.
+
+The driver sound/soc/msm/msm-pcm-hostless.c is registered very late
+in the sequence and hence the SOC framework keeps polling repeatedly
+for it adding to latencies.
+
+CRs-fixed: 428455
+Change-Id: I973cc77e5f41a1ce32c2c74a1055efaadbae6dab
+Signed-off-by: Simmi Pateriya <simmip@codeaurora.org>
+---
+ sound/soc/msm/Makefile      | 5 +++--
+ sound/soc/msm/apq8064-i2s.c | 2 +-
+ sound/soc/msm/apq8064.c     | 3 ++-
+ sound/soc/msm/msm8960.c     | 2 +-
+ 4 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/sound/soc/msm/Makefile b/sound/soc/msm/Makefile
+index 40f5d84..b126584 100644
+--- a/sound/soc/msm/Makefile
++++ b/sound/soc/msm/Makefile
+@@ -62,12 +62,13 @@ obj-$(CONFIG_SND_SOC_VOICE) += msm-pcm-voice.o msm-pcm-voip.o
+ snd-soc-qdsp6-objs += msm-pcm-lpa.o msm-pcm-afe.o
+ obj-$(CONFIG_SND_SOC_QDSP6) += snd-soc-qdsp6.o
+ 
++snd-soc-hostless-pcm-objs := msm-pcm-hostless.o
++obj-$(CONFIG_SND_SOC_MSM_HOSTLESS_PCM) += snd-soc-hostless-pcm.o
++
+ snd-soc-msm8960-objs := msm8960.o apq8064.o msm8930.o mpq8064.o apq8064-i2s.o
+ obj-$(CONFIG_SND_SOC_MSM8960) += snd-soc-msm8960.o
+ 
+ # Generic MSM drivers
+-snd-soc-hostless-pcm-objs := msm-pcm-hostless.o
+-obj-$(CONFIG_SND_SOC_MSM_HOSTLESS_PCM) += snd-soc-hostless-pcm.o
+ 
+ snd-soc-msm8660-apq-objs := msm8660-apq-wm8903.o
+ obj-$(CONFIG_SND_SOC_MSM8660_APQ) += snd-soc-msm8660-apq.o
+diff --git a/sound/soc/msm/apq8064-i2s.c b/sound/soc/msm/apq8064-i2s.c
+index c6c832a..b8fd135 100644
+--- a/sound/soc/msm/apq8064-i2s.c
++++ b/sound/soc/msm/apq8064-i2s.c
+@@ -2748,6 +2748,7 @@ static int __init msm_audio_init(void)
+ 		pr_info("%s: Not APQ8064 in I2S mode\n", __func__);
+ 		return -ENODEV;
+ 	}
++	mutex_init(&cdc_mclk_mutex);
+ 	pr_debug("%s: APQ8064 is in I2S mode\n", __func__);
+ 	mbhc_cfg.calibration = def_tabla_mbhc_cal();
+ 	if (!mbhc_cfg.calibration) {
+@@ -2792,7 +2793,6 @@ static int __init msm_audio_init(void)
+ 		return ret;
+ 	}
+ 
+-	mutex_init(&cdc_mclk_mutex);
+ 	atomic_set(&mi2s_rsc_ref, 0);
+ 	atomic_set(&auxpcm_rsc_ref, 0);
+ 	return ret;
+diff --git a/sound/soc/msm/apq8064.c b/sound/soc/msm/apq8064.c
+index 1995105..d56ce86 100644
+--- a/sound/soc/msm/apq8064.c
++++ b/sound/soc/msm/apq8064.c
+@@ -2192,6 +2192,8 @@ static int __init msm_audio_init(void)
+ 	if (socinfo_get_pmic_model() == PMIC_MODEL_PM8917)
+ 		bottom_spk_pamp_gpio = PM8921_GPIO_PM_TO_SYS(16);
+ 
++	mutex_init(&cdc_mclk_mutex);
++
+ 	mbhc_cfg.calibration = def_tabla_mbhc_cal();
+ 	if (!mbhc_cfg.calibration) {
+ 		pr_err("Calibration data allocation failed\n");
+@@ -2213,7 +2215,6 @@ static int __init msm_audio_init(void)
+ 		return ret;
+ 	}
+ 
+-	mutex_init(&cdc_mclk_mutex);
+ 	atomic_set(&auxpcm_rsc_ref, 0);
+ 
+ 	return ret;
+diff --git a/sound/soc/msm/msm8960.c b/sound/soc/msm/msm8960.c
+index 0f8112e..95596db 100644
+--- a/sound/soc/msm/msm8960.c
++++ b/sound/soc/msm/msm8960.c
+@@ -1772,6 +1772,7 @@ static int __init msm8960_audio_init(void)
+ 		return -ENODEV ;
+ 	}
+ 
++	mutex_init(&cdc_mclk_mutex);
+ 	mbhc_cfg.calibration = def_tabla_mbhc_cal();
+ 	if (!mbhc_cfg.calibration) {
+ 		pr_err("Calibration data allocation failed\n");
+@@ -1831,7 +1832,6 @@ static int __init msm8960_audio_init(void)
+ 								__func__);
+ 	}
+ 
+-	mutex_init(&cdc_mclk_mutex);
+ 	atomic_set(&auxpcm_rsc_ref, 0);
+ 	return ret;
+ 

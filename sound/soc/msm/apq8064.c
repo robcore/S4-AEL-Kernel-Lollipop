@@ -430,11 +430,12 @@ static int msm_mainmic_bias_event(struct snd_soc_dapm_widget *w,
 		__func__, (event), SND_SOC_DAPM_EVENT_ON(event));
 #if defined(CONFIG_MACH_JF_DCM)
 	ice_gpiox_set(FPGA_GPIO_MICBIAS_EN, SND_SOC_DAPM_EVENT_ON(event));
-#endif
-#if !defined(CONFIG_MACH_MELIUS)
+#else
+#if (!defined(CONFIG_MACH_MELIUS) && !defined(CONFIG_MACH_M2_ATT))
 	gpio_set_value_cansleep(
 	PM8921_GPIO_PM_TO_SYS(PMIC_MAIN_MICBIAS_EN),
 	SND_SOC_DAPM_EVENT_ON(event));
+#endif
 #endif
         if(main_mic_delay) {
 			if(main_mic_delay != 100)
@@ -2372,8 +2373,6 @@ static int __init msm_audio_init(void)
 	if (socinfo_get_pmic_model() == PMIC_MODEL_PM8917)
 		bottom_spk_pamp_gpio = PM8921_GPIO_PM_TO_SYS(16);
 
-	mutex_init(&cdc_mclk_mutex);
-
 	mbhc_cfg.calibration = def_tabla_mbhc_cal();
 	if (!mbhc_cfg.calibration) {
 		pr_err("Calibration data allocation failed\n");
@@ -2395,6 +2394,7 @@ static int __init msm_audio_init(void)
 		return ret;
 	}
 
+	mutex_init(&cdc_mclk_mutex);
 	atomic_set(&auxpcm_rsc_ref, 0);
 	return ret;
 
