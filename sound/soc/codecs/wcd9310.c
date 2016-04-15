@@ -854,9 +854,6 @@ static int tabla_config_gain_compander(
 	int value = 0;
 	int mask = 1 << 4;
 	struct comp_dgtl_gain_offset gain_offset = {0, 0};
-	if (compander >= COMPANDER_MAX) {
-		pr_err("%s: Error, invalid compander channel\n", __func__);
-		return -EINVAL;
 	}
 
 	if ((enable == 0) || SND_SOC_DAPM_EVENT_OFF(event))
@@ -6150,7 +6147,7 @@ static int tabla_codec_enable_hs_detect(struct snd_soc_codec *codec,
 					    0x10, 0x10);
 		}
 
-		/* setup for insetion detection */
+		/* setup for insertion detection */
 		snd_soc_update_bits(codec, TABLA_A_CDC_MBHC_INT_CTL, 0x2, 0);
 	} else {
 		pr_debug("setup for removal detection\n");

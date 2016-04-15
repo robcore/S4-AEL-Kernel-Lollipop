@@ -1,0 +1,8 @@
+include/linux/mfd/wcd9xxx/wcd9310_registers.h
+sound/soc/codecs/wcd9310.c
+sound/soc/codecs/wcd9310-tables.c
+sound/soc/codecs/sound_control_3_gpl.c
+include/linux/mfd/wcd9xxx/wcd9310_registers.h
+sound/soc/codecs/wcd9310.c
+sound/soc/codecs/wcd9310-tables.c
+sound/soc/codecs/sound_control_3_gpl.c

@@ -1,0 +1,24 @@
+From 326eafe3716a2a3d82a70d449248b2d692415770 Mon Sep 17 00:00:00 2001
+From: shminer <332574643@qq.com>
+Date: Tue, 25 Mar 2014 18:26:28 +0800
+Subject: [PATCH] block: do not notify urgent request, when flush with data in
+ flight
+
+---
+ block/blk-core.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/block/blk-core.c b/block/blk-core.c
+index 6c8c1b6..a98da35 100644
+--- a/block/blk-core.c
++++ b/block/blk-core.c
+@@ -311,7 +311,8 @@ void __blk_run_queue(struct request_queue *q)
+ 	if (!q->notified_urgent &&
+ 		q->elevator->ops->elevator_is_urgent_fn &&
+ 		q->urgent_request_fn &&
+-		q->elevator->ops->elevator_is_urgent_fn(q)) {
++		q->elevator->ops->elevator_is_urgent_fn(q) &&
++		list_empty(&q->flush_data_in_flight)) {
+ 		q->notified_urgent = true;
+ 		q->urgent_request_fn(q);
+ 	} else
