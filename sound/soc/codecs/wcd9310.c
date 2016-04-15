@@ -2170,8 +2170,11 @@ static int tabla_codec_enable_clock_block(struct snd_soc_codec *codec,
 			tabla_codec_enable_config_mode(codec, 0);
 		}
 	}
-
+#ifndef CONFIG_MACH_M2
 	snd_soc_update_bits(codec, TABLA_A_CLK_BUFF_EN1, 0x01, 0x01);
+#else
+	snd_soc_update_bits(codec, TABLA_A_CLK_BUFF_EN1, 0x05, 0x05);
+#endif
 	snd_soc_update_bits(codec, TABLA_A_CLK_BUFF_EN2, 0x02, 0x00);
 	/* on MCLK */
 	snd_soc_update_bits(codec, TABLA_A_CLK_BUFF_EN2, 0x04, 0x04);
@@ -3648,7 +3651,11 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"RX1 MIX2", NULL, "ANC1 MUX"},
 	{"RX2 MIX2", NULL, "ANC2 MUX"},
 
+#ifdef CONFIG_MACH_M2
+	{"CP", NULL, "EAR_RX_BIAS"},
+#else
 	{"CP", NULL, "RX_BIAS"},
+#endif
 	{"LINEOUT1 DAC", NULL, "RX_BIAS"},
 	{"LINEOUT2 DAC", NULL, "RX_BIAS"},
 	{"LINEOUT3 DAC", NULL, "RX_BIAS"},
@@ -3891,14 +3898,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"ADC5", NULL, "AMIC5"},
 	{"ADC6", NULL, "AMIC6"},
 
-	/* AMIC - LDOH Connetcions */
-	{"AMIC1", NULL, "LDO_H"},
-	{"AMIC2", NULL, "LDO_H"},
-	{"AMIC3", NULL, "LDO_H"},
-	{"AMIC4", NULL, "LDO_H"},
-	{"AMIC5", NULL, "LDO_H"},
-	{"AMIC6", NULL, "LDO_H"},
-
 	/* AUX PGA Connections */
 	{"HPHL_PA_MIXER", "AUX_PGA_L Switch", "AUX_PGA_Left"},
 	{"HPHL_PA_MIXER", "AUX_PGA_R Switch", "AUX_PGA_Right"},
@@ -4027,7 +4026,6 @@ static int tabla_readable(struct snd_soc_codec *ssc, unsigned int reg)
 
 	return tabla_reg_readable[reg];
 }
-
 static bool tabla_is_digital_gain_register(unsigned int reg)
 {
 	bool rtn = false;
@@ -4094,6 +4092,7 @@ static int tabla_volatile(struct snd_soc_codec *ssc, unsigned int reg)
 
 	return 0;
 }
+
 #define TABLA_FORMATS (SNDRV_PCM_FMTBIT_S16_LE)
 
 #ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
@@ -5216,6 +5215,10 @@ static int tabla_codec_enable_slimrx(struct snd_soc_dapm_widget *w,
 				break;
 			}
 		}
+		if (j == ARRAY_SIZE(tabla_dai)) {
+			pr_err("%s: PMU: Invalid tabla_dai index\n", __func__);
+			return ret;
+		}
 		if (tabla_p->dai[j].ch_act == tabla_p->dai[j].ch_tot) {
 			ret = tabla_codec_enable_chmask(tabla_p,
 							SND_SOC_DAPM_POST_PMU,
@@ -5241,6 +5244,10 @@ static int tabla_codec_enable_slimrx(struct snd_soc_dapm_widget *w,
 					--tabla_p->dai[j].ch_act;
 				break;
 			}
+		}
+		if (j == ARRAY_SIZE(tabla_dai)) {
+			pr_err("%s: PMD: Invalid tabla_dai index\n", __func__);
+			return ret;
 		}
 		if (!tabla_p->dai[j].ch_act) {
 #ifdef CONFIG_SND_SOC_ES325
@@ -5318,6 +5325,10 @@ static int tabla_codec_enable_slimtx(struct snd_soc_dapm_widget *w,
 				break;
 			}
 		}
+		if (j == ARRAY_SIZE(tabla_dai)) {
+			pr_err("%s: PMU: Invalid tabla_dai index\n", __func__);
+			return ret;
+		}
 		if (tabla_p->dai[j].ch_act == tabla_p->dai[j].ch_tot) {
 			ret = tabla_codec_enable_chmask(tabla_p,
 							SND_SOC_DAPM_POST_PMU,
@@ -5342,6 +5353,10 @@ static int tabla_codec_enable_slimtx(struct snd_soc_dapm_widget *w,
 				--tabla_p->dai[j].ch_act;
 				break;
 			}
+		}
+		if (j == ARRAY_SIZE(tabla_dai)) {
+			pr_err("%s: PMD: Invalid tabla_dai index\n", __func__);
+			return ret;
 		}
 		if (!tabla_p->dai[j].ch_act) {
 #ifdef CONFIG_SND_SOC_ES325
@@ -8435,7 +8450,7 @@ static int tabla_handle_pdata(struct tabla_priv *tabla)
 		snd_soc_update_bits(codec, TABLA_A_RX_HPH_OCP_CTL,
 			0xE0, (pdata->ocp.hph_ocp_limit << 5));
 	}
-
+#ifndef CONFIG_MACH_M2
 	for (i = 0; i < ARRAY_SIZE(pdata->regulator); i++) {
 		if (!strncmp(pdata->regulator[i].name, "CDC_VDDA_RX", 11)) {
 			if (pdata->regulator[i].min_uV == 1800000 &&
@@ -8456,6 +8471,7 @@ static int tabla_handle_pdata(struct tabla_priv *tabla)
 			break;
 		}
 	}
+#endif
 done:
 	return rc;
 }
@@ -8663,6 +8679,9 @@ static void tabla_codec_init_reg(struct snd_soc_codec *codec)
 				      tabla_2_higher_codec_reg_init_val[i].mask,
 				      tabla_2_higher_codec_reg_init_val[i].val);
 	}
+#ifdef CONFIG_MACH_M2
+	snd_soc_write(codec, TABLA_A_BIAS_REF_CTL, 0x1E);
+#endif
 }
 
 static void tabla_update_reg_address(struct tabla_priv *priv)
@@ -8935,6 +8954,7 @@ static int tabla_codec_probe(struct snd_soc_codec *codec)
 	else
 		wcd9xxx_hw_revision = 2;
 #endif
+
 	tabla = kzalloc(sizeof(struct tabla_priv), GFP_KERNEL);
 
 	if (!tabla) {

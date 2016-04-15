@@ -143,9 +143,6 @@ choice
 
 	config DEFAULT_BFQ
 		bool "BFQ" if IOSCHED_BFQ=y
-
-	config DEFAULT_BFQ
-		bool "BFQ" if IOSCHED_BFQ=y
 		help
 		  Selects BFQ as the default I/O scheduler which will be
 		  used by default for all block devices.

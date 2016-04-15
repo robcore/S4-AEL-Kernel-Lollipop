@@ -73,7 +73,7 @@ static atomic_t msm_rtb_idx;
 
 struct msm_rtb_state msm_rtb = {
 	.filter = 0,
-	.enabled = 0,
+	.enabled = 1,
 };
 
 module_param_named(filter, msm_rtb.filter, uint, 0644);
