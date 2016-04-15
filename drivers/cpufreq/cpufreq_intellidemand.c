@@ -186,7 +186,7 @@ static struct dbs_tuners {
 	.sync_freq = DBS_SYNC_FREQ,
 	.optimal_freq = DBS_OPTIMAL_FREQ,
 	.freq_boost_time = DEFAULT_FREQ_BOOST_TIME,
-	.two_phase_freq = 1728000,
+	.two_phase_freq = 1782000,
 };
 
 static inline cputime64_t get_cpu_iowait_time(unsigned int cpu, cputime64_t *wall)
