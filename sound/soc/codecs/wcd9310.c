@@ -854,6 +854,9 @@ static int tabla_config_gain_compander(
 	int value = 0;
 	int mask = 1 << 4;
 	struct comp_dgtl_gain_offset gain_offset = {0, 0};
+	if (compander >= COMPANDER_MAX) {
+		pr_err("%s: Error, invalid compander channel\n", __func__);
+		return -EINVAL;
 	}
 
 	if ((enable == 0) || SND_SOC_DAPM_EVENT_OFF(event))
@@ -4101,34 +4104,6 @@ extern void snd_hax_cache_write(unsigned int, unsigned int);
 #ifndef CONFIG_SOUND_CONTROL_HAX_3_GPL
 static
 #endif
-unsigned int tabla_read(struct snd_soc_codec *codec,
-				unsigned int reg)
-{
-	unsigned int val;
-	int ret;
-
-	BUG_ON(reg > TABLA_MAX_REGISTER);
-
-	if (!tabla_volatile(codec, reg) && tabla_readable(codec, reg) &&
-		reg < codec->driver->reg_cache_size) {
-		ret = snd_soc_cache_read(codec, reg, &val);
-		if (ret >= 0) {
-			return val;
-		} else
-			dev_err(codec->dev, "Cache read from %x failed: %d\n",
-				reg, ret);
-	}
-
-	val = wcd9xxx_reg_read(codec->control_data, reg);
-	return val;
-}
-#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
-EXPORT_SYMBOL(tabla_read);
-#endif
-
-#ifndef CONFIG_SOUND_CONTROL_HAX_3_GPL
-static
-#endif
 int tabla_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int value)
 {
@@ -4161,6 +4136,34 @@ int tabla_write(struct snd_soc_codec *codec, unsigned int reg,
 }
 #ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
 EXPORT_SYMBOL(tabla_write);
+#endif
+
+#ifndef CONFIG_SOUND_CONTROL_HAX_3_GPL
+static
+#endif
+unsigned int tabla_read(struct snd_soc_codec *codec,
+				unsigned int reg)
+{
+	unsigned int val;
+	int ret;
+
+	BUG_ON(reg > TABLA_MAX_REGISTER);
+
+	if (!tabla_volatile(codec, reg) && tabla_readable(codec, reg) &&
+		reg < codec->driver->reg_cache_size) {
+		ret = snd_soc_cache_read(codec, reg, &val);
+		if (ret >= 0) {
+			return val;
+		} else
+			dev_err(codec->dev, "Cache read from %x failed: %d\n",
+				reg, ret);
+	}
+
+	val = wcd9xxx_reg_read(codec->control_data, reg);
+	return val;
+}
+#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
+EXPORT_SYMBOL(tabla_read);
 #endif
 
 static s16 tabla_get_current_v_ins(struct tabla_priv *tabla, bool hu)
@@ -4431,6 +4434,10 @@ static int tabla_set_channel_map(struct snd_soc_dai *dai,
 			tabla->dai[dai->id - 1].ch_act = 0;
 			tabla->dai[dai->id - 1].ch_tot = rx_num;
 		}
+		printk("=[WCD]=%s: APQ->", __func__);
+		for(i = 0; i < rx_num ; i++)
+			printk("[%d]",tabla->dai[dai->id - 1].ch_num[i]);
+		printk(" WCD channel mapping\n");
 	} else if (dai->id == AIF1_CAP || dai->id == AIF2_CAP ||
 		   dai->id == AIF3_CAP) {
 		tabla->dai[dai->id - 1].ch_tot = tx_num;
@@ -6447,7 +6454,7 @@ void tabla_mbhc_cal(struct snd_soc_codec *codec)
 	tabla_turn_onoff_rel_detection(codec, true);
 }
 
-void *tabla_mbhc_cal_btn_det_mp(const struct tabla_mbhc_btn_detect_cfg* btn_det,
+void *tabla_mbhc_cal_btn_det_mp(struct tabla_mbhc_btn_detect_cfg* btn_det,
 				const enum tabla_mbhc_btn_det_mem mem)
 {
 	void *ret = &btn_det->_v_btn_low;
@@ -6750,7 +6757,7 @@ static irqreturn_t tabla_dce_handler(int irq, void *data)
 	u16 *btn_high;
 	int btn = -1, meas = 0;
 	struct tabla_priv *priv = data;
-	const struct tabla_mbhc_btn_detect_cfg *d =
+	struct tabla_mbhc_btn_detect_cfg *d =
 	    TABLA_MBHC_CAL_BTN_DET_PTR(priv->mbhc_cfg.calibration);
 	short btnmeas[d->n_btn_meas + 1];
 	struct snd_soc_codec *codec = priv->codec;
@@ -8319,7 +8326,7 @@ static irqreturn_t tabla_slimbus_irq(int irq, void *data)
 				pr_debug("%s: port %x disconnect value %x\n",
 					__func__, i*8 + j, val);
 				port_id = i*8 + j;
-				for (k = 0; k < ARRAY_SIZE(tabla_p->dai); k++) {
+				for (k = 0; k < ARRAY_SIZE(tabla_dai); k++) {
 					ch_mask_temp = 1 << port_id;
 					if (ch_mask_temp &
 						tabla_p->dai[k].ch_mask) {
@@ -8953,7 +8960,6 @@ static int tabla_codec_probe(struct snd_soc_codec *codec)
 #endif
 
 	tabla = kzalloc(sizeof(struct tabla_priv), GFP_KERNEL);
-
 	if (!tabla) {
 		dev_err(codec->dev, "Failed to allocate private data\n");
 		return -ENOMEM;

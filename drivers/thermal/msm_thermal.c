@@ -27,7 +27,7 @@
 #include <linux/msm_thermal.h>
 #include <mach/cpufreq.h>
 
-#define DEFAULT_POLLING_MS	500
+#define DEFAULT_POLLING_MS	250
 /* last 3 minutes based on 250ms polling cycle */
 #define MAX_HISTORY_SZ		((3*60*1000) / DEFAULT_POLLING_MS)
 
@@ -225,7 +225,7 @@ static void __ref do_freq_control(long temp)
 	if (max_freq == limited_max_freq_thermal)
 		return;
 
-	
+
 	for_each_possible_cpu(cpu) {
 		if (!(msm_thermal_info.freq_control_mask & BIT(cpu)))
 			continue;
@@ -311,7 +311,7 @@ static void __ref disable_msm_thermal(void)
 {
 	int cpu = 0;
 
-	
+
 	flush_workqueue(intellithermal_wq);
 
 	for_each_possible_cpu(cpu) {

@@ -292,6 +292,11 @@ static inline int wcd9xxx_request_irq(struct wcd9xxx *wcd9xxx, int irq,
 				     irq_handler_t handler, const char *name,
 				     void *data)
 {
+// For D2, request_irq is failing, so temporarily added return.
+// This will be removed later
+#if defined (CONFIG_ARCH_MSM8960) && !defined (CONFIG_SND_SOC_APQ8064) 
+	return 0;
+#endif
 	if (!wcd9xxx->irq_base)
 		return -EINVAL;
 	return request_threaded_irq(wcd9xxx->irq_base + irq, NULL, handler,
