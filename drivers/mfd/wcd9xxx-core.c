@@ -294,13 +294,13 @@ static struct mfd_cell taiko_devs[] = {
 		.name = "taiko_codec",
 	},
 };
-
+/*
 static struct mfd_cell tapan_devs[] = {
 	{
 		.name = "tapan_codec",
 	},
 };
-
+*/
 static struct wcd9xx_codec_type {
 	u8 byte[4];
 	struct mfd_cell *dev;
@@ -319,13 +319,13 @@ static struct wcd9xx_codec_type {
 	 SITAR_NUM_IRQS},
 	{{0x2, 0x0, 0x1, 0x1}, sitar_devs, ARRAY_SIZE(sitar_devs),
 	 SITAR_NUM_IRQS},
-	 
+/*	 
 	{{0x0, 0x0, 0x3, 0x1}, tapan_devs, ARRAY_SIZE(tapan_devs),
 	
 	 TAPAN_NUM_IRQS},
 	{{0x1, 0x0, 0x3, 0x1}, tapan_devs, ARRAY_SIZE(tapan_devs),
 	 TAPAN_NUM_IRQS},	 
-	 
+*/	 
 };
 
 static void wcd9xxx_bring_up(struct wcd9xxx *wcd9xxx)
@@ -348,13 +348,8 @@ static void wcd9xxx_bring_down(struct wcd9xxx *wcd9xxx)
 static int wcd9xxx_reset(struct wcd9xxx *wcd9xxx)
 {
 	int ret;
-#if defined(CONFIG_ARCH_MSM8930) || defined(CONFIG_MACH_KS02) \
-	|| defined(CONFIG_MACH_LT02_CHN_CTC) || defined(CONFIG_ARCH_MSM8960)
-#if !defined(CONFIG_MACH_SERRANO_EUR_LTE) && !defined(CONFIG_MACH_SERRANO_ATT) && !defined(CONFIG_MACH_GOLDEN_VZW) \
-	&& !defined(CONFIG_MACH_SERRANO_VZW) && !defined(CONFIG_MACH_SERRANO_SPR) && !defined (CONFIG_MACH_SERRANO_USC) \
-	&& !defined(CONFIG_MACH_SERRANO_LRA) && !defined(CONFIG_MACH_LT02_ATT) && !defined(CONFIG_MACH_GOLDEN_ATT) \
-	&& !defined(CONFIG_MACH_LT02_SPR) && !defined(CONFIG_MACH_LT02_TMO) && !defined(CONFIG_MACH_LT02_XX) \
-	&&!defined(CONFIG_MACH_WILCOX_EUR_LTE) && !defined(CONFIG_MACH_SERRANO_EUR_3G)
+#if defined(CONFIG_MACH_MELIUS) || defined(CONFIG_MACH_KS02) \
+	|| defined(CONFIG_MACH_LT02_CHN_CTC)
     struct pm_gpio param = {
         .direction      = PM_GPIO_DIR_OUT,
         .output_buffer  = PM_GPIO_OUT_BUF_CMOS,
@@ -364,7 +359,6 @@ static int wcd9xxx_reset(struct wcd9xxx *wcd9xxx)
         .out_strength   = PM_GPIO_STRENGTH_MED,
         .function       = PM_GPIO_FUNC_NORMAL,
     };
-#endif //CONFIG_MACH_SERRANO_EUR_LTE
 #endif
 	if (wcd9xxx->reset_gpio) {
 		ret = gpio_request(wcd9xxx->reset_gpio, "CDC_RESET");
@@ -374,13 +368,8 @@ static int wcd9xxx_reset(struct wcd9xxx *wcd9xxx)
 			wcd9xxx->reset_gpio = 0;
 			return ret;
 		}
-#if defined(CONFIG_ARCH_MSM8930) || defined(CONFIG_MACH_KS02) \
-	|| defined(CONFIG_MACH_LT02_CHN_CTC) || defined(CONFIG_ARCH_MSM8960)
-#if !defined(CONFIG_MACH_SERRANO_EUR_LTE) && !defined(CONFIG_MACH_SERRANO_ATT) && !defined(CONFIG_MACH_GOLDEN_VZW) \
-	&& !defined(CONFIG_MACH_SERRANO_VZW) && !defined(CONFIG_MACH_SERRANO_SPR) && !defined (CONFIG_MACH_SERRANO_USC) \
-	&& !defined(CONFIG_MACH_SERRANO_LRA) && !defined(CONFIG_MACH_LT02_ATT) && !defined(CONFIG_MACH_GOLDEN_ATT) \
-	&& !defined(CONFIG_MACH_LT02_SPR) && !defined(CONFIG_MACH_LT02_TMO) && !defined(CONFIG_MACH_LT02_XX) \
-	&& !defined(CONFIG_MACH_WILCOX_EUR_LTE) && !defined(CONFIG_MACH_SERRANO_EUR_3G)
+#if defined(CONFIG_MACH_MELIUS) || defined(CONFIG_MACH_KS02) \
+	|| defined(CONFIG_MACH_LT02_CHN_CTC)
         ret = pm8xxx_gpio_config
             (wcd9xxx->reset_gpio, &param);
         if (ret) {
@@ -389,7 +378,6 @@ static int wcd9xxx_reset(struct wcd9xxx *wcd9xxx)
             wcd9xxx->reset_gpio = 0;
             return ret;
         }
-#endif //CONFIG_MACH_SERRANO_EUR_LTE		
 #else
 #if !defined(CONFIG_MACH_JF)
 		ret = gpio_tlmm_config

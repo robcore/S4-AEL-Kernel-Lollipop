@@ -108,7 +108,7 @@ config ANDROID_INTF_ALARM_DEV
 
 config RUNTIME_COMPCACHE
 	bool "Android rtcc v3"
-	depends on ANDROID
+	depends on ZRAM && ANDROID
 	default n
 	help
 	  This option enables rtcc v3 for android

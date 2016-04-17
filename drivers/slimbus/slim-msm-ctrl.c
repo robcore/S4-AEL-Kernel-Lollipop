@@ -236,8 +236,8 @@ enum mgr_intr {
 
 enum frm_cfg {
 	FRM_ACTIVE	= 1,
-	CLK_GEAR	= 7,
-	ROOT_FREQ	= 11,
+	CLK_GEAR	= 10,
+	ROOT_FREQ	= 31,
 	REF_CLK_GEAR	= 15,
 	INTR_WAKE	= 19,
 };
@@ -1121,8 +1121,8 @@ static int msm_sat_define_ch(struct msm_slim_sat *sat, u8 *buf, u8 len, u8 mc)
 		/* part of grp. activating/removing 1 will take care of rest */
 		ret = slim_control_ch(&sat->satcl, sat->satch[i].chanh, oper,
 					false);
-		pr_info("-slimdebug-SAT oper:%d grp start:%d, ret:%d", oper,
-				sat->satch[i].chan, ret); /* slimbus debug patch */
+		/* pr_info("-slimdebug-SAT oper:%d grp start:%d, ret:%d", oper,
+				sat->satch[i].chan, ret); */ /* slimbus debug patch */
 		if (!ret) {
 			for (i = 5; i < len; i++) {
 				int j;
@@ -1210,7 +1210,7 @@ static int msm_sat_define_ch(struct msm_slim_sat *sat, u8 *buf, u8 len, u8 mc)
 			ret = slim_control_ch(&sat->satcl,
 					chh[0],
 					SLIM_CH_ACTIVATE, false);
-			pr_info("-slimdebug-SAT activate grp start: ret:%d", ret); /* slimbus debug patch */
+			/* pr_info("-slimdebug-SAT activate grp start: ret:%d", ret); */ /* slimbus debug patch */
 		}
 	}
 	return ret;
@@ -1365,8 +1365,8 @@ static void slim_sat_rxprocess(struct work_struct *work)
 			 * when this is detected
 			 */
 			if (sat->sent_capability) {
-				pr_info("-slimdebug-Received report present from SAT:0x%x",
-						sat->satcl.laddr); /* slimbus debug patch */
+				/*pr_info("-slimdebug-Received report present from SAT:0x%x",
+						sat->satcl.laddr); */ /* slimbus debug patch */
 				for (i = 0; i < sat->nsatch; i++) {
 					if (sat->satch[i].reconf) {
 						pr_err("SSR, sat:%d, rm ch:%d",
@@ -1476,7 +1476,7 @@ send_capability:
 		case SLIM_USR_MC_RECONFIG_NOW:
 			tid = buf[3];
 			gen_ack = true;
-			pr_info("-slimdebug-SAT:LA:%x reconf req", sat->satcl.laddr); /* slimbus debug patch */
+			/* pr_info("-slimdebug-SAT:LA:%x reconf req", sat->satcl.laddr); */ /* slimbus debug patch */
 			ret = slim_reconfigure_now(&sat->satcl);
 			for (i = 0; i < sat->nsatch; i++) {
 				struct msm_sat_chan *sch = &sat->satch[i];
@@ -1524,8 +1524,8 @@ send_capability:
 			txn.len = 2;
 			txn.wbuf = wbuf;
 			gen_ack = true;
-			pr_info("-slimdebug-SAT connect MC:0x%x,LA:0x%x", txn.mc,
-					sat->satcl.laddr); /* slimbus debug patch */
+			/* pr_info("-slimdebug-SAT connect MC:0x%x,LA:0x%x", txn.mc,
+					sat->satcl.laddr); */ /* slimbus debug patch */
 			ret = msm_xfer_msg(&dev->ctrl, &txn);
 
 #ifdef CONFIG_DEBUG_FS
@@ -1549,7 +1549,7 @@ send_capability:
 			txn.mt = SLIM_MSG_MT_CORE;
 			txn.wbuf = wbuf;
 			gen_ack = true;
-			pr_info("-slimdebug-SAT disconnect LA:0x%x", sat->satcl.laddr); /* slimbus debug patch */
+			/* pr_info("-slimdebug-SAT disconnect LA:0x%x", sat->satcl.laddr); */ /* slimbus debug patch */
 			ret = msm_xfer_msg(&dev->ctrl, &txn);
 
 #ifdef CONFIG_DEBUG_FS
@@ -1578,7 +1578,7 @@ send_capability:
 		if (!ret)
 			wbuf[1] = MSM_SAT_SUCCSS;
 		else {
-			pr_info("-slimdebug-sat cmd:0x%x no ack:%d", mc, ret); /* slimbus debug patch */
+			/* pr_info("-slimdebug-sat cmd:0x%x no ack:%d", mc, ret); */ /* slimbus debug patch */
 			wbuf[1] = 0;
 		}
 		txn.mc = SLIM_USR_MC_GENERIC_ACK;
@@ -1589,9 +1589,9 @@ send_capability:
 		txn.mt = SLIM_MSG_MT_SRC_REFERRED_USER;
 		ret = msm_xfer_msg(&dev->ctrl, &txn);
 		if (ret) {
-			pr_info("-slimdebug-sending ACK failed:%d", ret);
+			/* pr_info("-slimdebug-sending ACK failed:%d", ret);
 			pr_info("-slimdebug-clk gear:%d, subfrm mode:0x%x",
-				dev->ctrl.clkgear, dev->ctrl.sched.subfrmcode);
+				dev->ctrl.clkgear, dev->ctrl.sched.subfrmcode); */
 			ret = 0;
 		} /* slimbus debug patch */
 		if (satv >= 0)

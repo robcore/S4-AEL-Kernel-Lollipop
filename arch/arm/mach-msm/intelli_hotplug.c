@@ -33,7 +33,7 @@
 #define RESUME_SAMPLING_MS		HZ / 10
 #define START_DELAY_MS			HZ * 5
 #define MIN_INPUT_INTERVAL		150 * 1000L
-#define BOOST_LOCK_DUR			500 * 1000L
+#define BOOST_LOCK_DUR			200 * 1000L
 #define DEFAULT_NR_CPUS_BOOSTED		2
 #define DEFAULT_MIN_CPUS_ONLINE		1
 #define DEFAULT_MAX_CPUS_ONLINE		NR_CPUS
@@ -44,7 +44,7 @@
 #define CAPACITY_RESERVE		50
 #if defined(CONFIG_ARCH_MSM8960) || defined(CONFIG_ARCH_APQ8064) || \
 defined(CONFIG_ARCH_MSM8974)
-#define THREAD_CAPACITY			(339 - CAPACITY_RESERVE)
+#define THREAD_CAPACITY			(300 - CAPACITY_RESERVE)
 #elif defined(CONFIG_ARCH_MSM8226) || defined (CONFIG_ARCH_MSM8926) || \
 defined (CONFIG_ARCH_MSM8610) || defined (CONFIG_ARCH_MSM8228)
 #define THREAD_CAPACITY			(190 - CAPACITY_RESERVE)
@@ -90,7 +90,7 @@ static unsigned int max_cpus_online_res = DEFAULT_MAX_CPUS_ONLINE;
  * suspend mode, if set = 1 hotplug will sleep,
  * if set = 0, then hoplug will be active all the time.
  */
-static unsigned int hotplug_suspend = 0;
+static unsigned int hotplug_suspend = 1;
 
 /* HotPlug Driver Tuning */
 static unsigned int target_cpus = 0;
