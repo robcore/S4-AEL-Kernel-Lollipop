@@ -294,13 +294,13 @@ static struct mfd_cell taiko_devs[] = {
 		.name = "taiko_codec",
 	},
 };
-/*
+
 static struct mfd_cell tapan_devs[] = {
 	{
 		.name = "tapan_codec",
 	},
 };
-*/
+
 static struct wcd9xx_codec_type {
 	u8 byte[4];
 	struct mfd_cell *dev;
@@ -319,13 +319,13 @@ static struct wcd9xx_codec_type {
 	 SITAR_NUM_IRQS},
 	{{0x2, 0x0, 0x1, 0x1}, sitar_devs, ARRAY_SIZE(sitar_devs),
 	 SITAR_NUM_IRQS},
-/*	 
+	 
 	{{0x0, 0x0, 0x3, 0x1}, tapan_devs, ARRAY_SIZE(tapan_devs),
 	
 	 TAPAN_NUM_IRQS},
 	{{0x1, 0x0, 0x3, 0x1}, tapan_devs, ARRAY_SIZE(tapan_devs),
 	 TAPAN_NUM_IRQS},	 
-*/	 
+	 
 };
 
 static void wcd9xxx_bring_up(struct wcd9xxx *wcd9xxx)

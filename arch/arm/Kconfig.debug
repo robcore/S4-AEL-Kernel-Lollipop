@@ -341,7 +341,7 @@ config SEC_FORKHANG_DEBUG
 
 config SEC_DEBUG_USER
 	bool "Panic on Userspace fault"
-	default y
+	default n
 	help
 	  Panic on Userspace fault
 	  This feature enables collection of ram dump,
