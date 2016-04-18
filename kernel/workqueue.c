@@ -1031,9 +1031,8 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 		 * be queued on that cpu to guarantee non-reentrance.
 		 */
 		gcwq = get_gcwq(cpu);
-		last_gcwq = get_work_gcwq(work);
-
-		if (last_gcwq && last_gcwq != gcwq) {
+		if (wq->flags & WQ_NON_REENTRANT &&
+		    (last_gcwq = get_work_gcwq(work)) && last_gcwq != gcwq) {
 			struct worker *worker;
 
 			spin_lock_irqsave(&last_gcwq->lock, flags);
@@ -2708,7 +2707,7 @@ static bool __cancel_work_timer(struct work_struct *work,
 		ret = (timer && likely(del_timer(timer)));
 		if (!ret)
 			ret = try_to_grab_pending(work);
-		flush_work(work);
+		wait_on_work(work);
 	} while (unlikely(ret < 0));
 
 	clear_work_data(work);
@@ -2759,6 +2758,27 @@ bool flush_delayed_work(struct delayed_work *dwork)
 	return flush_work(&dwork->work);
 }
 EXPORT_SYMBOL(flush_delayed_work);
+
+/**
+ * flush_delayed_work_sync - wait for a dwork to finish
+ * @dwork: the delayed work to flush
+ *
+ * Delayed timer is cancelled and the pending work is queued for
+ * execution immediately.  Other than timer handling, its behavior
+ * is identical to flush_work_sync().
+ *
+ * RETURNS:
+ * %true if flush_work_sync() waited for the work to finish execution,
+ * %false if it was already idle.
+ */
+bool flush_delayed_work_sync(struct delayed_work *dwork)
+{
+	if (del_timer_sync(&dwork->timer))
+		__queue_work(raw_smp_processor_id(),
+			     get_work_cwq(&dwork->work)->wq, &dwork->work);
+	return flush_work_sync(&dwork->work);
+}
+EXPORT_SYMBOL(flush_delayed_work_sync);
 
 /**
  * cancel_delayed_work_sync - cancel a delayed work and wait for it to finish
@@ -3496,11 +3516,6 @@ static int __cpuinit trustee_thread(void *__gcwq)
 			continue;
 
 		debug_work_activate(rebind_work);
-		if (worker_pool_pri(worker->pool))
-			wq = system_highpri_wq;
-		else
-			wq = system_wq;
-
 		insert_work(get_cwq(gcwq->cpu, system_wq), rebind_work,
 			    worker->scheduled.next,
 			    work_color_to_flags(WORK_NO_COLOR));
@@ -3701,7 +3716,7 @@ long work_on_cpu(unsigned int cpu, long (*fn)(void *), void *arg)
 	struct work_for_cpu wfc = { .fn = fn, .arg = arg };
 
 	INIT_WORK_ONSTACK(&wfc.work, work_for_cpu_fn);
-	queue_work_on(cpu, system_highpri_wq, &unbind_work);
+	schedule_work_on(cpu, &wfc.work);
 	flush_work(&wfc.work);
 	return wfc.ret;
 }
