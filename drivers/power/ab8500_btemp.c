@@ -582,7 +582,7 @@ static void ab8500_btemp_periodic_work(struct work_struct *work)
 		interval = di->bat->temp_interval_nochg;
 
 	/* Schedule a new measurement */
-	queue_delayed_work(di->btemp_wq,
+	mod_delayed_work(di->btemp_wq,
 		&di->btemp_periodic_work,
 		round_jiffies(interval * HZ));
 }
@@ -718,7 +718,7 @@ static void ab8500_btemp_periodic(struct ab8500_btemp *di,
 	cancel_delayed_work_sync(&di->btemp_periodic_work);
 
 	if (enable)
-		queue_delayed_work(di->btemp_wq, &di->btemp_periodic_work, 0);
+		mod_delayed_work(di->btemp_wq, &di->btemp_periodic_work, 0);
 }
 
 /**
@@ -1014,7 +1014,7 @@ static int __devinit ab8500_btemp_probe(struct platform_device *pdev)
 	}
 
 	/* Init work for measuring temperature periodically */
-	INIT_DELAYED_WORK_DEFERRABLE(&di->btemp_periodic_work,
+	INIT_DEFERRABLE_WORK(&di->btemp_periodic_work,
 		ab8500_btemp_periodic_work);
 
 	/* Identify the battery */
