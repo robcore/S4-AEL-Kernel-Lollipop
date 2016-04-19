@@ -2159,7 +2159,7 @@ _adreno_ft_restart_device(struct kgsl_device *device,
 		KGSL_FT_ERR(device, "Device stop failed\n");
 		return 1;
 	}
-	
+
 	if (adreno_init(device)) {
 		KGSL_FT_ERR(device, "Device start failed\n");
 		return 1;
