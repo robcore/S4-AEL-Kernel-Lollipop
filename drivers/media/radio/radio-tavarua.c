@@ -225,7 +225,7 @@ static irqreturn_t tavarua_isr(int irq, void *dev_id)
 		FMDERR("%s:radio is null", __func__);
 		return -EINVAL;
 	}
-	queue_delayed_work(radio->wqueue, &radio->work,
+	mod_delayed_work(radio->wqueue, &radio->work,
 				msecs_to_jiffies(TAVARUA_DELAY));
 	return IRQ_HANDLED;
 }
@@ -2424,7 +2424,7 @@ static int tavarua_fops_release(struct file *file)
 	}
 exit:
 	FMDBG("%s, Calling fm_shutdown\n", __func__);
-	queue_delayed_work(radio->wqueue, &radio->work,
+	mod_delayed_work(radio->wqueue, &radio->work,
 				msecs_to_jiffies(TAVARUA_DELAY/2));
 	/* teardown gpio and pmic */
 	marimba_set_fm_status(radio->marimba, false);

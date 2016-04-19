@@ -267,7 +267,7 @@ static void __pg_init_all_paths(struct multipath *m)
 		/* Skip failed paths */
 		if (!pgpath->is_active)
 			continue;
-		if (queue_delayed_work(kmpath_handlerd, &pgpath->activate_path,
+		if (mod_delayed_work(kmpath_handlerd, &pgpath->activate_path,
 				       pg_init_delay))
 			m->pg_init_in_progress++;
 	}
@@ -923,7 +923,7 @@ static void flush_multipath_work(struct multipath *m)
 	flush_workqueue(kmpath_handlerd);
 	multipath_wait_for_pg_init_completion(m);
 	flush_workqueue(kmultipathd);
-	flush_work_sync(&m->trigger_event);
+	flush_work(&m->trigger_event);
 
 	spin_lock_irqsave(&m->lock, flags);
 	m->pg_init_disabled = 0;

@@ -350,7 +350,7 @@ static void grmnet_ctrl_smd_connect_w(struct work_struct *w)
 			/* port not ready  - retry */
 			pr_debug("%s: SMD port not ready - rescheduling:%s err:%d\n",
 					__func__, c->name, ret);
-			queue_delayed_work(grmnet_ctrl_wq, &port->connect_w,
+			mod_delayed_work(grmnet_ctrl_wq, &port->connect_w,
 				msecs_to_jiffies(250));
 		} else {
 			pr_err("%s: unable to open smd port:%s err:%d\n",
@@ -394,7 +394,7 @@ int gsmd_ctrl_connect(struct grmnet *gr, int port_num)
 	gr->notify_modem = gsmd_ctrl_send_cbits_tomodem;
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
-	queue_delayed_work(grmnet_ctrl_wq, &port->connect_w, 0);
+	mod_delayed_work(grmnet_ctrl_wq, &port->connect_w, 0);
 
 	return 0;
 }
@@ -462,7 +462,7 @@ void gsmd_ctrl_disconnect(struct grmnet *gr, u8 port_num)
 		/* send dtr zero */
 		smd_tiocmset(c->ch, c->cbits_tomodem, ~c->cbits_tomodem);
 
-	queue_delayed_work(grmnet_ctrl_wq, &port->disconnect_w, 0);
+	mod_delayed_work(grmnet_ctrl_wq, &port->disconnect_w, 0);
 }
 
 #define SMD_CH_MAX_LEN	20
@@ -486,7 +486,7 @@ static int grmnet_ctrl_smd_ch_probe(struct platform_device *pdev)
 			/* if usb is online, try opening smd_ch */
 			spin_lock_irqsave(&port->port_lock, flags);
 			if (port->port_usb)
-				queue_delayed_work(grmnet_ctrl_wq,
+				mod_delayed_work(grmnet_ctrl_wq,
 							&port->connect_w, 0);
 			spin_unlock_irqrestore(&port->port_lock, flags);
 
