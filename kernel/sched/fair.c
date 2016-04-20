@@ -596,8 +596,9 @@ int sched_proc_update_handler(struct ctl_table *table, int write,
 static inline unsigned long
 calc_delta_fair(unsigned long delta, struct sched_entity *se)
 {
+	if (unlikely(se->load.weight != NICE_0_LOAD))
+		delta = calc_delta_mine(delta, NICE_0_LOAD, &se->load);
 
-	delta = LONG_MAX;
 	return delta;
 }
 
@@ -615,7 +616,7 @@ static u64 __sched_period(unsigned long nr_running)
 	unsigned long nr_latency = sched_nr_latency;
 
 	if (unlikely(nr_running > nr_latency)) {
-		period = 5000000ULL;
+		period = sysctl_sched_min_granularity;
 		period *= nr_running;
 	}
 
@@ -4387,7 +4388,7 @@ find_busiest_queue(struct sched_domain *sd, struct sched_group *group,
 	unsigned long max_load = 0;
 	int i;
 
-	for_each_cpu_and(i, sched_group_cpus(group), cpus) {
+	for_each_cpu(i, sched_group_cpus(group)) {
 		unsigned long power = power_of(i);
 		unsigned long capacity = DIV_ROUND_CLOSEST(power,
 							   SCHED_POWER_SCALE);
@@ -4395,6 +4396,9 @@ find_busiest_queue(struct sched_domain *sd, struct sched_group *group,
 
 		if (!capacity)
 			capacity = fix_small_capacity(sd, group);
+
+		if (!cpumask_test_cpu(i, cpus))
+			continue;
 
 		rq = cpu_rq(i);
 		wl = weighted_cpuload(i);
@@ -4964,20 +4968,20 @@ static inline void set_cpu_sd_state_busy(void)
 {
 	struct sched_domain *sd;
 	int cpu = smp_processor_id();
-	int clear = 0;
+	int clear = 0; 
 
 	if (!test_bit(NOHZ_IDLE, nohz_flags(cpu)))
 		return;
-
+	
 	rcu_read_lock();
 	for_each_domain(cpu, sd) {
 		atomic_inc(&sd->groups->sgp->nr_busy_cpus);
-		clear = 1;
+		clear = 1; 
 	}
 	rcu_read_unlock();
 
 	if (likely(clear))
-    		clear_bit(NOHZ_IDLE, nohz_flags(cpu));
+    		clear_bit(NOHZ_IDLE, nohz_flags(cpu)); 
 }
 
 void set_cpu_sd_state_idle(void)

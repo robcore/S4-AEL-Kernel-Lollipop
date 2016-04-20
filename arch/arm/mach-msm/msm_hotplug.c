@@ -33,7 +33,7 @@
 #define MSM_HOTPLUG			"msm_hotplug"
 #define HOTPLUG_ENABLED			0
 #define DEFAULT_UPDATE_RATE		HZ / 10
-#define START_DELAY			HZ * 10
+#define START_DELAY			HZ * 5
 #define MIN_INPUT_INTERVAL		150 * 1000L
 #define DEFAULT_HISTORY_SIZE		10
 #define DEFAULT_DOWN_LOCK_DUR		1000
@@ -49,7 +49,7 @@ static unsigned int debug = 0;
 module_param_named(debug_mask, debug, uint, 0644);
 
 #define dprintk(msg...)		\
-do {				\
+do { 				\
 	if (debug)		\
 		pr_info(msg);	\
 } while (0)
