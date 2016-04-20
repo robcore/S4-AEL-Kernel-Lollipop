@@ -1,13 +1,5 @@
-0010-workqueue-disable-irq-while-manipulating-PENDING.patch
-0012-workqueue-unify-local-CPU-queueing-handling.patch
-0014-workqueue-move-try_to_grab_pending-upwards.patch
-0017-workqueue-reorganize-try_to_grab_pending-and-__cance.patch
-0018-workqueue-mark-a-work-item-being-canceled-as-such.patch
-arch/arm/plat-omap/mailbox.c
-arch/sh/drivers/push-switch.c
-drivers/block/floppy.c
-drivers/block/xen-blkfront.c
-drivers/cdrom/gdrom.c
+
+
 drivers/char/sonypi.c
 drivers/char/tpm/tpm.c
 drivers/gpu/drm/nouveau/nouveau_gpio.c
