@@ -197,7 +197,6 @@ int wfd_stats_update(struct wfd_stats *stats, enum wfd_stats_event event)
 	}
 	mutex_unlock(&stats->mutex);
 
-	mutex_unlock(&stats->mutex);
 	return rc;
 }
 

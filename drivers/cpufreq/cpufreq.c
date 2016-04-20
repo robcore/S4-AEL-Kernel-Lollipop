@@ -40,7 +40,7 @@
 extern ssize_t get_gpu_vdd_levels_str(char *buf);
 extern void set_gpu_vdd_levels(int uv_tbl[]);
 
-static unsigned int Lenable_auto_hotplug = 1;
+static unsigned int Lenable_auto_hotplug = 0;
 extern void apenable_auto_hotplug(bool state);
 
 /**
@@ -98,7 +98,6 @@ int lock_policy_rwsem_##mode						\
 }
 
 lock_policy_rwsem(read, cpu);
-
 lock_policy_rwsem(write, cpu);
 
 static void unlock_policy_rwsem_read(int cpu)
