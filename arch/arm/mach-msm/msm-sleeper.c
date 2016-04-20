@@ -107,7 +107,7 @@ reset:
 
 static void reschedule_timer (void)
 {
-	queue_delayed_work_on(0, sleeper_wq, &sleeper_work, msecs_to_jiffies(sleeper_data.delay));
+	mod_delayed_work_on(0, sleeper_wq, &sleeper_work, msecs_to_jiffies(sleeper_data.delay));
 }
 
 static void __ref hotplug_func(struct work_struct *work)
@@ -452,7 +452,7 @@ static int msm_sleeper_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&sleeper_work, hotplug_func);
 
 	if (sleeper_data.enabled)
-		queue_delayed_work_on(0, sleeper_wq, &sleeper_work, HZ * 60);
+		mod_delayed_work_on(0, sleeper_wq, &sleeper_work, HZ * 60);
 
 	return ret;
 

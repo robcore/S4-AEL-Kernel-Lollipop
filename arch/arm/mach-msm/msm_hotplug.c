@@ -31,9 +31,9 @@
 #include <linux/tick.h>
 
 #define MSM_HOTPLUG			"msm_hotplug"
-#define HOTPLUG_ENABLED			1
+#define HOTPLUG_ENABLED			0
 #define DEFAULT_UPDATE_RATE		HZ / 10
-#define START_DELAY			HZ * 10
+#define START_DELAY			HZ * 5
 #define MIN_INPUT_INTERVAL		150 * 1000L
 #define DEFAULT_HISTORY_SIZE		10
 #define DEFAULT_DOWN_LOCK_DUR		1000
@@ -263,7 +263,7 @@ static void apply_down_lock(unsigned int cpu)
 	struct down_lock *dl = &per_cpu(lock_info, cpu);
 
 	dl->locked = 1;
-	queue_delayed_work_on(0, hotplug_wq, &dl->lock_rem,
+	mod_delayed_work_on(0, hotplug_wq, &dl->lock_rem,
 			      msecs_to_jiffies(hotplug.down_lock_dur));
 }
 
@@ -416,7 +416,7 @@ static unsigned int load_to_update_rate(unsigned int load)
 static void reschedule_hotplug_work(void)
 {
 	int delay = load_to_update_rate(stats.cur_avg_load);
-	queue_delayed_work_on(0, hotplug_wq, &hotplug_work,
+	mod_delayed_work_on(0, hotplug_wq, &hotplug_work,
 			      msecs_to_jiffies(delay));
 }
 
@@ -541,8 +541,8 @@ static void __msm_hotplug_suspend(void)
 		return;
 
 	INIT_DELAYED_WORK(&hotplug.suspend_work, msm_hotplug_suspend);
-	queue_delayed_work_on(0, susp_wq, &hotplug.suspend_work,
-				 msecs_to_jiffies(hotplug.suspend_defer_time * 1000));
+	mod_delayed_work_on(0, susp_wq, &hotplug.suspend_work,
+			msecs_to_jiffies(hotplug.suspend_defer_time * 1000));
 }
 
 static void __msm_hotplug_resume(void)
@@ -768,8 +768,8 @@ static int __ref msm_hotplug_start(void)
 		apply_down_lock(cpu);
 	}
 
-	queue_delayed_work_on(0, hotplug_wq, &hotplug_work,
-			      START_DELAY);
+	mod_delayed_work_on(0, hotplug_wq, &hotplug_work,
+							START_DELAY);
 
 	return ret;
 err_dev:

@@ -222,7 +222,7 @@ static void blk_delay_work(struct work_struct *work)
  */
 void blk_delay_queue(struct request_queue *q, unsigned long msecs)
 {
-	queue_delayed_work(kblockd_workqueue, &q->delay_work,
+	mod_delayed_work(kblockd_workqueue, &q->delay_work,
 				msecs_to_jiffies(msecs));
 }
 EXPORT_SYMBOL(blk_delay_queue);
@@ -261,7 +261,7 @@ EXPORT_SYMBOL(blk_start_queue);
  **/
 void blk_stop_queue(struct request_queue *q)
 {
-	__cancel_delayed_work(&q->delay_work);
+	cancel_delayed_work(&q->delay_work);
 	queue_flag_set(QUEUE_FLAG_STOPPED, q);
 }
 EXPORT_SYMBOL(blk_stop_queue);
@@ -331,10 +331,8 @@ EXPORT_SYMBOL(__blk_run_queue);
  */
 void blk_run_queue_async(struct request_queue *q)
 {
-	if (likely(!blk_queue_stopped(q))) {
-		__cancel_delayed_work(&q->delay_work);
-		queue_delayed_work(kblockd_workqueue, &q->delay_work, 0);
-	}
+	if (likely(!blk_queue_stopped(q)))
+		mod_delayed_work(kblockd_workqueue, &q->delay_work, 0);
 }
 EXPORT_SYMBOL(blk_run_queue_async);
 
@@ -2796,7 +2794,7 @@ EXPORT_SYMBOL(kblockd_schedule_work);
 int kblockd_schedule_delayed_work(struct request_queue *q,
 			struct delayed_work *dwork, unsigned long delay)
 {
-	return queue_delayed_work(kblockd_workqueue, dwork, delay);
+	return mod_delayed_work(kblockd_workqueue, dwork, delay);
 }
 EXPORT_SYMBOL(kblockd_schedule_delayed_work);
 

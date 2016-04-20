@@ -120,7 +120,7 @@ static int check_down_lock(unsigned int cpu)
 
 extern unsigned int get_rq_info(void);
 
-unsigned int state = MSM_MPDEC_DISABLED;
+static unsigned int state = MSM_MPDEC_DISABLED;
 
 static int get_slowest_cpu(void) {
 	unsigned int cpu, slow_cpu = 0, rate, slow_rate = 0;
@@ -333,7 +333,7 @@ static void __bricked_hotplug_suspend(void)
 		return;
 
 	INIT_DELAYED_WORK(&suspend_work, bricked_hotplug_suspend);
-	queue_delayed_work_on(0, susp_wq, &suspend_work, 
+	mod_delayed_work_on(0, susp_wq, &suspend_work, 
 		msecs_to_jiffies(hotplug.suspend_defer_time * 1000)); 
 }
 
