@@ -4450,7 +4450,7 @@ static int tabla_set_channel_map(struct snd_soc_dai *dai,
 			pr_info("%s: ch_act = %d, ch_tot = %d\n", __func__,
 				tabla->dai[dai->id - 1].ch_act,
 				tabla->dai[dai->id - 1].ch_tot);
-			return 1;
+			return 0;
 		}
 
 		tabla->dai[dai->id - 1].ch_act = 0;
@@ -6454,7 +6454,7 @@ void tabla_mbhc_cal(struct snd_soc_codec *codec)
 	tabla_turn_onoff_rel_detection(codec, true);
 }
 
-void *tabla_mbhc_cal_btn_det_mp(struct tabla_mbhc_btn_detect_cfg* btn_det,
+void *tabla_mbhc_cal_btn_det_mp(const struct tabla_mbhc_btn_detect_cfg* btn_det,
 				const enum tabla_mbhc_btn_det_mem mem)
 {
 	void *ret = &btn_det->_v_btn_low;
@@ -6757,7 +6757,7 @@ static irqreturn_t tabla_dce_handler(int irq, void *data)
 	u16 *btn_high;
 	int btn = -1, meas = 0;
 	struct tabla_priv *priv = data;
-	struct tabla_mbhc_btn_detect_cfg *d =
+	const struct tabla_mbhc_btn_detect_cfg *d =
 	    TABLA_MBHC_CAL_BTN_DET_PTR(priv->mbhc_cfg.calibration);
 	short btnmeas[d->n_btn_meas + 1];
 	struct snd_soc_codec *codec = priv->codec;
@@ -9204,6 +9204,8 @@ err_potential_irq:
 err_remove_irq:
 	wcd9xxx_free_irq(codec->control_data, TABLA_IRQ_MBHC_INSERTION, tabla);
 err_insert_irq:
+	kfree(tabla->fw_data);
+err_nomem_slimch:
 err_pdata:
 	mutex_destroy(&tabla->codec_resource_lock);
 	kfree(tabla);
