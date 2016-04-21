@@ -4450,7 +4450,7 @@ static int tabla_set_channel_map(struct snd_soc_dai *dai,
 			pr_info("%s: ch_act = %d, ch_tot = %d\n", __func__,
 				tabla->dai[dai->id - 1].ch_act,
 				tabla->dai[dai->id - 1].ch_tot);
-			return 0;
+			return 1;
 		}
 
 		tabla->dai[dai->id - 1].ch_act = 0;

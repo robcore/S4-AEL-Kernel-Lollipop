@@ -142,8 +142,6 @@ int snd_hax_reg_access(unsigned int reg)
 	int ret = 1;
 
 	switch (reg) {
-#if 0 /* LP sound driver does not work with PA high/low
-probably due to the PA regs volatility */
 		case TABLA_A_RX_HPH_L_GAIN:
 		case TABLA_A_RX_HPH_R_GAIN:
 		case TABLA_A_RX_HPH_L_STATUS:
@@ -151,7 +149,6 @@ probably due to the PA regs volatility */
 			if (snd_ctrl_locked > 1)
 				ret = 0;
 			break;
-#endif
 		case TABLA_A_CDC_RX1_VOL_CTL_B2_CTL:
 		case TABLA_A_CDC_RX2_VOL_CTL_B2_CTL:
 		case TABLA_A_CDC_RX3_VOL_CTL_B2_CTL:
