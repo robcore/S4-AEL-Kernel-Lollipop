@@ -1,0 +1,27 @@
+From 58bfb22a4d41c2838245c03cb95cf76206b19ea1 Mon Sep 17 00:00:00 2001
+From: Stratos Karafotis <stratosk@semaphore.gr>
+Date: Thu, 29 Aug 2013 22:40:51 +0300
+Subject: [PATCH] mach-msm: subsystem_restart: Fix CPU detection
+
+Initialization function could not detect the correct CPU type
+(apq8064). Therefore it could not register correctly subsystem
+restart order for the panic_handler.
+
+Signed-off-by: Stratos Karafotis <stratosk@semaphore.gr>
+---
+ arch/arm/mach-msm/subsystem_restart.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-msm/subsystem_restart.c b/arch/arm/mach-msm/subsystem_restart.c
+index d89bdfa..0867221 100644
+--- a/arch/arm/mach-msm/subsystem_restart.c
++++ b/arch/arm/mach-msm/subsystem_restart.c
+@@ -630,7 +630,7 @@ static int __init ssr_init_soc_restart_orders(void)
+ 	atomic_notifier_chain_register(&panic_notifier_list,
+ 			&panic_nb);
+ 
+-	if (cpu_is_msm8x60()) {
++	if (cpu_is_apq8064() || cpu_is_msm8x60()) {
+ 		for (i = 0; i < ARRAY_SIZE(orders_8x60_all); i++) {
+ 			mutex_init(&orders_8x60_all[i]->powerup_lock);
+ 			mutex_init(&orders_8x60_all[i]->shutdown_lock);
