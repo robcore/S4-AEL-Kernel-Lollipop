@@ -1118,7 +1118,6 @@ out:
 	return err ? 0 : 1;
 }
 
-#ifdef CONFIG_MMC_SECDISCARD
 static int mmc_blk_issue_secdiscard_rq(struct mmc_queue *mq,
 				       struct request *req)
 {
@@ -1188,7 +1187,7 @@ out:
 
 	return err ? 0 : 1;
 }
-#endif
+
 static int mmc_blk_issue_sanitize_rq(struct mmc_queue *mq,
 				      struct request *req)
 {
