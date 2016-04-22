@@ -27,16 +27,10 @@
 
 #define MSM_LIMIT			"msm_limiter"
 #define LIMITER_ENABLED			1
-#define DEFAULT_SUSPEND_DEFER_TIME	10 
-#ifdef CONFIG_CPU_OVERCLOCK
+#define DEFAULT_SUSPEND_DEFER_TIME	10
 #define DEFAULT_SUSPEND_FREQUENCY	1134000
-#define DEFAULT_RESUME_FREQUENCY	1350000
+#define DEFAULT_RESUME_FREQUENCY	1566000
 #define DEFAULT_MIN_FREQUENCY		384000
-#else
-#define DEFAULT_SUSPEND_FREQUENCY	1134000
-#define DEFAULT_RESUME_FREQUENCY	1350000
-#define DEFAULT_MIN_FREQUENCY		384000
-#endif
 
 static unsigned int debug_mask = 0;
 
@@ -257,7 +251,7 @@ static void msm_cpufreq_limit_stop(void)
 	cancel_work_sync(&limit.resume_work);
 	cancel_delayed_work_sync(&limit.suspend_work);
 	mutex_destroy(&limit.resume_suspend_mutex);
-	for_each_possible_cpu(cpu)	
+	for_each_possible_cpu(cpu)
 		mutex_destroy(&limit.msm_limiter_mutex[cpu]);
 
 #ifdef CONFIG_STATE_NOTIFIER
