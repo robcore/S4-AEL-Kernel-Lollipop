@@ -23,24 +23,24 @@ ctl	type	num	name                                     value
 19	BOOL	1	ES325 RX1 Enable                         Off
 20	BOOL	1	ES325 TX1 Enable                         Off
 21	BOOL	1	ES325 RX2 Enable                         Off
-22	ENUM	1	Mic Config
-23	ENUM	1	AEC Mode
+22	ENUM	1	Mic Config                              
+23	ENUM	1	AEC Mode                                
 24	BOOL	1	VEQ Enable                               On
 25	BOOL	1	BWE Enable                               On
 26	INT	1	ES325 Tx NS                              65535
-27	ENUM	1	Dereverb Enable
+27	ENUM	1	Dereverb Enable                         
 28	INT	1	Dereverb Gain                            7
 29	INT	1	BWE High Band Gain                       5
 30	INT	1	BWE Max SNR                              15
-31	ENUM	1	BWE Post EQ Enable
+31	ENUM	1	BWE Post EQ Enable                      
 32	INT	1	SLIMbus Link Multi Channel               -5
 33	ENUM	1	Set Power State                          Sleep
-34	ENUM	1	Algorithm Processing
-35	ENUM	1	Algorithm Sample Rate
-36	ENUM	1	Algorithm
-37	ENUM	1	Mix Sample Rate
+34	ENUM	1	Algorithm Processing                    
+35	ENUM	1	Algorithm Sample Rate                   
+36	ENUM	1	Algorithm                               
+37	ENUM	1	Mix Sample Rate                         
 38	INT	1	Internal Route Config                    26
-39	ENUM	1	ES325-AP Tx Channels
+39	ENUM	1	ES325-AP Tx Channels                    
 40	BOOL	1	ES325 Network Type                       Off
 41	INT	1	CS out gain                              15
 42	BOOL	1	ES325 2Mic Enable                        Off
@@ -506,7 +506,7 @@ ctl	type	num	name                                     value
 502	ENUM	1	SLIM_0_RX Channels                       Two
 503	ENUM	1	SLIM_0_TX Channels                       One
 504	ENUM	1	SLIM_1_TX Channels                       One
-505	ENUM	1	SLIM_1 SampleRate
+505	ENUM	1	SLIM_1 SampleRate                       
 506	BOOL	1	Incall Rec Mode                          Off
 507	ENUM	1	SLIM_3_RX Channels                       One
 508	ENUM	1	HDMI_RX Channels                         Two
