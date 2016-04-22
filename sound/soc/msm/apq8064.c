@@ -95,8 +95,8 @@ enum {
 	INCALL_REC_STEREO,
 };
 
-static u32 top_spk_pamp_gpio  = PM8921_GPIO_PM_TO_SYS(18);
-static u32 bottom_spk_pamp_gpio = PM8921_GPIO_PM_TO_SYS(19);
+static u32 top_spk_pamp_gpio  = PM8921_GPIO_PM_TO_SYS(19);
+static u32 bottom_spk_pamp_gpio = PM8921_GPIO_PM_TO_SYS(18);
 static int msm_spk_control;
 static int msm_ext_bottom_spk_pamp;
 static int msm_ext_top_spk_pamp;
@@ -912,7 +912,7 @@ static int msm_hdmi_rx_ch_put(struct snd_kcontrol *kcontrol,
 		msm_hdmi_rx_ch);
 	return 1;
 }
-	
+
 static int msm_hdmi_rate_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
