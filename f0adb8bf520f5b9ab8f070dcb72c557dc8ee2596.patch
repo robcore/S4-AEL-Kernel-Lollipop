@@ -1,0 +1,32 @@
+From f0adb8bf520f5b9ab8f070dcb72c557dc8ee2596 Mon Sep 17 00:00:00 2001
+From: SathishKumar Mani <smani@codeaurora.org>
+Date: Tue, 11 Sep 2012 14:25:46 -0700
+Subject: [PATCH] ASoC: WCD9310: Reduce the sleep time after lineout PA enable
+
+- Speaker warm-up time is too long(over 100 ms) due to big delay
+  (16*2ms for mono and 16*4ms for stereo)after lineout PA enabled.
+- Measured by "adb shell dumpsys media.audio_flinger |grep measuredWarmup",
+  speaker warm-up time is reduced to ~70-80ms
+
+Signed-off-by: SathishKumar Mani <smani@codeaurora.org>
+bug-id: 7022794
+---
+ sound/soc/codecs/wcd9310.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sound/soc/codecs/wcd9310.c b/sound/soc/codecs/wcd9310.c
+index a22f8da..471ec36 100644
+--- a/sound/soc/codecs/wcd9310.c
++++ b/sound/soc/codecs/wcd9310.c
+@@ -2042,9 +2042,9 @@ static int tabla_codec_enable_lineout(struct snd_soc_dapm_widget *w,
+ 		snd_soc_update_bits(codec, lineout_gain_reg, 0x40, 0x40);
+ 		break;
+ 	case SND_SOC_DAPM_POST_PMU:
+-		pr_debug("%s: sleeping 16 ms after %s PA turn on\n",
++		pr_debug("%s: sleeping 16 us after %s PA turn on\n",
+ 				__func__, w->name);
+-		usleep_range(16000, 16000);
++		usleep_range(16, 16);
+ 		break;
+ 	case SND_SOC_DAPM_POST_PMD:
+ 		snd_soc_update_bits(codec, lineout_gain_reg, 0x40, 0x00);
