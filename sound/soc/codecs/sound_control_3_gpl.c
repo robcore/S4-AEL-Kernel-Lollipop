@@ -36,10 +36,10 @@ int tabla_write(struct snd_soc_codec *codec, unsigned int reg,
 		unsigned int value);
 
 
-#define REG_SZ	25
-static unsigned int cached_regs[] = {6, 6, 0, 0, 0, 0, 0, 0, 0, 0,
+#define REG_SZ	26
+static unsigned int cached_regs[] = {7, 7, 0, 0, 0, 0, 0, 0, 0, 0,
 			    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			    0, 0, 0, 0, 0 };
+			    0, 0, 0, 0, 0, 0 };
 
 static unsigned int *cache_select(unsigned int reg)
 {
@@ -115,6 +115,9 @@ static unsigned int *cache_select(unsigned int reg)
                 case TABLA_A_RX_LINE_4_GAIN:
 			out = &cached_regs[24];
 			break;
+                case TABLA_A_RX_LINE_5_GAIN:
+			out = &cached_regs[25];
+			break;
         }
 	return out;
 }
@@ -160,6 +163,7 @@ int snd_hax_reg_access(unsigned int reg)
 		case TABLA_A_RX_LINE_2_GAIN:
 		case TABLA_A_RX_LINE_3_GAIN:
 		case TABLA_A_RX_LINE_4_GAIN:
+		case TABLA_A_RX_LINE_5_GAIN:
 			if (snd_ctrl_locked > 0)
 				ret = 0;
 			break;
@@ -314,7 +318,7 @@ static ssize_t headphone_pa_gain_store(struct kobject *kobj,
 
 	if (calc_checksum(lval, rval, chksum)) {
 	gain = tabla_read(fauxsound_codec_ptr, TABLA_A_RX_HPH_L_GAIN);
-	out = (gain & 0xf0) | lval;
+	out = (gain & 0x1f) | lval;
 	tabla_write(fauxsound_codec_ptr, TABLA_A_RX_HPH_L_GAIN, out);
 
 	status = tabla_read(fauxsound_codec_ptr, TABLA_A_RX_HPH_L_STATUS);
@@ -322,7 +326,7 @@ static ssize_t headphone_pa_gain_store(struct kobject *kobj,
 	tabla_write(fauxsound_codec_ptr, TABLA_A_RX_HPH_L_STATUS, out);
 
 	gain = tabla_read(fauxsound_codec_ptr, TABLA_A_RX_HPH_R_GAIN);
-	out = (gain & 0xf0) | rval;
+	out = (gain & 0x1f) | rval;
 	tabla_write(fauxsound_codec_ptr, TABLA_A_RX_HPH_R_GAIN, out);
 
 	status = tabla_read(fauxsound_codec_ptr, TABLA_A_RX_HPH_R_STATUS);
