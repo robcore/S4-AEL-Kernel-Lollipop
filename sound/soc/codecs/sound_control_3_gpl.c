@@ -258,7 +258,7 @@ static ssize_t speaker_gain_show(struct kobject *kobj,
 			tabla_read(fauxsound_codec_ptr,
 				TABLA_A_CDC_RX5_VOL_CTL_B2_CTL),
 			tabla_read(fauxsound_codec_ptr,
-				TABLA_A_CDC_RX5_VOL_CTL_B2_CTL));
+				TABLA_A_CDC_RX7_VOL_CTL_B2_CTL));
 
 }
 
@@ -273,7 +273,7 @@ static ssize_t speaker_gain_store(struct kobject *kobj,
 		tabla_write(fauxsound_codec_ptr,
 			TABLA_A_CDC_RX5_VOL_CTL_B2_CTL, lval);
 		tabla_write(fauxsound_codec_ptr,
-			TABLA_A_CDC_RX5_VOL_CTL_B2_CTL, rval);
+			TABLA_A_CDC_RX7_VOL_CTL_B2_CTL, rval);
 	}
 	return count;
 }
