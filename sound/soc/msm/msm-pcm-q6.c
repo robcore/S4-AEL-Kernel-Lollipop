@@ -42,9 +42,10 @@ struct snd_msm {
 #define PLAYBACK_NUM_PERIODS		8
 #define PLAYBACK_MAX_PERIOD_SIZE	4096
 #define PLAYBACK_MIN_PERIOD_SIZE	1024
-#define CAPTURE_NUM_PERIODS		2
-#define CAPTURE_MAX_PERIOD_SIZE		4096
-#define CAPTURE_MIN_PERIOD_SIZE		320
+#define CAPTURE_MIN_NUM_PERIODS 2
+#define CAPTURE_MAX_NUM_PERIODS 16
+#define CAPTURE_MAX_PERIOD_SIZE 4096
+#define CAPTURE_MIN_PERIOD_SIZE 320
 
 static struct snd_pcm_hardware msm_pcm_hardware_capture = {
 	.info =                 (SNDRV_PCM_INFO_MMAP |
@@ -495,13 +496,8 @@ static int msm_pcm_playback_close(struct snd_pcm_substream *substream)
 	pr_debug("%s\n", __func__);
 
 	dir = IN;
-#ifdef CONFIG_MACH_M2
-	ret = wait_event_timeout(the_locks.eos_wait,
-				prtd->cmd_ack, 1 * HZ);
-#else
 	ret = wait_event_timeout(the_locks.eos_wait,
 				prtd->cmd_ack, 5 * HZ);
-#endif
 	if (!ret)
 		pr_err("%s: CMD_EOS failed\n", __func__);
 	q6asm_cmd(prtd->audio_client, CMD_CLOSE);
@@ -725,14 +721,11 @@ static int msm_pcm_hw_params(struct snd_pcm_substream *substream,
 						  prtd->session_id,
 						  substream->stream, event);
 	}
+
 	ret = q6asm_audio_client_buf_alloc_contiguous(dir,
 			prtd->audio_client,
 			(params_buffer_bytes(params) / params_periods(params)),
-				params_periods(params));
-		pr_debug("buff bytes = %d, period size = %d,\
-			period count = %d\n", params_buffer_bytes(params),
 			params_periods(params));
-
 	if (ret < 0) {
 		pr_err("Audio Start: Buffer Allocation failed \
 					rc = %d\n", ret);
