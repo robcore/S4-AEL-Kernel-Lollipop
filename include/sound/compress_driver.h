@@ -61,7 +61,6 @@ struct snd_compr_runtime {
 	u64 total_bytes_available;
 	u64 total_bytes_transferred;
 	wait_queue_head_t sleep;
-	void *private_data;
 };
 
 /**

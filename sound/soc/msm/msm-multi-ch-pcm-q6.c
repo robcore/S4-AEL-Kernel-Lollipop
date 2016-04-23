@@ -47,11 +47,11 @@ struct snd_msm_volume {
 static struct snd_msm_volume multi_ch_pcm_audio = {NULL, 0x2000};
 
 #define PLAYBACK_NUM_PERIODS		8
-#define PLAYBACK_MAX_PERIOD_SIZE	4032
+#define PLAYBACK_MAX_PERIOD_SIZE	12288
 #define PLAYBACK_MIN_PERIOD_SIZE        256
 #define CAPTURE_NUM_PERIODS		16
 #define CAPTURE_MIN_PERIOD_SIZE		320
-#define CAPTURE_MAX_PERIOD_SIZE		5376
+#define CAPTURE_MAX_PERIOD_SIZE		12288
 
 static struct snd_pcm_hardware msm_pcm_hardware_capture = {
 	.info =                 (SNDRV_PCM_INFO_MMAP |
