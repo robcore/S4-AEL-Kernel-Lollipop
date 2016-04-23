@@ -1,1 +1,0 @@
-cmd_drivers/usb/gadget/built-in.o :=  /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/usb/gadget/built-in.o drivers/usb/gadget/udc-core.o drivers/usb/gadget/ci13xxx_msm.o drivers/usb/gadget/g_android.o drivers/usb/gadget/multi_config.o 

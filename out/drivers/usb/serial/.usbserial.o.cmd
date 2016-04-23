@@ -1,1 +1,0 @@
-cmd_drivers/usb/serial/usbserial.o := /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/usb/serial/usbserial.o drivers/usb/serial/usb-serial.o drivers/usb/serial/generic.o drivers/usb/serial/bus.o 

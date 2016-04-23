@@ -1,1 +1,0 @@
-cmd_drivers/gpu/msm/built-in.o :=  /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/gpu/msm/built-in.o drivers/gpu/msm/msm_kgsl_core.o drivers/gpu/msm/msm_adreno.o drivers/gpu/msm/msm_z180.o 

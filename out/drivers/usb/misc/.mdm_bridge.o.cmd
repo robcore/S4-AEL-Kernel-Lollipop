@@ -1,1 +1,0 @@
-cmd_drivers/usb/misc/mdm_bridge.o := /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/usb/misc/mdm_bridge.o drivers/usb/misc/mdm_ctrl_bridge.o drivers/usb/misc/mdm_data_bridge.o 

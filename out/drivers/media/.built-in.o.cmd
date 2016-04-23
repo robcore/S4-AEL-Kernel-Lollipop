@@ -1,1 +1,0 @@
-cmd_drivers/media/built-in.o :=  /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/media/built-in.o drivers/media/media.o drivers/media/common/built-in.o drivers/media/rc/built-in.o drivers/media/video/built-in.o drivers/media/radio/built-in.o 

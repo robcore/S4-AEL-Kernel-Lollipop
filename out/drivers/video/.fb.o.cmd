@@ -1,1 +1,0 @@
-cmd_drivers/video/fb.o := /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/video/fb.o drivers/video/fbmem.o drivers/video/fbmon.o drivers/video/fbcmap.o drivers/video/fbsysfs.o drivers/video/modedb.o drivers/video/fbcvt.o 
