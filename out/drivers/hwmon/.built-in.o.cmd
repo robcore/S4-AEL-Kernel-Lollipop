@@ -1,0 +1,1 @@
+cmd_drivers/hwmon/built-in.o :=  /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/hwmon/built-in.o drivers/hwmon/hwmon.o drivers/hwmon/pm8xxx-adc.o drivers/hwmon/pm8xxx-adc-scale.o drivers/hwmon/epm_adc.o 

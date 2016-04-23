@@ -182,7 +182,7 @@ static void msm_enable_ext_spk_amp_gpio(u32 spk_amp_gpio)
 			pr_err("%s: Failed to configure Bottom Spk Ampl"
 				" gpio %u\n", __func__, bottom_spk_pamp_gpio);
 		else {
-			pr_info("%s: enable Bottom spkr amp gpio\n", __func__);
+			pr_debug("%s: enable Bottom spkr amp gpio\n", __func__);
 			gpio_direction_output(bottom_spk_pamp_gpio, 1);
 		}
 
@@ -199,7 +199,7 @@ static void msm_enable_ext_spk_amp_gpio(u32 spk_amp_gpio)
 			pr_err("%s: Failed to configure Top Spk Ampl"
 				" gpio %u\n", __func__, top_spk_pamp_gpio);
 		else {
-			pr_info("%s: enable Top spkr amp gpio\n", __func__);
+			pr_debug("%s: enable Top spkr amp gpio\n", __func__);
 			gpio_direction_output(top_spk_pamp_gpio, 1);
 		}
 	} else {
@@ -216,7 +216,7 @@ static void msm_ext_spk_power_amp_on(u32 spk)
 		if ((msm_ext_bottom_spk_pamp & BOTTOM_SPK_AMP_POS) &&
 			(msm_ext_bottom_spk_pamp & BOTTOM_SPK_AMP_NEG)) {
 
-			pr_info("%s() External Bottom Speaker Ampl already "
+			pr_debug("%s() External Bottom Speaker Ampl already "
 				"turned on. spk = 0x%08x\n", __func__, spk);
 			return;
 		}
@@ -227,21 +227,21 @@ static void msm_ext_spk_power_amp_on(u32 spk)
 			(msm_ext_bottom_spk_pamp & BOTTOM_SPK_AMP_NEG)) {
 
 			msm_enable_ext_spk_amp_gpio(bottom_spk_pamp_gpio);
-			pr_info("%s: slepping 4 ms after turning on external "
+			pr_debug("%s: slepping 4 ms after turning on external "
 				" Bottom Speaker Ampl\n", __func__);
 			usleep_range(4000, 4000);
 		}
 
 	} else if (spk & (TOP_SPK_AMP_POS | TOP_SPK_AMP_NEG | TOP_SPK_AMP)) {
 
-		pr_info("%s():top_spk_amp_state = 0x%x spk_event = 0x%x\n",
+		pr_debug("%s():top_spk_amp_state = 0x%x spk_event = 0x%x\n",
 			__func__, msm_ext_top_spk_pamp, spk);
 
 		if (((msm_ext_top_spk_pamp & TOP_SPK_AMP_POS) &&
 			(msm_ext_top_spk_pamp & TOP_SPK_AMP_NEG)) ||
 				(msm_ext_top_spk_pamp & TOP_SPK_AMP)) {
 
-			pr_info("%s() External Top Speaker Ampl already"
+			pr_debug("%s() External Top Speaker Ampl already"
 				"turned on. spk = 0x%08x\n", __func__, spk);
 			return;
 		}
@@ -256,7 +256,7 @@ static void msm_ext_spk_power_amp_on(u32 spk)
 			set_amp_gain(SPK_ON);
 #else
 			msm_enable_ext_spk_amp_gpio(top_spk_pamp_gpio);
-			pr_info("%s: sleeping 4 ms after turning on "
+			pr_debug("%s: sleeping 4 ms after turning on "
 				" external Top Speaker Ampl\n", __func__);
 			usleep_range(4000, 4000);
 #endif
@@ -280,14 +280,14 @@ static void msm_ext_spk_power_amp_off(u32 spk)
 		gpio_free(bottom_spk_pamp_gpio);
 		msm_ext_bottom_spk_pamp = 0;
 
-		pr_info("%s: sleeping 4 ms after turning off external Bottom"
+		pr_debug("%s: sleeping 4 ms after turning off external Bottom"
 			" Speaker Ampl\n", __func__);
 
 		usleep_range(4000, 4000);
 
 	} else if (spk & (TOP_SPK_AMP_POS | TOP_SPK_AMP_NEG | TOP_SPK_AMP)) {
 
-		pr_info("%s: top_spk_amp_state = 0x%x spk_event = 0x%x\n",
+		pr_debug("%s: top_spk_amp_state = 0x%x spk_event = 0x%x\n",
 				__func__, msm_ext_top_spk_pamp, spk);
 
 		if (!msm_ext_top_spk_pamp)
@@ -312,7 +312,7 @@ static void msm_ext_spk_power_amp_off(u32 spk)
 		gpio_free(top_spk_pamp_gpio);
 		msm_ext_top_spk_pamp = 0;
 
-		pr_info("%s: sleeping 4 ms after ext Top Spek Ampl is off\n",
+		pr_debug("%s: sleeping 4 ms after ext Top Spek Ampl is off\n",
 				__func__);
 
 		usleep_range(4000, 4000);
@@ -329,7 +329,7 @@ static void msm_ext_control(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	pr_info("%s: msm_spk_control = %d", __func__, msm_spk_control);
+	pr_debug("%s: msm_spk_control = %d", __func__, msm_spk_control);
 	if (msm_spk_control == MSM8064_SPK_ON) {
 		snd_soc_dapm_enable_pin(dapm, "Ext Spk Bottom Pos");
 		snd_soc_dapm_enable_pin(dapm, "Ext Spk Bottom Neg");
@@ -374,7 +374,7 @@ static int msm_set_spk(struct snd_kcontrol *kcontrol,
 static int msm_spkramp_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *k, int event)
 {
-	pr_info("%s() %x\n", __func__, SND_SOC_DAPM_EVENT_ON(event));
+	pr_debug("%s() %x\n", __func__, SND_SOC_DAPM_EVENT_ON(event));
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		if (!strncmp(w->name, "Ext Spk Bottom Pos", 18))
@@ -1759,7 +1759,7 @@ static int msm_auxpcm_startup(struct snd_pcm_substream *substream)
 {
 	int ret = 0;
 
-	pr_info("%s(): substream = %s, auxpcm_rsc_ref counter = %d\n",
+	pr_debug("%s(): substream = %s, auxpcm_rsc_ref counter = %d\n",
 		__func__, substream->name, atomic_read(&auxpcm_rsc_ref));
 	if (atomic_inc_return(&auxpcm_rsc_ref) == 1)
 		ret = msm_aux_pcm_get_gpios();
@@ -1786,7 +1786,7 @@ static int msm_slimbus_1_startup(struct snd_pcm_substream *substream)
 static void msm_auxpcm_shutdown(struct snd_pcm_substream *substream)
 {
 
-	pr_info("%s(): substream = %s, auxpcm_rsc_ref counter = %d\n",
+	pr_debug("%s(): substream = %s, auxpcm_rsc_ref counter = %d\n",
 		__func__, substream->name, atomic_read(&auxpcm_rsc_ref));
 	if (atomic_dec_return(&auxpcm_rsc_ref) == 0)
 		msm_aux_pcm_free_gpios();

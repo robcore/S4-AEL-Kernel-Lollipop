@@ -1,0 +1,1 @@
+cmd_drivers/net/usb/rmnet_usb.o := /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/net/usb/rmnet_usb.o drivers/net/usb/rmnet_usb_ctrl.o drivers/net/usb/rmnet_usb_data.o 

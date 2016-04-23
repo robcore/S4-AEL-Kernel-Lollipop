@@ -1,0 +1,1 @@
+cmd_drivers/media/rc/rc-core.o := /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/media/rc/rc-core.o drivers/media/rc/rc-main.o drivers/media/rc/ir-raw.o 

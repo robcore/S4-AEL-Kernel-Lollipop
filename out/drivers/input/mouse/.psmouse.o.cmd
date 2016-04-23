@@ -1,0 +1,1 @@
+cmd_drivers/input/mouse/psmouse.o := /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/input/mouse/psmouse.o drivers/input/mouse/psmouse-base.o drivers/input/mouse/synaptics.o drivers/input/mouse/alps.o drivers/input/mouse/logips2pp.o drivers/input/mouse/trackpoint.o 

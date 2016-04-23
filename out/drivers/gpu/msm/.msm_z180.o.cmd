@@ -1,0 +1,1 @@
+cmd_drivers/gpu/msm/msm_z180.o := /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/gpu/msm/msm_z180.o drivers/gpu/msm/z180.o drivers/gpu/msm/z180_postmortem.o drivers/gpu/msm/z180_trace.o 

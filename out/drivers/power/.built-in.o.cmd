@@ -1,0 +1,1 @@
+cmd_drivers/power/built-in.o :=  /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/power/built-in.o drivers/power/power_supply.o drivers/power/pm8921-charger.o 

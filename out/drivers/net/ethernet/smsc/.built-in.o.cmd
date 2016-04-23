@@ -1,0 +1,1 @@
+cmd_drivers/net/ethernet/smsc/built-in.o :=  /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/net/ethernet/smsc/built-in.o drivers/net/ethernet/smsc/smc91x.o drivers/net/ethernet/smsc/smc911x.o drivers/net/ethernet/smsc/smsc911x.o 

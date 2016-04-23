@@ -1,0 +1,1 @@
+cmd_drivers/iommu/built-in.o :=  /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/iommu/built-in.o drivers/iommu/iommu.o drivers/iommu/msm_iommu.o drivers/iommu/msm_iommu_dev.o 

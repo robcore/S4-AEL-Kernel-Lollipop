@@ -1,0 +1,1 @@
+cmd_arch/arm/mach-msm/qdsp6v2/ultrasound/built-in.o :=  /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o arch/arm/mach-msm/qdsp6v2/ultrasound/built-in.o arch/arm/mach-msm/qdsp6v2/ultrasound/q6usm.o arch/arm/mach-msm/qdsp6v2/ultrasound/usf.o arch/arm/mach-msm/qdsp6v2/ultrasound/usfcdev.o 

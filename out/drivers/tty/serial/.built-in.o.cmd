@@ -1,0 +1,1 @@
+cmd_drivers/tty/serial/built-in.o :=  /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/tty/serial/built-in.o drivers/tty/serial/serial_core.o drivers/tty/serial/msm_serial.o drivers/tty/serial/msm_serial_hs.o drivers/tty/serial/msm_serial_hs_lite.o 

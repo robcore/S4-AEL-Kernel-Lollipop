@@ -1,0 +1,1 @@
+cmd_drivers/usb/misc/built-in.o :=  /opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-ld -EL    -r -o drivers/usb/misc/built-in.o drivers/usb/misc/ehset.o drivers/usb/misc/diag_bridge.o drivers/usb/misc/mdm_bridge.o drivers/usb/misc/ks_bridge.o 
