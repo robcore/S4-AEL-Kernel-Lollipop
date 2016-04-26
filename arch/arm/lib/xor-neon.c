@@ -11,7 +11,7 @@
 #include <linux/raid/xor.h>
 
 #ifndef __ARM_NEON__
-#error You should compile this file with '-mfloat-abi=softfp -mfpu=neon'
+#error You should compile this file with '-mfloat-abi=softfp -mfpu=neon-vfpv4'
 #endif
 
 /*
