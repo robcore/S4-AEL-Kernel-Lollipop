@@ -1,0 +1,61 @@
+From 321cbbca21da226b883575525fb831cf8dd22d47 Mon Sep 17 00:00:00 2001
+From: "Christopher R. Palmer" <crpalmer@gmail.com>
+Date: Thu, 28 Nov 2013 19:35:29 -0500
+Subject: [PATCH] msm: We are using the msm2 gpu driver, not msm
+
+Fix references that are incorrectly pointing at drivers/gpu/msm
+instead of msm2.
+
+The incorrect includes cause linaro gcc 4.8 with -O3 to produce
+an unbootable kernel on the DLX.
+
+While it doesn't seem to be affecting our normal builds, not
+fixing it will likely bite us in the future in some other
+mysterious way.
+
+Change-Id: I3c51062ca6a66ddb9782365d2c51c5e485556c1b
+---
+ drivers/gpu/Makefile      | 4 ++++
+ drivers/gpu/msm2/Makefile | 2 +-
+ drivers/video/Kconfig     | 6 ++++++
+ 3 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/Makefile b/drivers/gpu/Makefile
+index fa8dbb5..1a5282c 100644
+--- a/drivers/gpu/Makefile
++++ b/drivers/gpu/Makefile
+@@ -1,2 +1,6 @@
+ obj-y			+= drm/ vga/ stub/ ion/
++ifeq ($(CONFIG_ARCH_APQ8064),y)
+ obj-$(CONFIG_MSM_KGSL)	+= msm2/
++else
++obj-$(CONFIG_MSM_KGSL)	+= msm/
++endif
+diff --git a/drivers/gpu/msm2/Makefile b/drivers/gpu/msm2/Makefile
+index 895235f..da56a4c 100644
+--- a/drivers/gpu/msm2/Makefile
++++ b/drivers/gpu/msm2/Makefile
+@@ -1,4 +1,4 @@
+-ccflags-y := -Iinclude/uapi/drm -Iinclude/drm -Idrivers/gpu/msm
++ccflags-y := -Iinclude/uapi/drm -Iinclude/drm -Idrivers/gpu/msm2
+ 
+ msm_kgsl_core-y = \
+ 	kgsl.o \
+diff --git a/drivers/video/Kconfig b/drivers/video/Kconfig
+index 903d421..b32721c 100644
+--- a/drivers/video/Kconfig
++++ b/drivers/video/Kconfig
+@@ -25,7 +25,13 @@ source "drivers/gpu/stub/Kconfig"
+ 
+ source "drivers/gpu/ion/Kconfig"
+ 
++if !ARCH_APQ8064
+ source "drivers/gpu/msm/Kconfig"
++endif
++
++if ARCH_APQ8064
++source "drivers/gpu/msm2/Kconfig"
++endif
+ 
+ config VGASTATE
+        tristate
