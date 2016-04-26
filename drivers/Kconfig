@@ -170,3 +170,9 @@ source "drivers/motor_msm8930/Kconfig"
 
 source "drivers/secfilter/Kconfig"
 endmenu
+
+menu "KControl Module"
+
+source "drivers/gpu/kcontrol_module/Kconfig"
+
+endmenu

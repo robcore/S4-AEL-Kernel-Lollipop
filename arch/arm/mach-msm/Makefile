@@ -483,7 +483,6 @@ obj-$(CONFIG_INTELLI_HOTPLUG) += intelli_hotplug.o
 obj-$(CONFIG_BRICKED_HOTPLUG) += bricked_hotplug.o
 obj-$(CONFIG_BT_BCM4334) += board-bluetooth-bcm4334.o
 obj-$(CONFIG_FORCE_FAST_CHARGE) += fastchg.o
-obj-$(CONFIG_LCD_KCAL_STANDALONE) += msm_kcal_ctrl.o
 obj-$(CONFIG_HAS_MACH_MEMUTILS) += memutils/
 obj-$(CONFIG_CPUFREQ_LIMIT_MANAGER) += cpufreq_limit_manager.o
 obj-$(CONFIG_MSM_SLEEPER) += msm-sleeper.o

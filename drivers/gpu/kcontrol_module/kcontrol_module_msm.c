@@ -24,9 +24,14 @@
 #include <linux/kallsyms.h>
 #include <linux/sysfs.h>
 #include <linux/platform_device.h>
-#include "mach-msm/clock-local.h"
-#include "gpu_msm/adreno.h"
-#include "gpu_msm/kgsl_device.h"
+#include "../../../arch/arm/mach-msm/clock-local.h"
+#ifndef CONFIG_ARCH_APQ8064
+#include "../msm/adreno.h"
+#include "../msm/kgsl_device.h"
+#else
+#include "../msm2/adreno.h"
+#include "../msm2/kgsl_device.h"
+#endif
 
 #define THIS_EXPERIMENTAL 0
 

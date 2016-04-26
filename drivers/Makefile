@@ -170,3 +170,4 @@ endif
 
 obj-$(CONFIG_SEC_NET_FILTER)	+= secfilter/
 
+obj-$(CONFIG_KCONTROL_GPU_MODULE_MSM)   += gpu/

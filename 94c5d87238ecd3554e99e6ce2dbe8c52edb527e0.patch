@@ -1,0 +1,469 @@
+From 94c5d87238ecd3554e99e6ce2dbe8c52edb527e0 Mon Sep 17 00:00:00 2001
+From: Paul Keith <javelinanddart@gmail.com>
+Date: Mon, 16 Feb 2015 12:40:48 -0600
+Subject: [PATCH] Build @showp1984's KControl GPU MSM Module at Compilation
+ Time
+
+Signed-off-by: Paul Keith <javelinanddart@gmail.com>
+---
+ drivers/Kconfig                                   |   6 +
+ drivers/Makefile                                  |   1 +
+ drivers/gpu/Makefile                              |   1 +
+ drivers/gpu/kcontrol_module/Kconfig               |   6 +
+ drivers/gpu/kcontrol_module/Makefile              |  10 +
+ drivers/gpu/kcontrol_module/README                |  24 ++
+ drivers/gpu/kcontrol_module/kcontrol_module_msm.c | 352 ++++++++++++++++++++++
+ 7 files changed, 400 insertions(+)
+ create mode 100644 drivers/gpu/kcontrol_module/Kconfig
+ create mode 100644 drivers/gpu/kcontrol_module/Makefile
+ create mode 100644 drivers/gpu/kcontrol_module/README
+ create mode 100644 drivers/gpu/kcontrol_module/kcontrol_module_msm.c
+
+diff --git a/drivers/Kconfig b/drivers/Kconfig
+index ed07f20..79e71cb 100644
+--- a/drivers/Kconfig
++++ b/drivers/Kconfig
+@@ -153,3 +153,9 @@ source "drivers/coresight/Kconfig"
+ source "drivers/sensors/Kconfig"
+ 
+ endmenu
++
++menu "KControl Module"
++
++source "drivers/gpu/kcontrol_module/Kconfig"
++
++endmenu
+diff --git a/drivers/Makefile b/drivers/Makefile
+index debe9d7..304906d 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -146,3 +146,4 @@ obj-$(CONFIG_CORESIGHT)		+= coresight/
+ #sensor_class
+ obj-$(CONFIG_SENSORS)		+= sensors/
+ 
++obj-$(CONFIG_KCONTROL_GPU_MODULE_MSM)   += gpu/
+diff --git a/drivers/gpu/Makefile b/drivers/gpu/Makefile
+index 1a5282c..a90182e 100644
+--- a/drivers/gpu/Makefile
++++ b/drivers/gpu/Makefile
+@@ -4,3 +4,4 @@ obj-$(CONFIG_MSM_KGSL)	+= msm2/
+ else
+ obj-$(CONFIG_MSM_KGSL)	+= msm/
+ endif
++obj-$(CONFIG_KCONTROL_GPU_MODULE_MSM)	+= kcontrol_module/
+diff --git a/drivers/gpu/kcontrol_module/Kconfig b/drivers/gpu/kcontrol_module/Kconfig
+new file mode 100644
+index 0000000..9bf8ed8
+--- /dev/null
++++ b/drivers/gpu/kcontrol_module/Kconfig
+@@ -0,0 +1,6 @@
++config KCONTROL_GPU_MODULE_MSM
++        tristate
++        default m
++        depends on ARCH_MSM && MODULES && KALLSYMS_ALL
++	help
++	  Enable Advanced GPU Options in KControl for MSM Devices
+diff --git a/drivers/gpu/kcontrol_module/Makefile b/drivers/gpu/kcontrol_module/Makefile
+new file mode 100644
+index 0000000..7d37c4b
+--- /dev/null
++++ b/drivers/gpu/kcontrol_module/Makefile
+@@ -0,0 +1,10 @@
++obj-$(CONFIG_KCONTROL_GPU_MODULE_MSM) += kcontrol_gpu_msm.o
++
++kcontrol_gpu_msm-y	:= kcontrol_module_msm.o
++
++all:
++	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
++
++clean:
++	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
++	
+diff --git a/drivers/gpu/kcontrol_module/README b/drivers/gpu/kcontrol_module/README
+new file mode 100644
+index 0000000..fa43828
+--- /dev/null
++++ b/drivers/gpu/kcontrol_module/README
+@@ -0,0 +1,24 @@
++How to use:
++Kcontrol will insert this module with the appropriate parameters on it's own if found in /system/lib/modules.
++All you need for that to work is compile your kernel with CONFIG_KALLSYMS_ALL.
++If you want to test this module on your own without KControl, do this:
++
++echo "0" > /proc/sys/kernel/kptr_restrict
++cat /proc/kallsyms | grep 'device_3d0' | tail -n1
++XXXXXXXX d device_3d0
++cat /proc/kallsyms | grep 'gfx2d0_clk'
++YYYYYYYY d gfx2d0_clk
++cat /proc/kallsyms | grep 'gfx3d_clk'
++ZZZZZZZZ d gfx3d_clk
++
++insmod kcontrol_gpu_msm.ko dev_3d0=0xXXXXXXXX gfx2d0_clk=0xYYYYYYYY gfx3d_clk=0xZZZZZZZZ
++
++(If you insert the module without these parameters, the insert will fail and the module will remove itself. No changes will have been done to your kernel.)
++
++The sysfs exposeables are in /sys/kernel/kcontrol_gpu_msm/.
++
++If you plan on extending this module with any functionality beware of changing the kernel memory.
++As that may result in unexpected behavior, like world war III, a black hole, or some other shit.
++This module only reads stuff and if it should write something in the future then I am 99.99999% sure that it is safe.
++You should be too if your extension plans to modify a running kernel.
++Otherwise: Don't touch things of which you have no clue.
+diff --git a/drivers/gpu/kcontrol_module/kcontrol_module_msm.c b/drivers/gpu/kcontrol_module/kcontrol_module_msm.c
+new file mode 100644
+index 0000000..71dbcff
+--- /dev/null
++++ b/drivers/gpu/kcontrol_module/kcontrol_module_msm.c
+@@ -0,0 +1,352 @@
++/*
++ * KControl GPU module for msm devices
++ *
++ * Copyright (c) 2013 Dennis Rassmann
++ * Author: Dennis Rassmann <showp1984@gmail.com>
++ *
++ * This software is licensed under the terms of the GNU General Public
++ * License version 2, as published by the Free Software Foundation, and
++ * may be copied, distributed, and modified under those terms.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
++ * GNU General Public License for more details.
++ *
++ */
++
++#include <linux/module.h>
++#include <linux/moduleparam.h>
++#include <linux/kernel.h>
++#include <linux/kobject.h>
++#include <linux/init.h>
++#include <linux/errno.h>
++#include <linux/kallsyms.h>
++#include <linux/sysfs.h>
++#include <linux/platform_device.h>
++#include "../../../arch/arm/mach-msm/clock-local.h"
++#ifndef CONFIG_ARCH_APQ8064
++#include "../msm/adreno.h"
++#include "../msm/kgsl_device.h"
++#else
++#include "../msm2/adreno.h"
++#include "../msm2/kgsl_device.h"
++#endif
++
++#define THIS_EXPERIMENTAL 0
++
++#define DRIVER_AUTHOR "Dennis Rassmann <showp1984@gmail.com>"
++#define DRIVER_DESCRIPTION "KControl GPU module for msm devices"
++#define DRIVER_VERSION "1.1"
++#define LOGTAG "kcontrol_gpu_msm: "
++
++MODULE_AUTHOR(DRIVER_AUTHOR);
++MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
++MODULE_VERSION(DRIVER_VERSION);
++MODULE_LICENSE("GPL");
++
++enum vdd_dig_levels {
++	VDD_DIG_NONE,
++	VDD_DIG_LOW,
++	VDD_DIG_NOMINAL,
++	VDD_DIG_HIGH
++};
++
++struct global_attr_kcontrol {
++	struct attribute attr;
++	ssize_t (*show)(struct kobject *kobj,
++			struct attribute *attr, char *buf);
++	ssize_t (*store)(struct kobject *a, struct attribute *b,
++			 const char *c, size_t count);
++};
++
++#define define_one_global_ro_kcontrol(_name)		\
++static struct global_attr_kcontrol _name =		\
++__ATTR(_name, 0444, show_##_name, NULL)
++
++#define define_one_global_rw_kcontrol(_name)		\
++static struct global_attr_kcontrol _name =		\
++__ATTR(_name, 0644, show_##_name, store_##_name)
++
++/* module parameters */
++static uint dev_3d0 = 0x00000000;
++module_param(dev_3d0, uint, 0444);
++
++static uint gfx2d0_clk = 0x00000000;
++module_param(gfx2d0_clk, uint, 0444);
++
++static uint gfx3d_clk = 0x00000000;
++module_param(gfx3d_clk, uint, 0444);
++
++static struct adreno_device *adev = NULL;
++static struct kgsl_device *kdev = NULL;
++static struct kgsl_pwrctrl *kpwr = NULL;
++static struct rcg_clk *rcg2d_clk = NULL;
++static struct rcg_clk *rcg3d_clk = NULL;
++static struct clk_freq_tbl *clk2dtbl = NULL;
++static struct clk_freq_tbl *clk3dtbl = NULL;
++static struct clk *clk2d = NULL;
++static struct clk *clk3d = NULL;
++
++struct kobject *kcontrol_gpu_msm_kobject;
++
++static ssize_t show_kgsl_pwrlevels(struct kobject *a, struct attribute *b,
++				   char *buf)
++{
++	ssize_t len = 0;
++	int i = 0;
++	if (kpwr != NULL) {
++		if (kpwr->num_pwrlevels > 0) {
++			for (i=0; i<kpwr->num_pwrlevels; i++) {
++				len += sprintf(buf + len, "%u\n", kpwr->pwrlevels[i].gpu_freq);
++			}
++		} else {
++			for (i=0; ; i++) {
++				len += sprintf(buf + len, "%u\n", kpwr->pwrlevels[i].gpu_freq);
++				if ((kpwr->pwrlevels[i].bus_freq == 0))
++					break;
++			}
++		}
++	} else {
++		len += sprintf(buf + len, "Error! kpwr pointer is null!\n");
++	}
++	return len;
++}
++static ssize_t store_kgsl_pwrlevels(struct kobject *a, struct attribute *b,
++				   const char *buf, size_t count)
++{
++	int i = 0;
++	unsigned int pwrlvl = 0;
++	long unsigned int hz = 0;
++	const char *chz = NULL;
++	bool found = false;
++
++	if (kpwr != NULL) {
++		for (i=0; i<count; i++) {
++			if (buf[i] == ' ') {
++				sscanf(&buf[(i-1)], "%u", &pwrlvl);
++				chz = &buf[(i+1)];
++				found = true;
++			}
++		}
++		if (found == true) {
++			sscanf(chz, "%lu", &hz);
++			kpwr->pwrlevels[pwrlvl].gpu_freq = hz;
++		} else {
++			pr_err(LOGTAG"Wrong format! accepting only: <pwrlvl hz>, eg: <0 320000000>\n");
++		}
++	} else {
++		pr_err(LOGTAG"Error! kpwr pointer is null!\n");
++	}
++	return count;
++}
++define_one_global_rw_kcontrol(kgsl_pwrlevels);
++
++static ssize_t show_kgsl_iofraction(struct kobject *a, struct attribute *b,
++				   char *buf)
++{
++	ssize_t len = 0;
++	int i = 0;
++
++	if (kpwr != NULL) {
++		if (kpwr->num_pwrlevels > 0) {
++			for (i=0; i<kpwr->num_pwrlevels; i++) {
++				len += sprintf(buf + len, "%u\n", kpwr->pwrlevels[i].io_fraction);
++			}
++		} else {
++			for (i=0; ; i++) {
++				len += sprintf(buf + len, "%u\n", kpwr->pwrlevels[i].io_fraction);
++				if ((kpwr->pwrlevels[i].bus_freq == 0))
++					break;
++			}
++		}
++	} else {
++		len += sprintf(buf + len, "Error! kpwr pointer is null!\n");
++	}
++	return len;
++}
++static ssize_t store_kgsl_iofraction(struct kobject *a, struct attribute *b,
++				   const char *buf, size_t count)
++{
++	int i = 0;
++	unsigned int pwrlvl = 0;
++	long unsigned int io = 0;
++	const char *cio = NULL;
++	bool found = false;
++
++	if (kpwr != NULL) {
++		for (i=0; i<count; i++) {
++			if (buf[i] == ' ') {
++				sscanf(&buf[(i-1)], "%u", &pwrlvl);
++				cio = &buf[(i+1)];
++				found = true;
++			}
++		}
++		if (found == true) {
++			sscanf(cio, "%lu", &io);
++			kpwr->pwrlevels[pwrlvl].io_fraction = io;
++		} else {
++			pr_err(LOGTAG"Wrong format! accepting only: <pwrlvl iofrac>, eg: <0 66>\n");
++		}
++	} else {
++		pr_err(LOGTAG"Error! kpwr pointer is null!\n");
++	}
++	return count;
++}
++define_one_global_rw_kcontrol(kgsl_iofraction);
++
++static ssize_t show_version(struct kobject *a, struct attribute *b,
++				   char *buf)
++{
++	ssize_t len = 0;
++	len += sprintf(buf + len, DRIVER_VERSION);
++	len += sprintf(buf + len, "\n");
++	return len;
++}
++define_one_global_ro_kcontrol(version);
++
++static ssize_t show_kgsl_avail_2d_clocks(struct kobject *a, struct attribute *b,
++				   char *buf)
++{
++	ssize_t len = 0;
++	int i = 0;
++	if (clk2dtbl != NULL) {
++		for (i=0; clk2dtbl[i].freq_hz != FREQ_END; i++) {
++			len += sprintf(buf + len, "%u\n", clk2dtbl[i].freq_hz);
++		}
++	} else {
++		len += sprintf(buf + len, "Error! clk2dtbl pointer is null!\n");
++	}
++	return len;
++}
++define_one_global_ro_kcontrol(kgsl_avail_2d_clocks);
++
++static ssize_t show_kgsl_avail_3d_clocks(struct kobject *a, struct attribute *b,
++				   char *buf)
++{
++	ssize_t len = 0;
++	int i = 0;
++	if (clk3dtbl != NULL) {
++		for (i=0; clk3dtbl[i].freq_hz != FREQ_END; i++) {
++			len += sprintf(buf + len, "%u\n", clk3dtbl[i].freq_hz);
++		}
++	} else {
++		len += sprintf(buf + len, "Error! clk3dtbl pointer is null!\n");
++	}
++	return len;
++}
++define_one_global_ro_kcontrol(kgsl_avail_3d_clocks);
++
++static ssize_t show_kgsl_2d_fmax_restraints(struct kobject *a, struct attribute *b,
++				   char *buf)
++{
++	ssize_t len = 0;
++	if (clk2d != NULL) {
++		len += sprintf(buf + len, "LOW: %lu\n", clk2d->fmax[VDD_DIG_LOW]);
++		len += sprintf(buf + len, "NOMINAL: %lu\n", clk2d->fmax[VDD_DIG_NOMINAL]);
++		len += sprintf(buf + len, "HIGH: %lu\n", clk2d->fmax[VDD_DIG_HIGH]);
++	} else {
++		len += sprintf(buf + len, "Error! clk2d pointer is null!\n");
++	}
++	return len;
++}
++define_one_global_ro_kcontrol(kgsl_2d_fmax_restraints);
++
++static ssize_t show_kgsl_3d_fmax_restraints(struct kobject *a, struct attribute *b,
++				   char *buf)
++{
++	ssize_t len = 0;
++	if (clk3d != NULL) {
++		len += sprintf(buf + len, "LOW: %lu\n", clk3d->fmax[VDD_DIG_LOW]);
++		len += sprintf(buf + len, "NOMINAL: %lu\n", clk3d->fmax[VDD_DIG_NOMINAL]);
++		len += sprintf(buf + len, "HIGH: %lu\n", clk3d->fmax[VDD_DIG_HIGH]);
++	} else {
++		len += sprintf(buf + len, "Error! clk3d pointer is null!\n");
++	}
++	return len;
++}
++define_one_global_ro_kcontrol(kgsl_3d_fmax_restraints);
++
++static struct attribute *kcontrol_gpu_msm_attributes[] = {
++	&version.attr,
++	&kgsl_pwrlevels.attr,
++	&kgsl_iofraction.attr,
++	&kgsl_avail_2d_clocks.attr,
++	&kgsl_avail_3d_clocks.attr,
++	&kgsl_2d_fmax_restraints.attr,
++	&kgsl_3d_fmax_restraints.attr,
++	NULL
++};
++
++static struct attribute_group kcontrol_gpu_msm_attr_group = {
++	.attrs = kcontrol_gpu_msm_attributes,
++	.name = "kcontrol_gpu_msm",
++};
++
++static int __init kcontrol_gpu_msm_init(void)
++{
++	int rc = 0;
++
++	printk(KERN_WARNING LOGTAG "#######################################\n");
++#if THIS_EXPERIMENTAL
++	printk(KERN_WARNING LOGTAG "WARNING: THIS MODULE IS EXPERIMENTAL!\n");
++	printk(KERN_WARNING LOGTAG "You have been warned.\n");
++#endif
++	printk(KERN_INFO LOGTAG "%s, version %s\n", DRIVER_DESCRIPTION,	DRIVER_VERSION);
++	printk(KERN_INFO LOGTAG "author: %s\n", DRIVER_AUTHOR);
++	printk(KERN_WARNING LOGTAG "#######################################\n");
++
++	WARN(dev_3d0 == 0x00000000, LOGTAG "dev_3d0 == 0x00000000!");
++	//WARN(gfx2d0_clk == 0x00000000, LOGTAG "gfx2d0_clk == 0x00000000!");
++	//WARN(gfx3d_clk == 0x00000000, LOGTAG "gfx3d_clk == 0x00000000!");
++
++	if (dev_3d0 != 0x00000000) {
++		adev = (struct adreno_device *)dev_3d0;
++		kdev = &adev->dev;
++		kpwr = &kdev->pwrctrl;
++		if (gfx3d_clk != 0x00000000) {
++			rcg3d_clk = (struct rcg_clk *)gfx3d_clk;
++			if (rcg3d_clk != NULL) {
++				clk3dtbl = (struct clk_freq_tbl *)rcg3d_clk->freq_tbl;
++				clk3d = &rcg3d_clk->c;
++			}
++		} else {
++			pr_warn(LOGTAG"gfx3d_clk: No address given.\n");
++		}
++
++		if (gfx2d0_clk != 0x00000000) {
++			rcg2d_clk = (struct rcg_clk *)gfx2d0_clk;
++			if (rcg2d_clk != NULL) {
++				clk2dtbl = (struct clk_freq_tbl *)rcg2d_clk->freq_tbl;
++				clk2d = &rcg2d_clk->c;
++			}
++		} else {
++			pr_warn(LOGTAG"gfx2d0_clk: No address given.\n");
++		}
++
++		if (kernel_kobj) {
++			rc = sysfs_create_group(kernel_kobj, &kcontrol_gpu_msm_attr_group);
++			if (rc) {
++				pr_warn(LOGTAG"sysfs: ERROR, could not create sysfs group\n");
++			}
++		} else
++			pr_warn(LOGTAG"sysfs: ERROR, could not find sysfs kobj\n");
++
++		pr_info(LOGTAG "everything done, have fun!\n");
++	} else {
++		pr_err(LOGTAG "Error, you need to insert this module WITH parameters!\n");
++		pr_err(LOGTAG "Nothing modified, removing myself!\n");
++		return -EAGAIN;
++	}
++	return 0;
++}
++
++static void __exit kcontrol_gpu_msm_exit(void)
++{
++	sysfs_remove_group(kernel_kobj, &kcontrol_gpu_msm_attr_group);
++	printk(KERN_INFO LOGTAG "unloaded\n");
++}
++
++module_init(kcontrol_gpu_msm_init);
++module_exit(kcontrol_gpu_msm_exit);
++
