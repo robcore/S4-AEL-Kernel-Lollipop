@@ -136,6 +136,7 @@ static int update_cpu_max_freq(int cpu, uint32_t max_freq)
 		cpufreq_cpu_put(policy);
 	}
 
+	pr_info("msm_thermal: initialized\n");
 	return ret;
 }
 
