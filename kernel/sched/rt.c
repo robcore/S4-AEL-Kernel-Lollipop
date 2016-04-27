@@ -472,16 +472,6 @@ static int rt_se_boosted(struct sched_rt_entity *rt_se)
 	if (rt_rq)
 		return !!rt_rq->rt_nr_boosted;
 
-	/*
-	 * Force update of rq->clock_task in case we failed to do so in
-	 * put_prev_task. A stale value can cause us to over-charge execution
-	 * time to real-time task, that could trigger throttling unnecessarily
-	 */
-	if (rq->skip_clock_update > 0) {
-		rq->skip_clock_update = 0;
-		update_rq_clock(rq);
-	}
-
 	p = rt_task_of(rt_se);
 	return p->prio != p->normal_prio;
 }
@@ -1376,6 +1366,7 @@ static struct task_struct *_pick_next_task_rt(struct rq *rq)
 		rq->skip_clock_update = 0;
 		update_rq_clock(rq);
 	}
+
 	p = rt_task_of(rt_se);
 	p->se.exec_start = rq->clock_task;
 
