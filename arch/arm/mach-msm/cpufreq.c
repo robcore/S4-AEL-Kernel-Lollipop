@@ -44,7 +44,7 @@ static DEFINE_PER_CPU(struct cpufreq_work_struct, cpufreq_work);
 static struct workqueue_struct *msm_cpufreq_wq;
 
 /* maxscroff */
-uint32_t maxscroff_freq = 1026000;
+uint32_t maxscroff_freq = 1134000;
 uint32_t maxscroff = 1;
 
 /* ex max freq */
@@ -567,7 +567,7 @@ static ssize_t store_max_screen_off(struct cpufreq_policy *policy,
 		const char *buf, size_t count)
 {
 	if (buf[0] >= '0' && buf[0] <= '1' && buf[1] == '\n')
-            if (maxscroff != buf[0] - '0') 
+            if (maxscroff != buf[0] - '0')
 		        maxscroff = buf[0] - '0';
 
 	return count;

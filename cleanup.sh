@@ -2,7 +2,7 @@
 rm -rf $(pwd)/out;
 rm $(pwd)/arch/arm/boot/dhd.ko;
 rm $(pwd)/arch/arm/boot/scsi_wait_scan.ko;
-rm $(pwd)/arch/arm/boot/zImage;
+rm $(pwd)/arch/arm/boot/boot.img-zImage;
 # clean up leftover junk
 find . -type f \( -iname \*.rej \
 				-o -iname \*.orig \
