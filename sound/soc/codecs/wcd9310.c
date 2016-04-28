@@ -40,9 +40,6 @@
 #ifdef CONFIG_SND_SOC_ES325
 #include "es325-export.h"
 #endif
-#ifdef CONFIG_BOEFFLA_SOUND
-#include "boeffla_sound.h"
-#endif
 
 static int cfilt_adjust_ms = 10;
 module_param(cfilt_adjust_ms, int, 0644);
@@ -4104,13 +4101,11 @@ extern unsigned int snd_hax_cache_read(unsigned int);
 extern void snd_hax_cache_write(unsigned int, unsigned int);
 #endif
 
-#if defined(CONFIG_SOUND_CONTROL_HAX_3_GPL) || defined(CONFIG_BOEFFLA_SOUND)
+#ifndef CONFIG_SOUND_CONTROL_HAX_3_GPL
+static
+#endif
 int tabla_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int value)
-#else	
-static int tabla_write(struct snd_soc_codec *codec, unsigned int reg,
-	unsigned int value)
-#endif	
 {
 	int ret;
 #ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
@@ -4118,11 +4113,6 @@ static int tabla_write(struct snd_soc_codec *codec, unsigned int reg,
 #endif
 
 	BUG_ON(reg > TABLA_MAX_REGISTER);
-
-#ifdef CONFIG_BOEFFLA_SOUND
-	// Boeffla Sound write hook
-	value = boeffla_sound_hook_tabla_write(reg, value);
-#endif
 
 	if (!tabla_volatile(codec, reg)) {
 		ret = snd_soc_cache_write(codec, reg, value);
@@ -4144,37 +4134,15 @@ static int tabla_write(struct snd_soc_codec *codec, unsigned int reg,
 	return wcd9xxx_reg_write(codec->control_data, reg, value);
 #endif
 }
-#if defined(CONFIG_SOUND_CONTROL_HAX_3_GPL) || defined(CONFIG_BOEFFLA_SOUND)
+#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
 EXPORT_SYMBOL(tabla_write);
 #endif
 
-#ifdef CONFIG_BOEFFLA_SOUND
-int tabla_write_no_hook(struct snd_soc_codec *codec, unsigned int reg,
-	unsigned int value)
-{
-	int ret;
-	
-	BUG_ON(reg > TABLA_MAX_REGISTER);
-	
-	if (!tabla_volatile(codec, reg)) {
-		ret = snd_soc_cache_write(codec, reg, value);
-		if (ret != 0)
-			dev_err(codec->dev, "Cache write to %x failed: %d\n",
-				reg, ret);
-	}
-
-	return wcd9xxx_reg_write(codec->control_data, reg, value);
-}
-EXPORT_SYMBOL(tabla_write_no_hook);
+#ifndef CONFIG_SOUND_CONTROL_HAX_3_GPL
+static
 #endif
-
-#if defined(CONFIG_SOUND_CONTROL_HAX_3_GPL) || defined(CONFIG_BOEFFLA_SOUND)
 unsigned int tabla_read(struct snd_soc_codec *codec,
 				unsigned int reg)
-#else
-static unsigned int tabla_read(struct snd_soc_codec *codec,
-				unsigned int reg)
-#endif
 {
 	unsigned int val;
 	int ret;
@@ -4194,7 +4162,7 @@ static unsigned int tabla_read(struct snd_soc_codec *codec,
 	val = wcd9xxx_reg_read(codec->control_data, reg);
 	return val;
 }
-#if defined(CONFIG_SOUND_CONTROL_HAX_3_GPL) || defined(CONFIG_BOEFFLA_SOUND)
+#ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
 EXPORT_SYMBOL(tabla_read);
 #endif
 
@@ -8979,11 +8947,6 @@ static int tabla_codec_probe(struct snd_soc_codec *codec)
 #ifdef CONFIG_SOUND_CONTROL_HAX_3_GPL
 	pr_info("tabla codec probe...\n");
 	fauxsound_codec_ptr = codec;
-#endif
-
-#ifdef CONFIG_BOEFFLA_SOUND
-	// Boeffla Sound probe hook
-	boeffla_sound_hook_tabla_codec_probe(codec);
 #endif
 
 	codec->control_data = dev_get_drvdata(codec->dev->parent);
