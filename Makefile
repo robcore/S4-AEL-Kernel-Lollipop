@@ -245,8 +245,8 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer
-HOSTCXXFLAGS = -O3
+HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer -fgcse-las
+HOSTCXXFLAGS = -O3 -fgcse-las
 
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
@@ -356,10 +356,10 @@ CC		= $(srctree)/scripts/gcc-wrapper.py $(REAL_CC)
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
-CFLAGS_MODULE   = -mtune=cortex-a15 -munaligned-access -fno-pic -mfpu=neon-vfpv4 -mvectorize-with-neon-quad
+CFLAGS_MODULE   = -mtune=cortex-a15 -munaligned-access -fno-pic -mfpu=neon-vfpv4 -mvectorize-with-neon-quad -fpredictive-commoning -fgcse-las
 AFLAGS_MODULE   =
 LDFLAGS_MODULE  =
-CFLAGS_KERNEL	= -munaligned-access -mfpu=neon-vfpv4
+CFLAGS_KERNEL	= -munaligned-access -mfpu=neon-vfpv4 -fgcse-las -fpredictive-commoning -fgcse-lm -fgcse-sm -fsched-spec-load -fsingle-precision-constant
 AFLAGS_KERNEL	=
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
@@ -373,6 +373,8 @@ LINUXINCLUDE    := -I$(srctree)/arch/$(hdr-arch)/include \
 
 KBUILD_CPPFLAGS := -D__KERNEL__
 
+CFLAGS_A15 = -mtune=cortex-a15 -mfpu=neon
+
 KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common -Wno-unused-value \
 		   -Wno-format-security \
@@ -380,7 +382,9 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Wno-aggressive-loop-optimizations \
 		   -Werror-implicit-function-declaration -Wno-uninitialized \
 		   -Wno-format-security -Wno-array-bounds -Wno-unused-variable -Wno-unused-function \
-		   -fno-delete-null-pointer-checks -Wno-maybe-uninitialized -Wno-declaration-after-statement
+		   -fno-delete-null-pointer-checks -Wno-maybe-uninitialized -Wno-declaration-after-statement \
+		   -mtune=cortex-a15 -mfpu=neon-vfpv4 \
+		   -funsafe-math-optimizations -ftree-vectorize
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
@@ -607,7 +611,7 @@ endif
 KBUILD_CFLAGS   += $(call cc-option, -fno-var-tracking-assignments)
 
 ifdef CONFIG_DEBUG_INFO
-KBUILD_CFLAGS	+= -g
+KBUILD_CFLAGS	+= -gdwarf-2
 KBUILD_AFLAGS	+= -gdwarf-2
 endif
 
@@ -634,6 +638,9 @@ endif
 NOSTDINC_FLAGS += -nostdinc -isystem $(shell $(CC) -print-file-name=include)
 CHECKFLAGS     += $(NOSTDINC_FLAGS)
 
+# warn about C99 declaration after statement
+KBUILD_CFLAGS += $(call cc-option,-Wdeclaration-after-statement,)
+
 # disable pointer signed / unsigned warnings in gcc 4.0
 KBUILD_CFLAGS += $(call cc-disable-warning, pointer-sign)
 
@@ -650,26 +657,6 @@ KBUILD_ARFLAGS := $(call ar-option,D)
 ifeq ($(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-goto.sh $(CC)), y)
 	KBUILD_CFLAGS += -DCC_HAVE_ASM_GOTO
 endif
-
-#Disable the whole of the following block to disable L1 TIMA
-#ifeq ($(TIMA_ENABLED),1)
-#      KBUILD_CFLAGS += 	-DTIMA_ENABLED \
-#			-DTIMA_PGD_FREE_MANAGE -DTIMA_COPY_PMD_MANAGE \
-#			-DTIMA_PMD_CLEAR_MANAGE -DTIMA_KERNEL_L1_MANAGE \
-#			-DTIMA_L2_MANAGE -DTIMA_L2_GROUP \
-#			-DTIMA_DEBUG_INFRA -DTIMA_INIT_SEC_MON
-#       KBUILD_AFLAGS += -DTIMA_ENABLED \
-#			-DTIMA_PGD_FREE_MANAGE -DTIMA_COPY_PMD_MANAGE \
-#			-DTIMA_PMD_CLEAR_MANAGE -DTIMA_KERNEL_L1_MANAGE \
-#			-DTIMA_L2_MANAGE -DTIMA_L2_GROUP \
-#			-DTIMA_DEBUG_INFRA -DTIMA_INIT_SEC_MON
-#endif
-
-#Disable the whole of the following block to disable LKM AUTH
-#ifeq ($(TIMA_ENABLED),1)
-#       KBUILD_CFLAGS += -DTIMA_LKM_AUTH_ENABLED -DTIMA_TEST_INFRA #-DTIMA_LKM_SET_PAGE_ATTRIB
-#       KBUILD_AFLAGS += -DTIMA_LKM_AUTH_ENABLED #-DTIMA_LKM_SET_PAGE_ATTRIB
-#endif
 
 # Add user supplied CPPFLAGS, AFLAGS and CFLAGS as the last assignments
 # But warn user when we do so
