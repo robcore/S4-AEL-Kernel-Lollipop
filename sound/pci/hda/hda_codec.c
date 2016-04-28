@@ -2320,7 +2320,7 @@ typedef int (*map_slave_func_t)(void *, struct snd_kcontrol *);
 
 /* apply the function to all matching slave ctls in the mixer list */
 static int map_slaves(struct hda_codec *codec, const char * const *slaves,
-		      const char *suffix, map_slave_func_t func, void *data) 
+		      const char *suffix, map_slave_func_t func, void *data)
 {
 	struct hda_nid_item *items;
 	const char * const *s;
@@ -4364,7 +4364,7 @@ void snd_hda_power_down(struct hda_codec *codec)
 		return;
 	if (power_save(codec)) {
 		codec->power_transition = 1; /* avoid reentrance */
-		mod_delayed_work(codec->bus->workq, &codec->power_work,
+		queue_delayed_work(codec->bus->workq, &codec->power_work,
 				msecs_to_jiffies(power_save(codec) * 1000));
 	}
 }
