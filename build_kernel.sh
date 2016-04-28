@@ -17,9 +17,10 @@ cp $(pwd)/out/drivers/net/wireless/bcmdhd/dhd.ko $(pwd)/arch/arm/boot/dhd.ko;
 cp $(pwd)/out/drivers/scsi/scsi_wait_scan.ko $(pwd)/arch/arm/boot/scsi_wait_scan.ko;
 mv $(pwd)/arch/arm/boot/zImage $(pwd)/arch/arm/boot/boot.img-zImage;
 cp /media/root/robcore/AIK/S4-Machinex-6.x /media/root/robcore/AIK/S4-Machinex-6.x-new;
-cp $(pwd)/arch/arm/boot/dhd.ko /media/root/robcore/AIK/S4-Machinex-6.x-new/system/lib;
-cp $(pwd)/arch/arm/boot/scsi_wait_scan.ko; /media/root/robcore/AIK/S4-Machinex-6.x-new/system/lib;
+cp $(pwd)/arch/arm/boot/dhd.ko /media/root/robcore/AIK/S4-Machinex-6.x-new/system/lib/dhd.ko;
+cp $(pwd)/arch/arm/boot/scsi_wait_scan.ko; /media/root/robcore/AIK/S4-Machinex-6.x-new/system/lib/scsi_wait_scan.ko;
 rm /media/root/robcore/AIK/split_img/boot.img-zImage;
-cp $(pwd)/arch/arm/boot/boot.img-zImage /media/root/robcore/AIK/split_img;
+cp $(pwd)/arch/arm/boot/boot.img-zImage /media/root/robcore/AIK/split_img/boot.img-zImage;
+rm /media/root/robcore/AIK/image-new.img
 sh /media/root/robcore/AIK/repackimg.sh;
 cp image-new.img /media/root/robcore/AIK/S4-Machinex-6.x-new/boot.img
