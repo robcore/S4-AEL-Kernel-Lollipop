@@ -17,6 +17,7 @@ cp $(pwd)/out/drivers/net/wireless/bcmdhd/dhd.ko $(pwd)/arch/arm/boot/dhd.ko;
 cp $(pwd)/out/drivers/scsi/scsi_wait_scan.ko $(pwd)/arch/arm/boot/scsi_wait_scan.ko;
 mv $(pwd)/arch/arm/boot/zImage $(pwd)/arch/arm/boot/boot.img-zImage;
 cd /media/root/robcore/AIK;
+rm -rf S4-Machinex-6.x-new;
 cp -R S4-Machinex-6.x S4-Machinex-6.x-new;
 cp /media/root/robcore/android/S4-AEL-Kernel-Lollipop/arch/arm/boot/dhd.ko $(pwd)/S4-Machinex-6.x-new/system/lib/modules/dhd.ko;
 cp /media/root/robcore/android/S4-AEL-Kernel-Lollipop/arch/arm/boot/scsi_wait_scan.ko $(pwd)/S4-Machinex-6.x-new/system/lib/modules/scsi_wait_scan.ko;
