@@ -16,11 +16,12 @@ cp $(pwd)/out/arch/arm/boot/zImage $(pwd)/arch/arm/boot/zImage;
 cp $(pwd)/out/drivers/net/wireless/bcmdhd/dhd.ko $(pwd)/arch/arm/boot/dhd.ko;
 cp $(pwd)/out/drivers/scsi/scsi_wait_scan.ko $(pwd)/arch/arm/boot/scsi_wait_scan.ko;
 mv $(pwd)/arch/arm/boot/zImage $(pwd)/arch/arm/boot/boot.img-zImage;
-cp /media/root/robcore/AIK/S4-Machinex-6.x /media/root/robcore/AIK/S4-Machinex-6.x-new;
-cp $(pwd)/arch/arm/boot/dhd.ko /media/root/robcore/AIK/S4-Machinex-6.x-new/system/lib/dhd.ko;
-cp $(pwd)/arch/arm/boot/scsi_wait_scan.ko; /media/root/robcore/AIK/S4-Machinex-6.x-new/system/lib/scsi_wait_scan.ko;
-rm /media/root/robcore/AIK/split_img/boot.img-zImage;
-cp $(pwd)/arch/arm/boot/boot.img-zImage /media/root/robcore/AIK/split_img/boot.img-zImage;
-rm /media/root/robcore/AIK/image-new.img
-sh /media/root/robcore/AIK/repackimg.sh;
-cp image-new.img /media/root/robcore/AIK/S4-Machinex-6.x-new/boot.img
+cd /media/root/robcore/AIK;
+cp -R S4-Machinex-6.x S4-Machinex-6.x-new;
+cp /media/root/robcore/android/S4-AEL-Kernel-Lollipop/arch/arm/boot/dhd.ko $(pwd)/S4-Machinex-6.x-new/system/lib/modules/dhd.ko;
+cp /media/root/robcore/android/S4-AEL-Kernel-Lollipop/arch/arm/boot/scsi_wait_scan.ko $(pwd)/S4-Machinex-6.x-new/system/lib/modules/scsi_wait_scan.ko;
+rm $(pwd)/split_img/boot.img-zImage;
+cp /media/root/robcore/android/S4-AEL-Kernel-Lollipop/arch/arm/boot/boot.img-zImage $(pwd)/split_img/boot.img-zImage;
+rm image-new.img;
+sh repackimg.sh;
+cp image-new.img $(pwd)/S4-Machinex-6.x-new/boot.img
