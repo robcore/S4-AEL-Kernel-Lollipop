@@ -121,6 +121,15 @@ enum {
 	GPIO_REV_MAX,
 };
 
+/* GPIO array Index */
+enum {
+	GPIO_FPGA_EN,
+	GPIO_BARCODE_SDA,
+	GPIO_BARCODE_SCL,
+	GPIO_IRDA_SDA,
+	GPIO_IRDA_SCL,
+};
+
 enum {
 	FPGA_VSIL_A_1P2_EN = 0,
 	FPGA_GPIO_01,
