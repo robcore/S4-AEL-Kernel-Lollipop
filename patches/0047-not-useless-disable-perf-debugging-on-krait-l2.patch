@@ -1,0 +1,25 @@
+From fc1f01fcabfc651096a8d9484810f7f74637e51d Mon Sep 17 00:00:00 2001
+From: robcore <robpatershuk@gmail.com>
+Date: Thu, 28 Apr 2016 17:20:39 -0600
+Subject: [PATCH 47/50] not useless, disable perf debugging on krait l2
+
+---
+ arch/arm/mach-msm/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-msm/Makefile b/arch/arm/mach-msm/Makefile
+index cfad20f..9f0841b 100755
+--- a/arch/arm/mach-msm/Makefile
++++ b/arch/arm/mach-msm/Makefile
+@@ -29,7 +29,7 @@ obj-$(CONFIG_ARCH_MSM_KRAIT) += acpuclock-krait.o
+ obj-$(CONFIG_ARCH_MSM7X27) += acpuclock-7627.o clock-pll.o
+ obj-$(CONFIG_ARCH_MSM_SCORPION) += pmu.o
+ obj-$(CONFIG_ARCH_MSM_SCORPIONMP) += perf_event_msm_l2.o
+-obj-$(CONFIG_ARCH_MSM_KRAIT) += msm-krait-l2-accessors.o pmu.o perf_event_msm_krait_l2.o
++obj-$(CONFIG_ARCH_MSM_KRAIT) += msm-krait-l2-accessors.o pmu.o #perf_event_msm_krait_l2.o
+ obj-$(CONFIG_ARCH_MSM_KRAIT) += krait-scm.o
+ obj-$(CONFIG_ARCH_MSM7X27A) += pmu.o
+ # obj-$(CONFIG_DEBUG_FS) += perf_debug.o
+-- 
+2.8.0.rc3
+

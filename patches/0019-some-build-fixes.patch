@@ -1,0 +1,70 @@
+From 7066b83a9e8f9940e72e38397e100ebd9a2c10a8 Mon Sep 17 00:00:00 2001
+From: robcore <robpatershuk@gmail.com>
+Date: Thu, 28 Apr 2016 14:23:09 -0600
+Subject: [PATCH 19/50] some build fixes
+
+---
+ include/linux/sched.h | 1 +
+ kernel/sched/fair.c   | 7 ++-----
+ kernel/sysctl.c       | 7 +++++++
+ 3 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index fe4a022..32a589d 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -2124,6 +2124,7 @@ extern enum sched_tunable_scaling sysctl_sched_tunable_scaling;
+ 
+ #ifdef CONFIG_SCHED_DEBUG
+ extern unsigned int sysctl_sched_migration_cost;
++extern unsigned int sysctl_sched_burst_threshold;
+ extern unsigned int sysctl_sched_nr_migrate;
+ extern unsigned int sysctl_sched_time_avg;
+ extern unsigned int sysctl_timer_migration;
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 157ce7f..01e5777 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -96,6 +96,7 @@ unsigned int sysctl_sched_wakeup_granularity = 1000000UL;
+ unsigned int normalized_sysctl_sched_wakeup_granularity = 1000000UL;
+ 
+ const_debug unsigned int sysctl_sched_migration_cost = 500000UL;
++const_debug unsigned int sysctl_sched_burst_threshold = 100000UL;
+ 
+ /*
+  * The exponential sliding  window over which load is averaged for shares
+@@ -4626,12 +4627,8 @@ static inline void update_sd_lb_stats(struct sched_domain *sd, int this_cpu,
+ 		 * extra check prevents the case where you always pull from the
+ 		 * heaviest group when it is already under-utilized (possible
+ 		 * with a large weight task outweighs the tasks on the system).
+-		 *
+-		 * In power aware scheduling, we don't care load weight and
+-		 * want not to pull tasks just because local group has capacity.
+ 		 */
+-		if (prefer_sibling && !local_group && sds->this_has_capacity
+-				&& env->flags & LBF_PERF_BAL)
++		if (prefer_sibling && !local_group && sds->this_has_capacity)
+ 			sgs.group_capacity = min(sgs.group_capacity, 1UL);
+ 
+ 		if (local_group) {
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index ed7a63d..04c365c 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -345,6 +345,13 @@ static struct ctl_table kern_table[] = {
+ 		.proc_handler	= proc_dointvec,
+ 	},
+ 	{
++		.procname	= "sched_burst_threshold_ns",
++		.data		= &sysctl_sched_burst_threshold,
++		.maxlen		= sizeof(unsigned int),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec,
++	},
++	{
+ 		.procname	= "sched_nr_migrate",
+ 		.data		= &sysctl_sched_nr_migrate,
+ 		.maxlen		= sizeof(unsigned int),
+-- 
+2.8.0.rc3
+

@@ -1,0 +1,37 @@
+From ac4e284776e005fd467fc637645cdc9c087f50fe Mon Sep 17 00:00:00 2001
+From: robcore <robpatershuk@gmail.com>
+Date: Thu, 28 Apr 2016 14:26:10 -0600
+Subject: [PATCH 20/50] turn off boeffla in config
+
+---
+ arch/arm/configs/AEL_config | 1 +
+ build_kernel.sh             | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/arch/arm/configs/AEL_config b/arch/arm/configs/AEL_config
+index ec05f1c..178acbf 100644
+--- a/arch/arm/configs/AEL_config
++++ b/arch/arm/configs/AEL_config
+@@ -2925,6 +2925,7 @@ CONFIG_SND_SOC_MSM_STUB=y
+ # CONFIG_SND_SOC_TPA2028D is not set
+ CONFIG_SOUND_CONTROL_HAX_GPL=y
+ CONFIG_SOUND_CONTROL_HAX_3_GPL=y
++# CONFIG_BOEFFLA_SOUND is not set
+ # CONFIG_SOUND_PRIME is not set
+ CONFIG_HID_SUPPORT=y
+ CONFIG_HID=y
+diff --git a/build_kernel.sh b/build_kernel.sh
+index f789dbd..0a44721 100755
+--- a/build_kernel.sh
++++ b/build_kernel.sh
+@@ -17,6 +17,7 @@ cp $(pwd)/out/drivers/net/wireless/bcmdhd/dhd.ko $(pwd)/arch/arm/boot/dhd.ko;
+ cp $(pwd)/out/drivers/scsi/scsi_wait_scan.ko $(pwd)/arch/arm/boot/scsi_wait_scan.ko;
+ mv $(pwd)/arch/arm/boot/zImage $(pwd)/arch/arm/boot/boot.img-zImage;
+ cd /media/root/robcore/AIK;
++rm -rf S4-Machinex-6.x-new;
+ cp -R S4-Machinex-6.x S4-Machinex-6.x-new;
+ cp /media/root/robcore/android/S4-AEL-Kernel-Lollipop/arch/arm/boot/dhd.ko $(pwd)/S4-Machinex-6.x-new/system/lib/modules/dhd.ko;
+ cp /media/root/robcore/android/S4-AEL-Kernel-Lollipop/arch/arm/boot/scsi_wait_scan.ko $(pwd)/S4-Machinex-6.x-new/system/lib/modules/scsi_wait_scan.ko;
+-- 
+2.8.0.rc3
+

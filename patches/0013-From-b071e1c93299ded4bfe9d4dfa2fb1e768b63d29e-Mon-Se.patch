@@ -1,0 +1,282 @@
+From 25763d70a6dad8f803d206156a35d2dd126301b7 Mon Sep 17 00:00:00 2001
+From: robcore <robpatershuk@gmail.com>
+Date: Thu, 28 Apr 2016 13:54:16 -0600
+Subject: [PATCH 13/50] From b071e1c93299ded4bfe9d4dfa2fb1e768b63d29e Mon Sep
+ 17 00:00:00 2001 From: Alex Shi <alex.shi@intel.com> Date: Mon, 25 Feb 2013
+ 11:11:31 +0800 Subject: [PATCH 198/240] sched: move sg/sd_lb_stats struct
+ ahead
+
+Power aware fork/exec/wake balancing needs both of structs in incoming
+patches. So move ahead before it.
+
+Signed-off-by: Alex Shi <alex.shi@intel.com>
+---
+ kernel/sched/fair.c | 99 +++++++++++++++++++++++++++--------------------------
+ 1 file changed, 50 insertions(+), 49 deletions(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 3c77e22..e40e0c5 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -3090,6 +3090,56 @@ done:
+
+ /*
++ * sd_lb_stats - Structure to store the statistics of a sched_domain
++ *		during load balancing.
++ */
++struct sd_lb_stats {
++	struct sched_group *busiest; /* Busiest group in this sd */
++	struct sched_group *this;  /* Local group in this sd */
++	unsigned long total_load;  /* Total load of all groups in sd */
++	unsigned long total_pwr;   /*	Total power of all groups in sd */
++	unsigned long avg_load;	   /* Average load across all groups in sd */
++
++	/** Statistics of this group */
++	unsigned long this_load;
++	unsigned long this_load_per_task;
++	unsigned long this_nr_running;
++	unsigned int  this_has_capacity;
++	unsigned int  this_idle_cpus;
++
++	/* Statistics of the busiest group */
++	unsigned int  busiest_idle_cpus;
++	unsigned long max_load;
++	unsigned long busiest_load_per_task;
++	unsigned long busiest_nr_running;
++	unsigned long busiest_group_capacity;
++	unsigned int  busiest_has_capacity;
++	unsigned int  busiest_group_weight;
++
++	int group_imb; /* Is there imbalance in this sd */
++
++	/* Varibles of power awaring scheduling */
++	unsigned int  sd_util;	/* sum utilization of this domain */
++	struct sched_group *group_leader; /* Group which relieves group_min */
++};
++
++/*
++ * sg_lb_stats - stats of a sched_group required for load_balancing
++ */
++struct sg_lb_stats {
++	unsigned long avg_load; /*Avg load across the CPUs of the group */
++	unsigned long group_load; /* Total load over the CPUs of the group */
++	unsigned long sum_nr_running; /* Nr tasks running in the group */
++	unsigned long sum_weighted_load; /* Weighted load of group's tasks */
++	unsigned long group_capacity;
++	unsigned long idle_cpus;
++	unsigned long group_weight;
++	int group_imb; /* Is there an imbalance in the group ? */
++	int group_has_capacity; /* Is there extra capacity in the group? */
++	unsigned int group_util;	/* sum utilization of group */
++};
++
++/*
+  * sched_balance_self: balance the current task (running on cpu) in domains
+  * that have the 'flag' flag set. In practice, this is SD_BALANCE_FORK and
+  * SD_BALANCE_EXEC.
+@@ -3964,55 +4014,6 @@ static unsigned long task_h_load(struct task_struct *p)
+ #endif
+
+ /********** Helpers for find_busiest_group ************************/
+-/*
+- * sd_lb_stats - Structure to store the statistics of a sched_domain
+- * 		during load balancing.
+- */
+-struct sd_lb_stats {
+-	struct sched_group *busiest; /* Busiest group in this sd */
+-	struct sched_group *this;  /* Local group in this sd */
+-	unsigned long total_load;  /* Total load of all groups in sd */
+-	unsigned long total_pwr;   /*	Total power of all groups in sd */
+-	unsigned long avg_load;	   /* Average load across all groups in sd */
+-
+-	/** Statistics of this group */
+-	unsigned long this_load;
+-	unsigned long this_load_per_task;
+-	unsigned long this_nr_running;
+-	unsigned long this_has_capacity;
+-	unsigned int  this_idle_cpus;
+-
+-	/* Statistics of the busiest group */
+-	unsigned int  busiest_idle_cpus;
+-	unsigned long max_load;
+-	unsigned long busiest_load_per_task;
+-	unsigned long busiest_nr_running;
+-	unsigned long busiest_group_capacity;
+-	unsigned long busiest_has_capacity;
+-	unsigned int  busiest_group_weight;
+-
+-	int group_imb; /* Is there imbalance in this sd */
+-
+-	/* Varibles of power awaring scheduling */
+-	unsigned int  sd_util;	/* sum utilization of this domain */
+-	struct sched_group *group_leader; /* Group which relieves group_min */
+-};
+-
+-/*
+- * sg_lb_stats - stats of a sched_group required for load_balancing
+- */
+-struct sg_lb_stats {
+-	unsigned long avg_load; /*Avg load across the CPUs of the group */
+-	unsigned long group_load; /* Total load over the CPUs of the group */
+-	unsigned long sum_nr_running; /* Nr tasks running in the group */
+-	unsigned long sum_weighted_load; /* Weighted load of group's tasks */
+-	unsigned long group_capacity;
+-	unsigned long idle_cpus;
+-	unsigned long group_weight;
+-	int group_imb; /* Is there an imbalance in the group ? */
+-	int group_has_capacity; /* Is there extra capacity in the group? */
+-	unsigned int group_util;	/* sum utilization of group */
+-};
+
+ /**
+  * get_sd_load_idx - Obtain the load index for a given sched domain.
+--
+2.8.0.rc3
+---
+ kernel/sched/fair.c      | 99 ++++++++++++++++++++++++------------------------
+ kernel/sched/fair.c.orig |  5 +++
+ 2 files changed, 55 insertions(+), 49 deletions(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 6cb4434..153b3de 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -3197,6 +3197,56 @@ done:
+ }
+ 
+ /*
++ * sd_lb_stats - Structure to store the statistics of a sched_domain
++ *		during load balancing.
++ */
++struct sd_lb_stats {
++	struct sched_group *busiest; /* Busiest group in this sd */
++	struct sched_group *this;  /* Local group in this sd */
++	unsigned long total_load;  /* Total load of all groups in sd */
++	unsigned long total_pwr;   /*	Total power of all groups in sd */
++	unsigned long avg_load;	   /* Average load across all groups in sd */
++
++	/** Statistics of this group */
++	unsigned long this_load;
++	unsigned long this_load_per_task;
++	unsigned long this_nr_running;
++	unsigned int  this_has_capacity;
++	unsigned int  this_idle_cpus;
++
++	/* Statistics of the busiest group */
++	unsigned int  busiest_idle_cpus;
++	unsigned long max_load;
++	unsigned long busiest_load_per_task;
++	unsigned long busiest_nr_running;
++	unsigned long busiest_group_capacity;
++	unsigned int  busiest_has_capacity;
++	unsigned int  busiest_group_weight;
++
++	int group_imb; /* Is there imbalance in this sd */
++
++	/* Varibles of power awaring scheduling */
++	unsigned int  sd_util;	/* sum utilization of this domain */
++	struct sched_group *group_leader; /* Group which relieves group_min */
++};
++
++/*
++ * sg_lb_stats - stats of a sched_group required for load_balancing
++ */
++struct sg_lb_stats {
++	unsigned long avg_load; /*Avg load across the CPUs of the group */
++	unsigned long group_load; /* Total load over the CPUs of the group */
++	unsigned long sum_nr_running; /* Nr tasks running in the group */
++	unsigned long sum_weighted_load; /* Weighted load of group's tasks */
++	unsigned long group_capacity;
++	unsigned long idle_cpus;
++	unsigned long group_weight;
++	int group_imb; /* Is there an imbalance in the group ? */
++	int group_has_capacity; /* Is there extra capacity in the group? */
++	unsigned int group_util;	/* sum utilization of group */
++};
++
++/*
+  * sched_balance_self: balance the current task (running on cpu) in domains
+  * that have the 'flag' flag set. In practice, this is SD_BALANCE_FORK and
+  * SD_BALANCE_EXEC.
+@@ -4053,55 +4103,6 @@ static unsigned long task_h_load(struct task_struct *p)
+ #endif
+ 
+ /********** Helpers for find_busiest_group ************************/
+-/*
+- * sd_lb_stats - Structure to store the statistics of a sched_domain
+- * 		during load balancing.
+- */
+-struct sd_lb_stats {
+-	struct sched_group *busiest; /* Busiest group in this sd */
+-	struct sched_group *this;  /* Local group in this sd */
+-	unsigned long total_load;  /* Total load of all groups in sd */
+-	unsigned long total_pwr;   /*	Total power of all groups in sd */
+-	unsigned long avg_load;	   /* Average load across all groups in sd */
+-
+-	/** Statistics of this group */
+-	unsigned long this_load;
+-	unsigned long this_load_per_task;
+-	unsigned long this_nr_running;
+-	unsigned long this_has_capacity;
+-	unsigned int  this_idle_cpus;
+-
+-	/* Statistics of the busiest group */
+-	unsigned int  busiest_idle_cpus;
+-	unsigned long max_load;
+-	unsigned long busiest_load_per_task;
+-	unsigned long busiest_nr_running;
+-	unsigned long busiest_group_capacity;
+-	unsigned long busiest_has_capacity;
+-	unsigned int  busiest_group_weight;
+-
+-	int group_imb; /* Is there imbalance in this sd */
+-
+-	/* Varibles of power awaring scheduling */
+-	unsigned int  sd_util;	/* sum utilization of this domain */
+-	struct sched_group *group_leader; /* Group which relieves group_min */
+-};
+-
+-/*
+- * sg_lb_stats - stats of a sched_group required for load_balancing
+- */
+-struct sg_lb_stats {
+-	unsigned long avg_load; /*Avg load across the CPUs of the group */
+-	unsigned long group_load; /* Total load over the CPUs of the group */
+-	unsigned long sum_nr_running; /* Nr tasks running in the group */
+-	unsigned long sum_weighted_load; /* Weighted load of group's tasks */
+-	unsigned long group_capacity;
+-	unsigned long idle_cpus;
+-	unsigned long group_weight;
+-	int group_imb; /* Is there an imbalance in the group ? */
+-	int group_has_capacity; /* Is there extra capacity in the group? */
+-	unsigned int group_util;	/* sum utilization of group */
+-};
+ 
+ /**
+  * get_sd_load_idx - Obtain the load index for a given sched domain.
+diff --git a/kernel/sched/fair.c.orig b/kernel/sched/fair.c.orig
+index 908e917..6cb4434 100644
+--- a/kernel/sched/fair.c.orig
++++ b/kernel/sched/fair.c.orig
+@@ -4081,6 +4081,10 @@ struct sd_lb_stats {
+ 	unsigned int  busiest_group_weight;
+ 
+ 	int group_imb; /* Is there imbalance in this sd */
++
++	/* Varibles of power awaring scheduling */
++	unsigned int  sd_util;	/* sum utilization of this domain */
++	struct sched_group *group_leader; /* Group which relieves group_min */
+ };
+ 
+ /*
+@@ -4096,6 +4100,7 @@ struct sg_lb_stats {
+ 	unsigned long group_weight;
+ 	int group_imb; /* Is there an imbalance in the group ? */
+ 	int group_has_capacity; /* Is there extra capacity in the group? */
++	unsigned int group_util;	/* sum utilization of group */
+ };
+ 
+ /**
+-- 
+2.8.0.rc3
+

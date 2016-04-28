@@ -1,0 +1,81 @@
+From 46ccca89ebc7727165fc9a8b31e23feee156399a Mon Sep 17 00:00:00 2001
+From: robcore <robpatershuk@gmail.com>
+Date: Thu, 28 Apr 2016 13:51:23 -0600
+Subject: [PATCH 05/50] From 7acff8aed987b67079fb9932c36326f1c74c48b0 Mon Sep
+ 17 00:00:00 2001 From: Kirill Tkhai <tkhai@yandex.ru> Date: Thu, 31 Jan 2013
+ 18:56:17 +0400 Subject: [PATCH 189/240] sched/rt: Further simplify
+ pick_rt_task()
+
+Function next_prio() has been removed and pull_rt_task() is the
+only user of pick_next_highest_task_rt() at the moment.
+
+pull_rt_task is not interested in p->nr_cpus_allowed, its only
+interest is the fact that cpu is allowed to execute p. If
+nr_cpus_allowed == 1, cpu != task_cpu(p) and cpu is allowed then
+it means that task p is in the middle of the migration
+techniques; the task waits until it is moved by migration
+thread. So, lets pull it earlier.
+
+Signed-off-by: Kirill V Tkhai <tkhai@yandex.ru>
+Acked-by: Steven Rostedt <rostedt@goodmis.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+CC: linux-rt-users <linux-rt-users@vger.kernel.org>
+Link: http://lkml.kernel.org/r/70871359644177@web16d.yandex.ru
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+---
+ kernel/sched/rt.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
+index f527b64..1588ae7 100644
+--- a/kernel/sched/rt.c
++++ b/kernel/sched/rt.c
+@@ -1442,8 +1442,7 @@ static void put_prev_task_rt(struct rq *rq, struct task_struct *p)
+ static int pick_rt_task(struct rq *rq, struct task_struct *p, int cpu)
+ {
+ 	if (!task_running(rq, p) &&
+-	    (cpu < 0 || cpumask_test_cpu(cpu, tsk_cpus_allowed(p))) &&
+-	    (p->nr_cpus_allowed > 1))
++	    cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
+ 		return 1;
+ 	return 0;
+ }
+--
+2.8.0.rc3
+---
+ kernel/sched/rt.c      | 3 +--
+ kernel/sched/rt.c.orig | 4 ++--
+ 2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
+index 8811fdc..462b834 100644
+--- a/kernel/sched/rt.c
++++ b/kernel/sched/rt.c
+@@ -1431,8 +1431,7 @@ static void put_prev_task_rt(struct rq *rq, struct task_struct *p)
+ static int pick_rt_task(struct rq *rq, struct task_struct *p, int cpu)
+ {
+ 	if (!task_running(rq, p) &&
+-	    (cpu < 0 || cpumask_test_cpu(cpu, tsk_cpus_allowed(p))) &&
+-	    (p->nr_cpus_allowed > 1))
++	    cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
+ 		return 1;
+ 	return 0;
+ }
+diff --git a/kernel/sched/rt.c.orig b/kernel/sched/rt.c.orig
+index 5b73788..8811fdc 100644
+--- a/kernel/sched/rt.c.orig
++++ b/kernel/sched/rt.c.orig
+@@ -900,8 +900,8 @@ static void update_curr_rt(struct rq *rq)
+ 		return;
+ 
+ 	delta_exec = rq->clock_task - curr->se.exec_start;
+-	if (unlikely((s64)delta_exec < 0))
+-		delta_exec = 0;
++	if (unlikely((s64)delta_exec <= 0))
++		return;
+ 
+ 	schedstat_set(curr->se.statistics.exec_max,
+ 		      max(curr->se.statistics.exec_max, delta_exec));
+-- 
+2.8.0.rc3
+

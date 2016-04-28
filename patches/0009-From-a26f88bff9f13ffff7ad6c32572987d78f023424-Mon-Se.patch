@@ -1,0 +1,115 @@
+From 8b51bed1915a07792e370a407fc07d191648fbef Mon Sep 17 00:00:00 2001
+From: robcore <robpatershuk@gmail.com>
+Date: Thu, 28 Apr 2016 13:53:02 -0600
+Subject: [PATCH 09/50] From a26f88bff9f13ffff7ad6c32572987d78f023424 Mon Sep
+ 17 00:00:00 2001 From: Alex Shi <alex.shi@intel.com> Date: Sun, 18 Nov 2012
+ 16:08:00 +0800 Subject: [PATCH 194/240] sched: add sched balance policies in
+ kernel
+
+Current scheduler behavior is just consider for larger performance
+of system. So it try to spread tasks on more cpu sockets and cpu cores
+
+To adding the consideration of power awareness, the patchset adds
+a powersaving scheduler policy. It will use runnable load util in
+scheduler balancing. The current scheduling is taken as performance
+policy.
+
+performance: the current scheduling behaviour, try to spread tasks
+                on more CPU sockets or cores. performance oriented.
+powersaving: will pack tasks into few sched group until all LCPU in the
+                group is full, power oriented.
+
+The incoming patches will enable powersaving scheduling in CFS.
+
+Signed-off-by: Alex Shi <alex.shi@intel.com>
+---
+ kernel/sched/fair.c  | 3 +++
+ kernel/sched/sched.h | 5 +++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 1060263..48cfdcbd 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -5881,6 +5881,9 @@ static unsigned int get_rr_interval_fair(struct rq *rq, struct task_struct *task
+ 	return rr_interval;
+ }
+
++/* The default scheduler policy is 'performance'. */
++int __read_mostly sched_balance_policy = SCHED_POLICY_PERFORMANCE;
++
+ /*
+  * All the scheduling class methods:
+  */
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index cc6a3ae..d7fb7f11 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -8,6 +8,11 @@
+
+ extern __read_mostly int scheduler_running;
+
++#define SCHED_POLICY_PERFORMANCE	(0x1)
++#define SCHED_POLICY_POWERSAVING	(0x2)
++
++extern int __read_mostly sched_balance_policy;
++
+ /*
+  * Convert user-nice values [ -20 ... 0 ... 19 ]
+  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
+--
+2.8.0.rc3
+---
+ kernel/sched/fair.c      | 3 +++
+ kernel/sched/fair.c.orig | 4 ++++
+ kernel/sched/sched.h     | 5 +++++
+ 3 files changed, 12 insertions(+)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index e699694..f3a86d8 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -5962,6 +5962,9 @@ static unsigned int get_rr_interval_fair(struct rq *rq, struct task_struct *task
+ 	return rr_interval;
+ }
+ 
++/* The default scheduler policy is 'performance'. */
++int __read_mostly sched_balance_policy = SCHED_POLICY_PERFORMANCE;
++
+ /*
+  * All the scheduling class methods:
+  */
+diff --git a/kernel/sched/fair.c.orig b/kernel/sched/fair.c.orig
+index 5ccd0f4..e699694 100644
+--- a/kernel/sched/fair.c.orig
++++ b/kernel/sched/fair.c.orig
+@@ -1322,6 +1322,10 @@ static inline void enqueue_entity_load_avg(struct cfs_rq *cfs_rq,
+ 	 * We track migrations using entity decay_count <= 0, on a wake-up
+ 	 * migration we use a negative decay count to track the remote decays
+ 	 * accumulated while sleeping.
++	 *
++	 * When enqueue a new forked task, the se->avg.decay_count == 0, so
++	 * we bypass update_entity_load_avg(), use avg.load_avg_contrib initial
++	 * value: se->load.weight.
+ 	 */
+ 	if (unlikely(se->avg.decay_count <= 0)) {
+ 		se->avg.last_runnable_update = rq_of(cfs_rq)->clock_task;
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 5c185d8..e4ca30e 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -8,6 +8,11 @@
+ 
+ extern __read_mostly int scheduler_running;
+ 
++#define SCHED_POLICY_PERFORMANCE	(0x1)
++#define SCHED_POLICY_POWERSAVING	(0x2)
++
++extern int __read_mostly sched_balance_policy;
++
+ /*
+  * Convert user-nice values [ -20 ... 0 ... 19 ]
+  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
+-- 
+2.8.0.rc3
+

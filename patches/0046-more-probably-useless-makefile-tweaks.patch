@@ -1,0 +1,25 @@
+From 49a50125213a8a327421326f619117e1e631ed0b Mon Sep 17 00:00:00 2001
+From: robcore <robpatershuk@gmail.com>
+Date: Thu, 28 Apr 2016 17:18:28 -0600
+Subject: [PATCH 46/50] more probably useless makefile tweaks
+
+---
+ arch/arm/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/Makefile b/arch/arm/Makefile
+index 8f39216..9e5bc9d 100644
+--- a/arch/arm/Makefile
++++ b/arch/arm/Makefile
+@@ -17,7 +17,7 @@ endif
+ 
+ OBJCOPYFLAGS	:=-O binary -R .comment -S
+ GZFLAGS		:=-9
+-#KBUILD_CFLAGS	+=-pipe
++KBUILD_CFLAGS	+=-pipe
+ # Explicitly specifiy 32-bit ARM ISA since toolchain default can be -mthumb:
+ KBUILD_CFLAGS	+=$(call cc-option,-marm,)
+ 
+-- 
+2.8.0.rc3
+

@@ -29,9 +29,6 @@
 #include <trace/events/irq.h>
 
 #include <asm/irq.h>
-#ifdef CONFIG_SEC_DEBUG
-#include <mach/sec_debug.h>
-#endif
 /*
    - No shared variables, all the data are CPU local.
    - If a softirq needs serialization, let it serialize itself
@@ -197,12 +194,8 @@ void local_bh_enable_ip(unsigned long ip)
 EXPORT_SYMBOL(local_bh_enable_ip);
 
 /*
- * We restart softirq processing for at most MAX_SOFTIRQ_RESTART times,
- * but break the loop if need_resched() is set or after 2 ms.
- * The MAX_SOFTIRQ_TIME provides a nice upper bound in most cases, but in
- * certain cases, such as stop_machine(), jiffies may cease to
- * increment and so we need the MAX_SOFTIRQ_RESTART limit as
- * well to make sure we eventually return from this method.
+ * We restart softirq processing for at most 2 ms,
+ * and if need_resched() is not set.
  *
  * These limits have been established via experimentation.
  * The two things to balance is latency against fairness -
@@ -217,6 +210,7 @@ asmlinkage void __do_softirq(void)
 	__u32 pending;
 	unsigned long end = jiffies + MAX_SOFTIRQ_TIME;
 	int cpu;
+
 	pending = local_softirq_pending();
 	account_system_vtime(current);
 
@@ -262,8 +256,7 @@ restart:
 
 	pending = local_softirq_pending();
 	if (pending) {
-		if (time_before(jiffies, end) && !need_resched() &&
-		    --max_restart)
+		if (time_before(jiffies, end) && !need_resched())
 			goto restart;
 
 		wakeup_softirqd();
@@ -464,13 +457,7 @@ static void tasklet_action(struct softirq_action *a)
 			if (!atomic_read(&t->count)) {
 				if (!test_and_clear_bit(TASKLET_STATE_SCHED, &t->state))
 					BUG();
-#ifdef CONFIG_SEC_DEBUG
-				sec_debug_irq_sched_log(-1, t->func, 3);
 				t->func(t->data);
-				sec_debug_irq_sched_log(-1, t->func, 4);
-#else
-				t->func(t->data);
-#endif
 				tasklet_unlock(t);
 				continue;
 			}

@@ -1,0 +1,194 @@
+From e8aa7bc726adb2e5d4d754d7ccf9f2a0a8adaf5d Mon Sep 17 00:00:00 2001
+From: robcore <robpatershuk@gmail.com>
+Date: Thu, 28 Apr 2016 16:25:56 -0600
+Subject: [PATCH 31/50] From 9ccbe45d45f801241d33b52dc68359ecb7efff47 Mon Sep
+ 17 00:00:00 2001 From: flar2 <asegaert@gmail.com> Date: Mon, 23 Sep 2013
+ 09:38:24 -0400 Subject: [PATCH 046/292] freezer: add some missing functions
+
+Signed-off-by: flar2 <asegaert@gmail.com>
+---
+ include/linux/freezer.h | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)
+
+diff --git a/include/linux/freezer.h b/include/linux/freezer.h
+index c1b49cb..746d62d 100644
+--- a/include/linux/freezer.h
++++ b/include/linux/freezer.h
+@@ -117,6 +117,26 @@ static inline int freezer_should_skip(struct task_struct *p)
+ 	freezer_count();						\
+ })
+
++/* Like schedule_timeout(), but should not block the freezer. */
++#define freezable_schedule_timeout(timeout)				\
++({									\
++	long __retval;							\
++	freezer_do_not_count();						\
++	__retval = schedule_timeout(timeout);				\
++	freezer_count();						\
++	__retval;							\
++})
++
++/* Like schedule_timeout_interruptible(), but should not block the freezer. */
++#define freezable_schedule_timeout_interruptible(timeout)		\
++({									\
++	long __retval;							\
++	freezer_do_not_count();						\
++	__retval = schedule_timeout_interruptible(timeout);		\
++	freezer_count();						\
++	__retval;							\
++})
++
+ /* Like schedule_timeout_killable(), but should not block the freezer. */
+ #define freezable_schedule_timeout_killable(timeout)			\
+ ({									\
+@@ -127,6 +147,16 @@ static inline int freezer_should_skip(struct task_struct *p)
+ 	__retval;							\
+ })
+
++/* Like schedule_hrtimeout_range(), but should not block the freezer. */
++#define freezable_schedule_hrtimeout_range(expires, delta, mode)	\
++({									\
++	int __retval;							\
++	freezer_do_not_count();						\
++	__retval = schedule_hrtimeout_range(expires, delta, mode);	\
++	freezer_count();						\
++	__retval;							\
++})
++
+ /*
+  * Freezer-friendly wrappers around wait_event_interruptible(),
+  * wait_event_killable() and wait_event_interruptible_timeout(), originally
+@@ -190,15 +220,27 @@ static inline void set_freezable(void) {}
+
+ #define freezable_schedule()  schedule()
+
++#define freezable_schedule_timeout(timeout)  schedule_timeout(timeout)
++
++#define freezable_schedule_timeout_interruptible(timeout)		\
++	schedule_timeout_interruptible(timeout)
++
++/* Like schedule_timeout_killable(), but should not block the freezer. */
+ #define freezable_schedule_timeout_killable(timeout)			\
+ 	schedule_timeout_killable(timeout)
+
++#define freezable_schedule_hrtimeout_range(expires, delta, mode)	\
++	schedule_hrtimeout_range(expires, delta, mode)
++
+ #define wait_event_freezable(wq, condition)				\
+ 		wait_event_interruptible(wq, condition)
+
+ #define wait_event_freezable_timeout(wq, condition, timeout)		\
+ 		wait_event_interruptible_timeout(wq, condition, timeout)
+
++#define wait_event_freezable_exclusive(wq, condition)			\
++		wait_event_interruptible_exclusive(wq, condition)
++
+ #define wait_event_freezekillable(wq, condition)		\
+ 		wait_event_killable(wq, condition)
+
+--
+2.8.0.rc3
+---
+ include/linux/freezer.h      | 42 ++++++++++++++++++++++++++++++++++++++++++
+ include/linux/freezer.h.orig |  9 +++++++++
+ 2 files changed, 51 insertions(+)
+
+diff --git a/include/linux/freezer.h b/include/linux/freezer.h
+index 27a397e..eec93fc 100644
+--- a/include/linux/freezer.h
++++ b/include/linux/freezer.h
+@@ -162,6 +162,26 @@ static inline bool freezer_should_skip(struct task_struct *p)
+ 	freezer_count();						\
+ })
+ 
++/* Like schedule_timeout(), but should not block the freezer. */
++#define freezable_schedule_timeout(timeout)				\
++({									\
++	long __retval;							\
++	freezer_do_not_count();						\
++	__retval = schedule_timeout(timeout);				\
++	freezer_count();						\
++	__retval;							\
++})
++
++/* Like schedule_timeout_interruptible(), but should not block the freezer. */
++#define freezable_schedule_timeout_interruptible(timeout)		\
++({									\
++	long __retval;							\
++	freezer_do_not_count();						\
++	__retval = schedule_timeout_interruptible(timeout);		\
++	freezer_count();						\
++	__retval;							\
++})
++
+ /* Like schedule_timeout_killable(), but should not block the freezer. */
+ #define freezable_schedule_timeout_killable(timeout)			\
+ ({									\
+@@ -172,6 +192,16 @@ static inline bool freezer_should_skip(struct task_struct *p)
+ 	__retval;							\
+ })
+ 
++/* Like schedule_hrtimeout_range(), but should not block the freezer. */
++#define freezable_schedule_hrtimeout_range(expires, delta, mode)	\
++({									\
++	int __retval;							\
++	freezer_do_not_count();						\
++	__retval = schedule_hrtimeout_range(expires, delta, mode);	\
++	freezer_count();						\
++	__retval;							\
++})
++
+ /*
+  * Freezer-friendly wrappers around wait_event_interruptible(),
+  * wait_event_killable() and wait_event_interruptible_timeout(), originally
+@@ -235,15 +265,27 @@ static inline void set_freezable(void) {}
+ 
+ #define freezable_schedule()  schedule()
+ 
++#define freezable_schedule_timeout(timeout)  schedule_timeout(timeout)
++
++#define freezable_schedule_timeout_interruptible(timeout)		\
++	schedule_timeout_interruptible(timeout)
++
++/* Like schedule_timeout_killable(), but should not block the freezer. */
+ #define freezable_schedule_timeout_killable(timeout)			\
+ 	schedule_timeout_killable(timeout)
+ 
++#define freezable_schedule_hrtimeout_range(expires, delta, mode)	\
++	schedule_hrtimeout_range(expires, delta, mode)
++
+ #define wait_event_freezable(wq, condition)				\
+ 		wait_event_interruptible(wq, condition)
+ 
+ #define wait_event_freezable_timeout(wq, condition, timeout)		\
+ 		wait_event_interruptible_timeout(wq, condition, timeout)
+ 
++#define wait_event_freezable_exclusive(wq, condition)			\
++		wait_event_interruptible_exclusive(wq, condition)
++
+ #define wait_event_freezekillable(wq, condition)		\
+ 		wait_event_killable(wq, condition)
+ 
+diff --git a/include/linux/freezer.h.orig b/include/linux/freezer.h.orig
+index 577bc02..27a397e 100644
+--- a/include/linux/freezer.h.orig
++++ b/include/linux/freezer.h.orig
+@@ -206,6 +206,15 @@ static inline bool freezer_should_skip(struct task_struct *p)
+ 	__retval;							\
+ })
+ 
++#define wait_event_freezable_exclusive(wq, condition)		\
++({									\
++	int __retval;							\
++	freezer_do_not_count();						\
++	__retval = wait_event_interruptible_exclusive(wq, condition);	\
++	freezer_count();						\
++	__retval;							\
++})
++
+ #else /* !CONFIG_FREEZER */
+ static inline bool frozen(struct task_struct *p) { return false; }
+ static inline bool freezing(struct task_struct *p) { return false; }
+-- 
+2.8.0.rc3
+
