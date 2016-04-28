@@ -139,10 +139,6 @@
 #include <linux/leds-max77693.h>
 #endif
 
-#ifdef CONFIG_IRDA_MC96
-#include <linux/ir_remote_con.h>
-#include <linux/regulator/consumer.h>
-#endif
 #ifdef CONFIG_PROC_AVC
 #include <linux/proc_avc.h>
 #endif
@@ -447,32 +443,6 @@ static void irda_vdd_onoff(bool onoff)
 		pr_info("%s irda_vreg 1.8V off is finished.\n", __func__);
 	}
 }
-
-static struct i2c_gpio_platform_data mc96_i2c_gpio_data = {
-	.udelay			= 2,
-	.sda_is_open_drain	= 0,
-	.scl_is_open_drain	= 0,
-	.scl_is_output_only	= 0,
-};
-
-static struct platform_device mc96_i2c_gpio_device = {
-	.name			= "i2c-gpio",
-	.id			= MSM_MC96_I2C_BUS_ID,
-	.dev.platform_data	= &mc96_i2c_gpio_data,
-};
-
-static struct mc96_platform_data mc96_pdata = {
-	.ir_remote_init = irda_device_init,
-	.ir_wake_en = irda_wake_en,
-	.ir_vdd_onoff = irda_vdd_onoff,
-};
-
-static struct i2c_board_info irda_i2c_board_info[] = {
-	{
-		I2C_BOARD_INFO("mc96", (0xA0 >> 1)),
-		.platform_data = &mc96_pdata,
-	},
-};
 #endif
 
 #ifdef CONFIG_KERNEL_MSM_CONTIG_MEM_REGION
@@ -559,7 +529,7 @@ static struct platform_device apq8064_android_pmem_audio_device = {
 static struct platform_device battery_bcl_device = {
 	.name = "battery_current_limit",
 	.id = -1,
-};
+	};
 #endif
 
 struct fmem_platform_data apq8064_fmem_pdata = {
@@ -4153,9 +4123,6 @@ static struct platform_device *common_devices[] __initdata = {
 #ifdef CONFIG_SEC_FPGA
 	&barcode_i2c_gpio_device,
 #endif
-#ifdef CONFIG_IRDA_MC96
-	&mc96_i2c_gpio_device,
-#endif
 #ifdef CONFIG_BATTERY_BCL
 	&battery_bcl_device,
 #endif
@@ -4498,7 +4465,7 @@ static struct msm_i2c_platform_data apq8064_i2c_qup_gsbi3_pdata = {
 };
 
 static struct msm_i2c_platform_data apq8064_i2c_qup_gsbi4_pdata = {
-	.clk_freq = 400000,
+	.clk_freq = 100000,
 	.src_clk_rate = 24000000,
 };
 
@@ -4983,14 +4950,6 @@ static struct i2c_registry apq8064_i2c_devices[] __initdata = {
 		ARRAY_SIZE(leds_i2c_devs),
 	},
 #endif
-#ifdef CONFIG_IRDA_MC96
-	{
-		I2C_FFA,
-		MSM_MC96_I2C_BUS_ID,
-		irda_i2c_board_info,
-		ARRAY_SIZE(irda_i2c_board_info),
-	},
-#endif
 #ifdef CONFIG_SEC_FPGA
 	{
 		I2C_FFA,
@@ -5176,11 +5135,6 @@ static void main_mic_bias_init(void)
 
 static void __init gpio_rev_init(void)
 {
-#if defined(CONFIG_IRDA_MC96)
-	mc96_i2c_gpio_data.sda_pin = gpio_rev(GPIO_IRDA_SDA);
-	mc96_i2c_gpio_data.scl_pin = gpio_rev(GPIO_IRDA_SCL);
-#endif
-
 #ifdef CONFIG_SEC_FPGA
 	barcode_i2c_gpio_data.sda_pin =
 		PM8921_MPP_PM_TO_SYS(PMIC_MPP_FPGA_SPI_SI);
@@ -5519,6 +5473,7 @@ static void __init apq8064_allocate_memory_regions(void)
 
 static void __init apq8064_gpio_keys_init(void)
 {
+	int ret;
 	struct pm_gpio param = {
 		.direction     = PM_GPIO_DIR_IN,
 		.pull          = PM_GPIO_PULL_UP_31P5,
@@ -5533,8 +5488,11 @@ static void __init apq8064_gpio_keys_init(void)
 		.vin_sel       = PM_GPIO_VIN_S4,
 		.function      = PM_GPIO_FUNC_NORMAL,
 	};
-	gpio_request(PM8921_GPIO_PM_TO_SYS(PMIC_GPIO_HALL_SENSOR_INT),
+	ret = gpio_request(PM8921_GPIO_PM_TO_SYS(PMIC_GPIO_HALL_SENSOR_INT),
 						"GPIO_HALL_SENSOR_INT");
+	if (ret)
+		pr_err("%s : gpio_request failed for %d\n", __func__,
+			PM8921_GPIO_PM_TO_SYS(PMIC_GPIO_HALL_SENSOR_INT));
 	pm8xxx_gpio_config(PM8921_GPIO_PM_TO_SYS(PMIC_GPIO_HALL_SENSOR_INT),
 						&param_hall_ic);
 #endif
