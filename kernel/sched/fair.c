@@ -96,6 +96,7 @@ unsigned int sysctl_sched_wakeup_granularity = 1000000UL;
 unsigned int normalized_sysctl_sched_wakeup_granularity = 1000000UL;
 
 const_debug unsigned int sysctl_sched_migration_cost = 500000UL;
+const_debug unsigned int sysctl_sched_burst_threshold = 100000UL;
 
 /*
  * The exponential sliding  window over which load is averaged for shares
@@ -4626,12 +4627,8 @@ static inline void update_sd_lb_stats(struct sched_domain *sd, int this_cpu,
 		 * extra check prevents the case where you always pull from the
 		 * heaviest group when it is already under-utilized (possible
 		 * with a large weight task outweighs the tasks on the system).
-		 *
-		 * In power aware scheduling, we don't care load weight and
-		 * want not to pull tasks just because local group has capacity.
 		 */
-		if (prefer_sibling && !local_group && sds->this_has_capacity
-				&& env->flags & LBF_PERF_BAL)
+		if (prefer_sibling && !local_group && sds->this_has_capacity)
 			sgs.group_capacity = min(sgs.group_capacity, 1UL);
 
 		if (local_group) {
