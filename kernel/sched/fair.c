@@ -3228,6 +3228,10 @@ struct sd_lb_stats {
 	/* Varibles of power awaring scheduling */
 	unsigned int  sd_util;	/* sum utilization of this domain */
 	struct sched_group *group_leader; /* Group which relieves group_min */
+	struct sched_group *group_min;	/* Least loaded group in sd */
+	unsigned long min_load_per_task; /* load_per_task in group_min */
+	unsigned int  leader_util;	/* sum utilizations of group_leader */
+	unsigned int  min_util;		/* sum utilizations of group_min */
 };
 
 /*
@@ -3256,6 +3260,10 @@ static unsigned int max_cfs_util(int cpu)
 	struct rq *rq = cpu_rq(cpu);
 	unsigned int rt_util = scale_rt_util(cpu);
 	unsigned int cfs_util;
+
+	/* use nr_running as instant utilization for burst cpu */
+	if (cpu_rq(cpu)->avg_idle < sysctl_sched_burst_threshold)
+		return rq->nr_running * FULL_UTIL;
 
 	/* yield cfs utilization to rt's, if total utilization > 100% */
 	cfs_util = min(rq->util, (unsigned int)(FULL_UTIL - rt_util));
@@ -3336,19 +3344,60 @@ static inline int get_sd_sched_balance_policy(struct sched_domain *sd,
 }
 
 /*
+ * find_leader_cpu - find the busiest but still has enough free time cpu
+ * among the cpus in group.
+ */
+static int
+find_leader_cpu(struct sched_group *group, struct task_struct *p, int this_cpu,
+		int policy)
+{
+	int vacancy, min_vacancy = INT_MAX;
+	int leader_cpu = -1;
+	int i;
+	/* percentage of the task's util */
+	unsigned putil = (u64)(p->se.avg.runnable_avg_sum << SCHED_POWER_SHIFT)
+				/ (p->se.avg.runnable_avg_period + 1);
+
+	/* bias toward local cpu */
+	if (cpumask_test_cpu(this_cpu, tsk_cpus_allowed(p)) &&
+			FULL_UTIL - max_cfs_util(this_cpu) - (putil << 2) > 0)
+		return this_cpu;
+
+	/* Traverse only the allowed CPUs */
+	for_each_cpu_and(i, sched_group_cpus(group), tsk_cpus_allowed(p)) {
+		if (i == this_cpu)
+			continue;
+
+		/* only light task allowed, putil < 25% */
+		vacancy = FULL_UTIL - max_cfs_util(i) - (putil << 2);
+
+		if (vacancy > 0 && vacancy < min_vacancy) {
+			min_vacancy = vacancy;
+			leader_cpu = i;
+		}
+	}
+	return leader_cpu;
+}
+
+/*
  * If power policy is eligible for this domain, and it has task allowed cpu.
  * we will select CPU from this domain.
  */
 static int get_cpu_for_power_policy(struct sched_domain *sd, int cpu,
-		struct task_struct *p, struct sd_lb_stats *sds)
+		struct task_struct *p, struct sd_lb_stats *sds, int wakeup)
 {
 	int policy;
 	int new_cpu = -1;
 
 	policy = get_sd_sched_balance_policy(sd, cpu, p, sds);
-	if (policy != SCHED_POLICY_PERFORMANCE && sds->group_leader)
-		new_cpu = find_idlest_cpu(sds->group_leader, p, cpu);
-
+	if (policy != SCHED_POLICY_PERFORMANCE && sds->group_leader) {
+		if (wakeup)
+			new_cpu = find_leader_cpu(sds->group_leader,
+							p, cpu, policy);
+		/* for fork balancing and a little busy task */
+		if (new_cpu == -1)
+			new_cpu = find_idlest_cpu(sds->group_leader, p, cpu);
+	}
 	return new_cpu;
 }
 
@@ -3368,6 +3417,7 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int flags)
 	int cpu = smp_processor_id();
 	int prev_cpu = task_cpu(p);
 	int new_cpu = cpu;
+	int power_cpu = -1;
 	int want_affine = 0;
 	int sync = flags & WF_SYNC;
 	struct sd_lb_stats sds;
@@ -3399,15 +3449,16 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int flags)
 		if (tmp->flags & sd_flag) {
 			sd = tmp;
 
-			new_cpu = get_cpu_for_power_policy(sd, cpu, p, &sds);
-			if (new_cpu != -1)
+			power_cpu = get_cpu_for_power_policy(sd, cpu, p, &sds,
+						sd_flag & SD_BALANCE_WAKE);
+			if (power_cpu != -1)
 				goto unlock;
 		}
 	}
 
 	if (affine_sd) {
-		new_cpu = get_cpu_for_power_policy(affine_sd, cpu, p, &sds);
-		if (new_cpu != -1)
+		power_cpu = get_cpu_for_power_policy(affine_sd, cpu, p, &sds, 1);
+		if (power_cpu != -1)
 			goto unlock;
 
 		if (cpu != prev_cpu && wake_affine(affine_sd, p, sync))
@@ -3457,8 +3508,10 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int flags)
 	}
 unlock:
 	rcu_read_unlock();
+	if (power_cpu == -1)
+                return new_cpu;
 
-	return new_cpu;
+	return power_cpu;
 }
 
 /*
@@ -4573,8 +4626,12 @@ static inline void update_sd_lb_stats(struct sched_domain *sd, int this_cpu,
 		 * extra check prevents the case where you always pull from the
 		 * heaviest group when it is already under-utilized (possible
 		 * with a large weight task outweighs the tasks on the system).
+		 *
+		 * In power aware scheduling, we don't care load weight and
+		 * want not to pull tasks just because local group has capacity.
 		 */
-		if (prefer_sibling && !local_group && sds->this_has_capacity)
+		if (prefer_sibling && !local_group && sds->this_has_capacity
+				&& env->flags & LBF_PERF_BAL)
 			sgs.group_capacity = min(sgs.group_capacity, 1UL);
 
 		if (local_group) {
