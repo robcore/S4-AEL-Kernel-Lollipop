@@ -204,13 +204,12 @@ EXPORT_SYMBOL(local_bh_enable_ip);
  * increment and so we need the MAX_SOFTIRQ_RESTART limit as
  * well to make sure we eventually return from this method.
  *
- * These limits have been established via experimentation. 
+ * These limits have been established via experimentation.
  * The two things to balance is latency against fairness -
  * we want to handle softirqs as soon as possible, but they
  * should not be able to lock up the box.
  */
 #define MAX_SOFTIRQ_TIME  msecs_to_jiffies(2)
-#define MAX_SOFTIRQ_RESTART 10
 
 asmlinkage void __do_softirq(void)
 {
@@ -218,8 +217,6 @@ asmlinkage void __do_softirq(void)
 	__u32 pending;
 	unsigned long end = jiffies + MAX_SOFTIRQ_TIME;
 	int cpu;
-	int max_restart = MAX_SOFTIRQ_RESTART;
-
 	pending = local_softirq_pending();
 	account_system_vtime(current);
 
