@@ -1,0 +1,24 @@
+From 0902c4d388e87a264d70cec8e510fffdf10e4841 Mon Sep 17 00:00:00 2001
+From: friedrich420 <kelpidorou@yahoo.com>
+Date: Sat, 23 Apr 2016 15:37:26 +0300
+Subject: [PATCH] USB: android: Fix memory leak in mass_storage_function_init()
+
+---
+ drivers/usb/gadget/android.c |   4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/drivers/usb/gadget/android.c b/drivers/usb/gadget/android.c
+index 487ceb6..1471735 100644
+--- a/drivers/usb/gadget/android.c
++++ b/drivers/usb/gadget/android.c
+@@ -2471,6 +2471,10 @@ static int mass_storage_lun_init(struct android_usb_function *f,
+
+ static void mass_storage_function_cleanup(struct android_usb_function *f)
+ {
++	struct mass_storage_function_config *config;
++
++	config = f->config;
++	fsg_common_put(config->common);
+ 	kfree(f->config);
+ 	f->config = NULL;
+ }
