@@ -509,7 +509,7 @@ int q6asm_audio_client_buf_alloc(unsigned int dir,
 			return 0;
 		}
 
-		if (bufcnt != FRAME_NUM)
+		if (bufcnt > FRAME_NUM)
 			goto fail;
 		mutex_lock(&ac->cmd_lock);
 		buf = kzalloc(((sizeof(struct audio_buffer))*bufcnt),
@@ -990,7 +990,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 		break;
 	}
 	case ASM_STREAM_CMDRSP_GET_PP_PARAMS:
-		
+
 		if(payload!=NULL &&  payload[2] == 0x10001fd2){
 		       score = payload[5];
 		}
@@ -998,9 +998,9 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 			rtac_make_asm_callback(ac->session, payload,
 				data->payload_size);
 		}
-		 
+
 		break;
-		
+
 	case ASM_DATA_EVENT_READ_DONE:{
 
 		struct audio_port_data *port = &ac->port[OUT];
