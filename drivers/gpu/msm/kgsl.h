@@ -1,4 +1,5 @@
 /* Copyright (c) 2008-2014, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2014 Sony Mobile Communications AB.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,6 +10,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * NOTE: This file has been modified by Sony Mobile Communications AB.
+ * Modifications are licensed under the License.
  */
 #ifndef __KGSL_H
 #define __KGSL_H
@@ -30,7 +33,7 @@
 /* The number of memstore arrays limits the number of contexts allowed.
  * If more contexts are needed, update multiple for MEMSTORE_SIZE
  */
-#define KGSL_MEMSTORE_SIZE	((int)(PAGE_SIZE * 2))
+#define KGSL_MEMSTORE_SIZE	((int)(PAGE_SIZE * 3))
 #define KGSL_MEMSTORE_GLOBAL	(0)
 #define KGSL_MEMSTORE_MAX	(KGSL_MEMSTORE_SIZE / \
 		sizeof(struct kgsl_devmemstore) - 1)
@@ -148,6 +151,7 @@ struct kgsl_memdesc {
 	unsigned int sglen_alloc;  /* Allocated entries in the sglist */
 	struct kgsl_memdesc_ops *ops;
 	unsigned int flags; /* Flags set from userspace */
+	int *faulted;
 };
 
 /* List of different memory entry types */
@@ -219,9 +223,6 @@ void kgsl_trace_issueibcmds(struct kgsl_device *device, int id,
 		struct kgsl_ibdesc *ibdesc, int numibs,
 		unsigned int timestamp, unsigned int flags,
 		int result, unsigned int type);
-
-void kgsl_trace_kgsl_tz_params(struct kgsl_device *device, s64 total_time,
-		 s64 busy_time, int idle_time, int tz_val);
 
 #ifdef CONFIG_MSM_KGSL_DRM
 extern int kgsl_drm_init(struct platform_device *dev);
