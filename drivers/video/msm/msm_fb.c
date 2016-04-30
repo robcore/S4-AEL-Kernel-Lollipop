@@ -124,7 +124,7 @@ static int msm_fb_pan_idle(struct msm_fb_data_type *mfd);
 #ifdef MSM_FB_ENABLE_DBGFS
 
 #define MSM_FB_MAX_DBGFS 1024
-#define MAX_BACKLIGHT_BRIGHTNESS 255
+#define MAX_BACKLIGHT_BRIGHTNESS 265
 
 #define WAIT_FENCE_FIRST_TIMEOUT (3 * MSEC_PER_SEC)
 #define WAIT_FENCE_FINAL_TIMEOUT (10 * MSEC_PER_SEC)
@@ -191,7 +191,7 @@ static void msm_fb_set_bl_brightness(struct led_classdev *led_cdev,
 	struct msm_fb_data_type *mfd = dev_get_drvdata(led_cdev->dev->parent);
 	int bl_lvl;
 
-	/* This maps android backlight level 1 to 255 into
+	/* This maps android backlight level 1 to 265 into
 	   driver backlight level bl_min to bl_max with rounding
 	   and maps backlight level 0 to 0. */
 	if (value <= 0)
@@ -417,7 +417,7 @@ static int msm_fb_probe(struct platform_device *pdev)
 	mfd->panel_info.frame_count = 0;
 	mfd->bl_level = 0;
 	bl_scale = 1024;
-	bl_min_lvl = 255;
+	bl_min_lvl = 265;
 #ifdef CONFIG_FB_MSM_OVERLAY
 	mfd->overlay_play_enable = 1;
 #endif
