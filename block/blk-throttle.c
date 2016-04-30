@@ -966,7 +966,7 @@ throtl_schedule_delayed_work(struct throtl_data *td, unsigned long delay)
 		 * We might have a work scheduled to be executed in future.
 		 * Cancel that and schedule a new one.
 		 */
-		__cancel_delayed_work(dwork);
+		cancel_delayed_work(dwork);
 		queue_delayed_work(kthrotld_workqueue, dwork, delay);
 		throtl_log(td, "schedule work. delay=%lu jiffies=%lu",
 				delay, jiffies);
