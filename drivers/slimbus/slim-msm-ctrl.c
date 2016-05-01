@@ -2356,6 +2356,7 @@ static int __devinit msm_slim_probe(struct platform_device *pdev)
 	return 0;
 
 err_ctrl_failed:
+	free_irq(dev->irq, dev);
 	writel_relaxed(0, dev->base + CFG_PORT(COMP_CFG, dev->ver));
 err_clk_get_failed:
 	kfree(dev->satd);
