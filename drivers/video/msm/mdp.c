@@ -130,7 +130,7 @@ bool mdp_pp_initialized = FALSE;
 static struct workqueue_struct *mdp_pipe_ctrl_wq; /* mdp mdp pipe ctrl wq */
 static struct delayed_work mdp_pipe_ctrl_worker;
 
-static boolean mdp_suspended = FALSE;
+boolean mdp_suspended = FALSE;
 ulong mdp4_display_intf;
 DEFINE_MUTEX(mdp_suspend_mutex);
 
@@ -576,11 +576,10 @@ static int mdp_lut_hw_update(struct fb_cmap *cmap)
 	c[2] = cmap->red;
 
 	if (cmap->start > MDP_HIST_LUT_SIZE || cmap->len > MDP_HIST_LUT_SIZE ||
-		(cmap->start + cmap->len > MDP_HIST_LUT_SIZE)) {
+			(cmap->start + cmap->len > MDP_HIST_LUT_SIZE)) {
 		pr_err("mdp_lut_hw_update invalid arguments\n");
 		return -EINVAL;
 	}
-
 	for (i = 0; i < cmap->len; i++) {
 		if (copy_from_user(&r, cmap->red++, sizeof(r)) ||
 		    copy_from_user(&g, cmap->green++, sizeof(g)) ||
@@ -611,15 +610,13 @@ static void mdp_lut_status_restore(void)
 	if (mdp_lut_resume_needed) {
 		spin_lock_irqsave(&mdp_lut_push_lock, flags);
 		mdp_lut_push = 1;
-		spin_unlock_irqrestore(&mdp_lut_push_lock,
-					flags);
+		spin_unlock_irqrestore(&mdp_lut_push_lock, flags);
 	}
 }
 
 static void mdp_lut_status_backup(void)
 {
 	uint32_t status = inpdw(MDP_BASE + 0x90070) & 0x7;
-
 	if (status)
 		mdp_lut_resume_needed = 1;
 	else
@@ -673,80 +670,6 @@ static int mdp_lut_update_lcdc(struct fb_info *info, struct fb_cmap *cmap)
 
 	return 0;
 }
-
-#ifdef CONFIG_UPDATE_LCDC_LUT
-int mdp_preset_lut_update_lcdc(struct fb_cmap *cmap, uint32_t *internal_lut)
-{
-	uint32_t out;
-	int i;
-	u16 r, g, b;
-
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	mdp_clk_ctrl(1);
-
-	for (i = 0; i < cmap->len; i++) {
-		r = lut2r(internal_lut[i]);
-		g = lut2g(internal_lut[i]);
-		b = lut2b(internal_lut[i]);
-#ifdef CONFIG_LCD_KCAL
-		r = scaled_by_kcal(r, *(cmap->red));
-		g = scaled_by_kcal(g, *(cmap->green));
-		b = scaled_by_kcal(b, *(cmap->blue));
-#endif
-		MDP_OUTP(MDP_BASE + 0x94800 +
-			(0x400*mdp_lut_i) + cmap->start*4 + i*4,
-				((g & 0xff) |
-				 ((b & 0xff) << 8) |
-				 ((r & 0xff) << 16)));
-	}
-
-	/*mask off non LUT select bits*/
-	out = inpdw(MDP_BASE + 0x90070) & ~((0x1 << 10) | 0x7);
-	MDP_OUTP(MDP_BASE + 0x90070, (mdp_lut_i << 10) | 0x7 | out);
-	mdp_clk_ctrl(0);
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-	mdp_lut_i = (mdp_lut_i + 1)%2;
-
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_UPDATE_LCDC_LUT
-int mdp_preset_lut_update_lcdc(struct fb_cmap *cmap, uint32_t *internal_lut)
-{
-	uint32_t out;
-	int i;
-	u16 r, g, b;
-
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	mdp_clk_ctrl(1);
-
-	for (i = 0; i < cmap->len; i++) {
-		r = lut2r(internal_lut[i]);
-		g = lut2g(internal_lut[i]);
-		b = lut2b(internal_lut[i]);
-#ifdef CONFIG_LCD_KCAL
-		r = scaled_by_kcal(r, *(cmap->red));
-		g = scaled_by_kcal(g, *(cmap->green));
-		b = scaled_by_kcal(b, *(cmap->blue));
-#endif
-		MDP_OUTP(MDP_BASE + 0x94800 +
-			(0x400*mdp_lut_i) + cmap->start*4 + i*4,
-				((g & 0xff) |
-				 ((b & 0xff) << 8) |
-				 ((r & 0xff) << 16)));
-	}
-
-
-	out = inpdw(MDP_BASE + 0x90070) & ~((0x1 << 10) | 0x7);
-	MDP_OUTP(MDP_BASE + 0x90070, (mdp_lut_i << 10) | 0x7 | out);
-	mdp_clk_ctrl(0);
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-	mdp_lut_i = (mdp_lut_i + 1)%2;
-
-	return 0;
-}
-#endif
 
 #ifdef CONFIG_UPDATE_LCDC_LUT
 int mdp_preset_lut_update_lcdc(struct fb_cmap *cmap, uint32_t *internal_lut)
