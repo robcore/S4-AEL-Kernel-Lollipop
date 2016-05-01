@@ -606,15 +606,13 @@ static void mdp_lut_status_restore(void)
 	if (mdp_lut_resume_needed) {
 		spin_lock_irqsave(&mdp_lut_push_lock, flags);
 		mdp_lut_push = 1;
-		spin_unlock_irqrestore(&mdp_lut_push_lock,
-					flags);
+		spin_unlock_irqrestore(&mdp_lut_push_lock, flags);
 	}
 }
 
 static void mdp_lut_status_backup(void)
 {
 	uint32_t status = inpdw(MDP_BASE + 0x90070) & 0x7;
-
 	if (status)
 		mdp_lut_resume_needed = 1;
 	else
@@ -695,7 +693,7 @@ int mdp_preset_lut_update_lcdc(struct fb_cmap *cmap, uint32_t *internal_lut)
 				 ((r & 0xff) << 16)));
 	}
 
-	/*mask off non LUT select bits*/
+
 	out = inpdw(MDP_BASE + 0x90070) & ~((0x1 << 10) | 0x7);
 	MDP_OUTP(MDP_BASE + 0x90070, (mdp_lut_i << 10) | 0x7 | out);
 	mdp_clk_ctrl(0);
