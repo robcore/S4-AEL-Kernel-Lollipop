@@ -146,7 +146,7 @@ struct sx150x_platform_data msm8960_sx150x_data[] = {
 
 #define MSM_PMEM_ADSP_SIZE         0x7800000
 #define MSM_PMEM_AUDIO_SIZE        0x4CF000
-#define MSM_PMEM_SIZE 0x2800000 /* 40 Mbytes */
+#define MSM_PMEM_SIZE 0x0 /* 40 Mbytes */
 #define MSM_LIQUID_PMEM_SIZE 0x4000000 /* 64 Mbytes */
 #define MSM_HDMI_PRIM_PMEM_SIZE 0x4000000 /* 64 Mbytes */
 
@@ -1343,7 +1343,8 @@ static struct platform_device qcedev_device = {
 static struct mdm_platform_data sglte_platform_data = {
 	.mdm_version = "4.0",
 	.ramdump_delay_ms = 1000,
-	/* delay between two PS_HOLDs */
+	/* delay between two PS_HOLDs */SIZE (MSM_ION_MM_SIZE + 0x600000)
+#define MSM_LIQUID_ION_SF_SIZE
 	.ps_hold_delay_ms = 500,
 	.soft_reset_inverted = 1,
 	.peripheral_platform_device = NULL,
