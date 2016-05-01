@@ -111,9 +111,8 @@ struct mdnie_lite_tun_type mdnie_tun_state = {
 const char background_name[MAX_BACKGROUND_MODE][16] = {
 	"STANDARD",
 	"DYNAMIC",
-	"NATURAL",
 	"MOVIE",
-	"AUTO",
+	"NATURAL",
 };
 
 const char scenario_name[MAX_mDNIe_MODE][16] = {
