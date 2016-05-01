@@ -34,7 +34,7 @@ static char klog_buf[256];
 #endif
 
 #ifndef CONFIG_LOGCAT_SIZE
-#define CONFIG_LOGCAT_SIZE 256
+#define CONFIG_LOGCAT_SIZE 32
 #endif
 /*
  * struct logger_log - represents a specific log, such as 'main' or 'radio'
@@ -54,7 +54,7 @@ struct logger_log {
 	size_t			size;	/* size of the log */
 };
 
-static unsigned int log_enabled = 0;
+static unsigned int log_enabled = 1;
 
 module_param(log_enabled, uint, S_IWUSR | S_IRUGO);
 

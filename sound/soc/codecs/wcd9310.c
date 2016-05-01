@@ -2958,7 +2958,7 @@ static int tabla_codec_enable_dec(struct snd_soc_dapm_widget *w,
 		/* Disable TX digital mute */
 		schedule_delayed_work(
 			&tx_mute_work[decimator - 1].dwork,
-			msecs_to_jiffies(300));
+			msecs_to_jiffies(100));
 
 		if (tx_hpf_work[decimator - 1].tx_hpf_cut_of_freq !=
 				CF_MIN_3DB_150HZ) {
