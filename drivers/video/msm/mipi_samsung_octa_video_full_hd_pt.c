@@ -1119,7 +1119,7 @@ static int get_candela_index(int bl_level)
 {
 	int backlightlevel;
 
-	/* brightness setting from platform is from 0 to 280
+	/* brightness setting from platform is from 0 to 255
 	 * But in this driver, brightness is only supported from 0 to 24 */
 
 	backlightlevel = 0;
@@ -1272,19 +1272,19 @@ static int get_candela_index(int bl_level)
 	case 220 ... 232:
 		backlightlevel = GAMMA_220CD;
 		break;
-	case 233 ... 245:
+	case 233 ... 248:
 		backlightlevel = GAMMA_234CD;
 		break;
-	case 246 ... 249:
+	case 249:
 		backlightlevel = GAMMA_249CD;
 		break;
-	case 250 ... 255:
+	case 250 ... 251:
 		backlightlevel = GAMMA_265CD;
 		break;
-	case 256 ... 265:
+	case 252 ... 253:
 		backlightlevel = GAMMA_282CD;
 		break;
-	case 266 ... 280:
+	case 254 ... 255:
 		backlightlevel = GAMMA_300CD;
 		break;
 	default:
@@ -2031,7 +2031,7 @@ static int __init mipi_video_samsung_octa_full_hd_pt_init(void)
 	pinfo.lcdc.underflow_clr = 0x0;	/* black */
 	pinfo.lcdc.hsync_skew = 0;
 
-	pinfo.bl_max = 280;
+	pinfo.bl_max = 255;
 	pinfo.bl_min = 1;
 	pinfo.fb_num = 2;
 

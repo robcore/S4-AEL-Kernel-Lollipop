@@ -495,9 +495,6 @@ static int mipi_dsi_power(int enable)
 	if (enable) {
 
 		pr_info("[lcd] DSI ON\n");
-#ifdef CONFIG_LCD_NOTIFY
-		lcd_notifier_call_chain(LCD_EVENT_ON_START, NULL);
-#endif
 		rc = regulator_set_optimum_mode(reg_l2, 100000);
 		if (rc < 0) {
 			pr_err("set_optimum_mode L2 failed, rc=%d\n", rc);
@@ -509,14 +506,8 @@ static int mipi_dsi_power(int enable)
 			pr_err("enable L2 failed, rc=%d\n", rc);
 			return -ENODEV;
 		}
-#ifdef CONFIG_LCD_NOTIFY
-		lcd_notifier_call_chain(LCD_EVENT_ON_END, NULL);
-#endif
 	} else {
 
-#ifdef CONFIG_LCD_NOTIFY
-		lcd_notifier_call_chain(LCD_EVENT_OFF_START, NULL);
-#endif
 		pr_info("[lcd] DSI OFF\n");
 		rc = regulator_set_optimum_mode(reg_l2, 100);
 		if (rc < 0) {
@@ -529,10 +520,6 @@ static int mipi_dsi_power(int enable)
 			pr_err("disable reg_L2 failed, rc=%d\n", rc);
 			return -ENODEV;
 		}
-#ifdef CONFIG_LCD_NOTIFY
-		lcd_notifier_call_chain(LCD_EVENT_OFF_END, NULL);
-#endif
-
 	}
 
 	return rc;
