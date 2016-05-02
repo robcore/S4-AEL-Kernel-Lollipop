@@ -314,6 +314,9 @@ void __init apq8064_mdp_writeback(struct memtype_reserve* reserve_table)
 		mdp_pdata.ov0_wb_size;
 	reserve_table[mdp_pdata.mem_hid].size +=
 		mdp_pdata.ov1_wb_size;
+
+	//pr_info("mem_map: mdp reserved with size 0x%lx in pool\n",
+			//mdp_pdata.ov0_wb_size + mdp_pdata.ov1_wb_size);
 #endif
 }
 
@@ -900,6 +903,9 @@ static int mipi_panel_power_oled(int enable)
 
 		pr_info("[lcd] PANEL ON\n");
 
+#ifdef CONFIG_LCD_NOTIFY
+		lcd_notifier_call_chain(LCD_EVENT_ON_START, NULL);
+#endif
 		/* 3000mv VCI(ANALOG) */
 		rc = regulator_set_optimum_mode(reg_L30, 100000);
 		if (rc < 0) {
@@ -929,9 +935,17 @@ static int mipi_panel_power_oled(int enable)
 			return -ENODEV;
 		}
 #endif
+
+#ifdef CONFIG_LCD_NOTIFY
+		lcd_notifier_call_chain(LCD_EVENT_ON_END, NULL);
+#endif
 	} else {
 
 		pr_info("[lcd] PANEL OFF\n");
+
+#ifdef CONFIG_LCD_NOTIFY
+		lcd_notifier_call_chain(LCD_EVENT_OFF_START, NULL);
+#endif
 
 #ifdef CONFIG_LCD_VDD3_BY_PMGPIO
 		gpio_set_value_cansleep(pmic_gpio4, 0);
@@ -959,6 +973,9 @@ static int mipi_panel_power_oled(int enable)
 			pr_err("disable reg_L30 failed, rc=%d\n", rc);
 			return -ENODEV;
 		}
+#ifdef CONFIG_LCD_NOTIFY
+		lcd_notifier_call_chain(LCD_EVENT_OFF_END, NULL);
+#endif
 	}
 
 	return rc;
