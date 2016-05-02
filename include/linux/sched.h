@@ -349,19 +349,6 @@ static inline void lockup_detector_init(void)
 }
 #endif
 
-#ifdef CONFIG_DETECT_HUNG_TASK
-extern unsigned int  sysctl_hung_task_panic;
-extern unsigned long sysctl_hung_task_check_count;
-extern unsigned long sysctl_hung_task_timeout_secs;
-extern unsigned long sysctl_hung_task_warnings;
-extern int proc_dohung_task_timeout_secs(struct ctl_table *table, int write,
-					 void __user *buffer,
-					 size_t *lenp, loff_t *ppos);
-#else
-/* Avoid need for ifdefs elsewhere in the code */
-enum { sysctl_hung_task_timeout_secs = 0 };
-#endif
-
 /* Attach to any functions which should be ignored in wchan output. */
 #define __sched		__attribute__((__section__(".sched.text")))
 
@@ -382,23 +369,6 @@ extern int mutex_spin_on_owner(struct mutex *lock, struct task_struct *owner);
 
 struct nsproxy;
 struct user_namespace;
-
-/*
- * Default maximum number of active map areas, this limits the number of vmas
- * per mm struct. Users can overwrite this number by sysctl but there is a
- * problem.
- *
- * When a program's coredump is generated as ELF format, a section is created
- * per a vma. In ELF, the number of sections is represented in unsigned short.
- * This means the number of sections should be smaller than 65535 at coredump.
- * Because the kernel adds some informative sections to a image of program at
- * generating coredump, we need some margin. The number of extra sections is
- * 1-3 now and depends on arch. We use "5" as safe margin, here.
- */
-#define MAPCOUNT_ELF_CORE_MARGIN	(5)
-#define DEFAULT_MAX_MAP_COUNT	(USHRT_MAX - MAPCOUNT_ELF_CORE_MARGIN)
-
-extern int sysctl_max_map_count;
 
 #include <linux/aio.h>
 
@@ -1218,8 +1188,39 @@ struct ravg {
 	u32 sum_history[RAVG_HIST_SIZE];
 };
 
+#define RAVG_HIST_SIZE  5
+
+/* ravg represents frequency scaled cpu-demand of tasks */
+struct ravg {
+	/*
+	 * 'window_start' marks the beginning of new window
+	 *
+	 * 'mark_start' marks the beginning of an event (task waking up, task
+	 * starting to execute, task being preempted) within a window
+	 *
+	 * 'sum' represents how runnable a task has been within current
+	 * window. It incorporates both running time and wait time and is
+	 * frequency scaled.
+	 *
+	 * 'sum_history' keeps track of history of 'sum' seen over previous
+	 * RAVG_HIST_SIZE windows. Windows where task was entirely sleeping are
+	 * ignored.
+	 *
+	 * 'demand' represents maximum sum seen over previous RAVG_HIST_SIZE
+	 * windows. 'demand' could drive frequency demand for tasks.
+	 */
+	u64 window_start, mark_start;
+	u32 sum, demand;
+	u32 sum_history[RAVG_HIST_SIZE];
+};
+
 struct sched_entity {
 	struct load_weight	load;		/* for load-balancing */
+	/*
+	 * Todo : Move ravg to 'struct task_struct', as this is common for both
+	 * real-time and non-realtime tasks
+	 */
+	struct ravg		ravg;
 	struct rb_node		run_node;
 	struct list_head	group_node;
 	unsigned int		on_rq;
@@ -1263,12 +1264,6 @@ struct sched_rt_entity {
 	struct rt_rq		*my_q;
 #endif
 };
-
-/*
- * default timeslice is 100 msecs (used only for SCHED_RR tasks).
- * Timeslices get refilled after they expire.
- */
-#define RR_TIMESLICE		(100 * HZ / 1000)
 
 struct rcu_node;
 
@@ -2169,10 +2164,6 @@ static inline void sched_autogroup_create_attach(struct task_struct *p) { }
 static inline void sched_autogroup_detach(struct task_struct *p) { }
 static inline void sched_autogroup_fork(struct signal_struct *sig) { }
 static inline void sched_autogroup_exit(struct signal_struct *sig) { }
-#endif
-
-#ifdef CONFIG_CFS_BANDWIDTH
-extern unsigned int sysctl_sched_cfs_bandwidth_slice;
 #endif
 
 #ifdef CONFIG_RT_MUTEXES
