@@ -1140,7 +1140,8 @@ struct sched_class {
 };
 
 struct load_weight {
-	unsigned long weight, inv_weight;
+	unsigned long weight;
+	u32 inv_weight;
 };
 
 struct sched_avg {
