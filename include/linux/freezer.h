@@ -170,7 +170,7 @@ static inline bool freezer_should_skip(struct task_struct *p)
 }
 
 /*
- * These macros are intended to be used whenever you want allow a task that's
+ * These functions are intended to be used whenever you want allow a task that's
  * sleeping in TASK_UNINTERRUPTIBLE or TASK_KILLABLE state to be frozen. Note
  * that neither return any clear indication of whether a freeze event happened
  * while in this function.
@@ -365,14 +365,13 @@ static inline void set_freezable(void) {}
 
 #define freezable_schedule()  schedule()
 
-#define freezable_schedule_unsafe()  schedule(
+#define freezable_schedule_unsafe()  schedule()
 
 #define freezable_schedule_timeout(timeout)  schedule_timeout(timeout)
 
 #define freezable_schedule_timeout_interruptible(timeout)		\
 	schedule_timeout_interruptible(timeout)
 
-/* Like schedule_timeout_killable(), but should not block the freezer. */
 #define freezable_schedule_timeout_killable(timeout)			\
 	schedule_timeout_killable(timeout)
 
