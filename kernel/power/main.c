@@ -842,7 +842,6 @@ static int __init pm_init(void)
 	apps_max_freq = MAX_FREQ_LIMIT;
 	thermald_max_freq = MAX_FREQ_LIMIT;
 #endif
-	else
 		return sysfs_create_group(power_kobj, &attr_group);
 }
 
