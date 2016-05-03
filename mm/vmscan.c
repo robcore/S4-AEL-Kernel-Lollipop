@@ -1669,7 +1669,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
 	 *                     isolated page is PageWriteback
 	 */
 	if (nr_writeback && nr_writeback >= (nr_taken >> (DEF_PRIORITY-priority)))
-		zone_set_flag(zone, ZONE_WRITEBACK);
 		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
 
 #ifdef CONFIG_RUNTIME_COMPCACHE
