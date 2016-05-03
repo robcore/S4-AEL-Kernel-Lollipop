@@ -1669,6 +1669,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
 	 *                     isolated page is PageWriteback
 	 */
 	if (nr_writeback && nr_writeback >= (nr_taken >> (DEF_PRIORITY-priority)))
+		zone_set_flag(zone, ZONE_WRITEBACK);
 		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
 
 #ifdef CONFIG_RUNTIME_COMPCACHE
@@ -3197,7 +3198,7 @@ static int kswapd(void *p)
 	classzone_idx = new_classzone_idx = pgdat->nr_zones - 1;
 	balanced_classzone_idx = classzone_idx;
 	for ( ; ; ) {
-		int ret;
+		bool ret;
 
 		/*
 		 * If the last balance_pgdat was unsuccessful it's unlikely a
