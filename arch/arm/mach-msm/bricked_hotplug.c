@@ -23,17 +23,17 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/device.h>
-#ifdef CONFIG_POWERSUSPEND
-#include <linux/powersuspend.h>
+#ifdef CONFIG_STATE_NOTIFIER
+#include <linux/state_notifier.h>
 #else
-#include <linux/lcd_notify.h>
+#include <linux/fb.h>
 #endif
 
 #define DEBUG 0
 
 #define MPDEC_TAG			"bricked_hotplug"
 #define HOTPLUG_ENABLED			0
-#define MSM_MPDEC_STARTDELAY		20000
+#define MSM_MPDEC_STARTDELAY		10000
 #define MSM_MPDEC_DELAY			130
 #define DEFAULT_MIN_CPUS_ONLINE		1
 #define DEFAULT_MAX_CPUS_ONLINE		NR_CPUS
@@ -50,9 +50,7 @@ enum {
 	MSM_MPDEC_UP,
 };
 
-#ifndef CONFIG_POWERSUSPEND
 static struct notifier_block notif;
-#endif
 static struct delayed_work hotplug_work;
 static struct delayed_work suspend_work;
 static struct work_struct resume_work;
@@ -122,7 +120,7 @@ static int check_down_lock(unsigned int cpu)
 
 extern unsigned int get_rq_info(void);
 
-unsigned int bricked_state = MSM_MPDEC_DISABLED;
+static unsigned int state = MSM_MPDEC_DISABLED;
 
 static int get_slowest_cpu(void) {
 	unsigned int cpu, slow_cpu = 0, rate, slow_rate = 0;
@@ -219,15 +217,16 @@ static void __ref bricked_hotplug_work(struct work_struct *work) {
 	if (!mutex_trylock(&hotplug.bricked_cpu_mutex))
 		goto out;
 
-	bricked_state = mp_decision();
-	switch (bricked_state) {
+	state = mp_decision();
+	switch (state) {
 	case MSM_MPDEC_DISABLED:
 	case MSM_MPDEC_IDLE:
 		break;
 	case MSM_MPDEC_DOWN:
 		cpu = get_slowest_cpu();
 		if (cpu > 0) {
-			if (cpu_online(cpu) && !check_down_lock(cpu))
+			if (cpu_online(cpu) && !check_cpuboost(cpu)
+					&& !check_down_lock(cpu))
 				cpu_down(cpu);
 		}
 		break;
@@ -242,7 +241,7 @@ static void __ref bricked_hotplug_work(struct work_struct *work) {
 		break;
 	default:
 		pr_err(MPDEC_TAG": %s: invalid mpdec hotplug state %d\n",
-			__func__, bricked_state);
+			__func__, state);
 	}
 	mutex_unlock(&hotplug.bricked_cpu_mutex);
 
@@ -300,7 +299,7 @@ static void __ref bricked_hotplug_resume(struct work_struct *work)
 		}
 	}
 
-	if (required_wakeup) {
+	if (wakeup_boost || required_wakeup) {
 		/* Fire up all CPUs */
 		for_each_cpu_not(cpu, cpu_online_mask) {
 			if (cpu == 0)
@@ -318,18 +317,7 @@ static void __ref bricked_hotplug_resume(struct work_struct *work)
 	}
 }
 
-#ifdef CONFIG_POWERSUSPEND
-static void __bricked_hotplug_suspend(struct power_suspend *handler)
-{
-	if (!hotplug.bricked_enabled || hotplug.suspended)
-		return;
-
-	INIT_DELAYED_WORK(&suspend_work, bricked_hotplug_suspend);
-	queue_delayed_work_on(0, susp_wq, &suspend_work,
-			msecs_to_jiffies(hotplug.suspend_defer_time * 1000));
-}
-
-static void __ref __bricked_hotplug_resume(struct power_suspend *handler)
+static void __bricked_hotplug_resume(void)
 {
 	if (!hotplug.bricked_enabled)
 		return;
@@ -339,36 +327,61 @@ static void __ref __bricked_hotplug_resume(struct power_suspend *handler)
 	queue_work_on(0, susp_wq, &resume_work);
 }
 
-static struct power_suspend bricked_hotplug_power_suspend_driver = {
-	.suspend = __bricked_hotplug_suspend,
-	.resume = __bricked_hotplug_resume,
-};
-#else
-static int lcd_notifier_callback(struct notifier_block *this,
-				unsigned long event, void *data) {
+static void __bricked_hotplug_suspend(void)
+{
+	if (!hotplug.bricked_enabled || hotplug.suspended)
+		return;
 
-	if (!hotplug.bricked_enabled)
-		return MSM_MPDEC_DISABLED;
+	INIT_DELAYED_WORK(&suspend_work, bricked_hotplug_suspend);
+	mod_delayed_work_on(0, susp_wq, &suspend_work, 
+		msecs_to_jiffies(hotplug.suspend_defer_time * 1000)); 
+}
 
+#ifdef CONFIG_STATE_NOTIFIER
+static int state_notifier_callback(struct notifier_block *this,
+				unsigned long event, void *data)
+{
 	switch (event) {
-	case LCD_EVENT_ON_END:
-	case LCD_EVENT_OFF_START:
-		break;
-	case LCD_EVENT_ON_START:
-		flush_workqueue(susp_wq);
-		cancel_delayed_work_sync(&suspend_work);
-		queue_work_on(0, susp_wq, &resume_work);
-		break;
-	case LCD_EVENT_OFF_END:
-		INIT_DELAYED_WORK(&suspend_work, bricked_hotplug_suspend);
-		queue_delayed_work_on(0, susp_wq, &suspend_work, 
-				 msecs_to_jiffies(hotplug.suspend_defer_time * 1000)); 
-		break;
-	default:
-		break;
+		case STATE_NOTIFIER_ACTIVE:
+			__bricked_hotplug_resume();
+			break;
+		case STATE_NOTIFIER_SUSPEND:
+			__bricked_hotplug_suspend();
+			break;
+		default:
+			break;
 	}
 
-	return 0;
+	return NOTIFY_OK;
+}
+#else
+static int prev_fb = FB_BLANK_UNBLANK;
+
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
+{
+	struct fb_event *evdata = data;
+	int *blank;
+
+	if (evdata && evdata->data && event == FB_EVENT_BLANK) {
+		blank = evdata->data;
+		switch (*blank) {
+			case FB_BLANK_UNBLANK:
+				if (prev_fb == FB_BLANK_POWERDOWN) {
+					__bricked_hotplug_resume();
+					prev_fb = FB_BLANK_UNBLANK;
+				}
+				break;
+			case FB_BLANK_POWERDOWN:
+				if (prev_fb == FB_BLANK_UNBLANK) {
+					__bricked_hotplug_suspend();
+					prev_fb = FB_BLANK_POWERDOWN;
+				}
+				break;
+		}
+	}
+
+	return NOTIFY_OK;
 }
 #endif
 
@@ -377,11 +390,7 @@ static int bricked_hotplug_start(void)
 	int cpu, ret = 0;
 	struct down_lock *dl;
 
-	hotplug_wq = alloc_workqueue(
-						"bricked_hotplug_wq",
-						WQ_UNBOUND | WQ_RESCUER | WQ_FREEZABLE,
-						1
-						);
+	hotplug_wq = alloc_workqueue("bricked_hotplug", WQ_HIGHPRI | WQ_FREEZABLE, 0);
 	if (!hotplug_wq) {
 		ret = -ENOMEM;
 		goto err_out;
@@ -396,13 +405,18 @@ static int bricked_hotplug_start(void)
 		goto err_dev;
 	}
 
-#ifdef CONFIG_POWERSUSPEND
-	register_power_suspend(&bricked_hotplug_power_suspend_driver);
+#ifdef CONFIG_STATE_NOTIFIER
+	notif.notifier_call = state_notifier_callback;
+	if (state_register_client(&notif)) {
+		pr_err("%s: Failed to register State notifier callback\n",
+			MPDEC_TAG);
+		goto err_susp;
+	}
 #else
-	notif.notifier_call = lcd_notifier_callback;
-	if (lcd_register_client(&notif) != 0) {
-		pr_err("%s: Failed to register lcd callback\n", __func__);
-		ret = -EINVAL;
+	notif.notifier_call = fb_notifier_callback;
+	if (fb_register_client(&notif)) {
+		pr_err("%s: Failed to register FB notifier callback\n",
+			MPDEC_TAG);
 		goto err_susp;
 	}
 #endif
@@ -424,10 +438,8 @@ static int bricked_hotplug_start(void)
 					msecs_to_jiffies(hotplug.startdelay));
 
 	return ret;
-#ifndef CONFIG_POWERSUSPEND
 err_susp:
 	destroy_workqueue(susp_wq);
-#endif
 err_dev:
 	destroy_workqueue(hotplug_wq);
 err_out:
@@ -451,11 +463,12 @@ static void bricked_hotplug_stop(void)
 	cancel_delayed_work_sync(&hotplug_work);
 	mutex_destroy(&hotplug.bricked_hotplug_mutex);
 	mutex_destroy(&hotplug.bricked_cpu_mutex);
-#ifdef CONFIG_POWERSUSPEND
-	unregister_power_suspend(&bricked_hotplug_power_suspend_driver);
+#ifdef CONFIG_STATE_NOTIFIER
+	state_unregister_client(&notif);
 #else
-	lcd_unregister_client(&notif);
+	fb_unregister_client(&notif);
 #endif
+	notif.notifier_call = NULL;
 	destroy_workqueue(susp_wq);
 	destroy_workqueue(hotplug_wq);
 
@@ -726,11 +739,11 @@ static ssize_t store_bricked_enabled(struct device *dev,
 	hotplug.bricked_enabled = input;
 
 	if (!hotplug.bricked_enabled) {
-		bricked_state = MSM_MPDEC_DISABLED;
+		state = MSM_MPDEC_DISABLED;
 		bricked_hotplug_stop();
 		pr_info(MPDEC_TAG": Disabled\n");
 	} else {
-		bricked_state = MSM_MPDEC_IDLE;
+		state = MSM_MPDEC_IDLE;
 		bricked_hotplug_start();
 		pr_info(MPDEC_TAG": Enabled\n");
 	}
@@ -742,6 +755,8 @@ static DEVICE_ATTR(startdelay, 644, show_startdelay, store_startdelay);
 static DEVICE_ATTR(delay, 644, show_delay, store_delay);
 static DEVICE_ATTR(down_lock_duration, 644, show_down_lock_duration, store_down_lock_duration);
 static DEVICE_ATTR(idle_freq, 644, show_idle_freq, store_idle_freq);
+static DEVICE_ATTR(min_cpus, 644, show_min_cpus_online, store_min_cpus_online);
+static DEVICE_ATTR(max_cpus, 644, show_max_cpus_online, store_max_cpus_online);
 static DEVICE_ATTR(min_cpus_online, 644, show_min_cpus_online, store_min_cpus_online);
 static DEVICE_ATTR(max_cpus_online, 644, show_max_cpus_online, store_max_cpus_online);
 static DEVICE_ATTR(max_cpus_online_susp, 644, show_max_cpus_online_susp, store_max_cpus_online_susp);
@@ -753,6 +768,8 @@ static struct attribute *bricked_hotplug_attrs[] = {
 	&dev_attr_delay.attr,
 	&dev_attr_down_lock_duration.attr,
 	&dev_attr_idle_freq.attr,
+	&dev_attr_min_cpus.attr,
+	&dev_attr_max_cpus.attr,
 	&dev_attr_min_cpus_online.attr,
 	&dev_attr_max_cpus_online.attr,
 	&dev_attr_max_cpus_online_susp.attr,
@@ -784,7 +801,7 @@ static struct attribute_group attr_group = {
 
 /**************************** SYSFS END ****************************/
 
-static int __devinit bricked_hotplug_probe(struct platform_device *pdev)
+static int bricked_hotplug_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct kobject *bricked_kobj;

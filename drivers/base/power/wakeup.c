@@ -17,19 +17,6 @@
 
 #include "power.h"
 
-#define TIMEOUT		100
-
-#include <linux/moduleparam.h>
-
-static bool enable_sensorhub_wl = true;
-module_param(enable_sensorhub_wl, bool, 0644);
-
-static bool enable_ssp_wl = true;
-module_param(enable_ssp_wl, bool, 0644);
-
-static bool enable_bcm4773_wl = true;
-module_param(enable_bcm4773_wl, bool, 0644);
-
 /*
  * If set, the suspend/hibernate code will abort transitions to a sleep state
  * if wakeup events are registered during or immediately before the transition.
@@ -62,6 +49,8 @@ static DEFINE_SPINLOCK(events_lock);
 static void pm_wakeup_timer_fn(unsigned long data);
 
 static LIST_HEAD(wakeup_sources);
+
+static DECLARE_WAIT_QUEUE_HEAD(wakeup_count_wait_queue);
 
 /**
  * wakeup_source_prepare - Prepare a new wakeup source for initialization.
@@ -453,6 +442,7 @@ EXPORT_SYMBOL_GPL(pm_stay_awake);
  */
 static void wakeup_source_deactivate(struct wakeup_source *ws)
 {
+	unsigned int cnt, inpr;
 	ktime_t duration;
 	ktime_t now;
 
@@ -482,26 +472,16 @@ static void wakeup_source_deactivate(struct wakeup_source *ws)
 	del_timer(&ws->timer);
 	ws->timer_expires = 0;
 
-	if (!enable_sensorhub_wl && !strcmp(ws->name, "ssp_sensorhub_wake_lock")) {
-		pr_info("wakeup source sensorhub activation skipped\n");
-		return;
-	}
-
-	if (!enable_ssp_wl && !strcmp(ws->name, "ssp_wake_lock")) {
-		pr_info("wakeup source ssp activation skipped\n");
-		return;
-	}
-
-	if (!enable_bcm4773_wl && !strcmp(ws->name, "bcm4773_wake_lock")) {
-		pr_info("wakeup source bcm4773 activation skipped\n");
-		return;
-	}
 
 	/*
 	 * Increment the counter of registered wakeup events and decrement the
 	 * couter of wakeup events in progress simultaneously.
 	 */
 	atomic_add(MAX_IN_PROGRESS, &combined_event_count);
+
+	split_counters(&cnt, &inpr);
+	if (!inpr && waitqueue_active(&wakeup_count_wait_queue))
+		wake_up(&wakeup_count_wait_queue);
 }
 
 /**
@@ -682,33 +662,29 @@ bool pm_wakeup_pending(void)
 /**
  * pm_get_wakeup_count - Read the number of registered wakeup events.
  * @count: Address to store the value at.
- * @block: Whether or not to block.
  *
- * Store the number of registered wakeup events at the address in @count.  If
- * @block is set, block until the current number of wakeup events being
- * processed is zero.
+ * Store the number of registered wakeup events at the address in @count.  Block
+ * if the current number of wakeup events being processed is nonzero.
  *
- * Return 'false' if the current number of wakeup events being processed is
- * nonzero.  Otherwise return 'true'.
+ * Return 'false' if the wait for the number of wakeup events being processed to
+ * drop down to zero has been interrupted by a signal (and the current number
+ * of wakeup events being processed is still nonzero).  Otherwise return 'true'.
  */
-bool pm_get_wakeup_count(unsigned int *count, bool block)
+bool pm_get_wakeup_count(unsigned int *count)
 {
 	unsigned int cnt, inpr;
+	DEFINE_WAIT(wait);
 
-	if (block) {
-		DEFINE_WAIT(wait);
+	for (;;) {
+		prepare_to_wait(&wakeup_count_wait_queue, &wait,
+				TASK_INTERRUPTIBLE);
+		split_counters(&cnt, &inpr);
+		if (inpr == 0 || signal_pending(current))
+			break;
 
-		for (;;) {
-			prepare_to_wait(&wakeup_count_wait_queue, &wait,
-					TASK_INTERRUPTIBLE);
-			split_counters(&cnt, &inpr);
-			if (inpr == 0 || signal_pending(current))
-				break;
-
-			schedule();
-		}
-		finish_wait(&wakeup_count_wait_queue, &wait);
+		schedule();
 	}
+	finish_wait(&wakeup_count_wait_queue, &wait);
 
 	split_counters(&cnt, &inpr);
 	*count = cnt;
