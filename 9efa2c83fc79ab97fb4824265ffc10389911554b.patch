@@ -1,0 +1,31 @@
+From 9efa2c83fc79ab97fb4824265ffc10389911554b Mon Sep 17 00:00:00 2001
+From: Venkat Devarasetty <vdevaras@codeaurora.org>
+Date: Wed, 5 Nov 2014 14:29:56 +0530
+Subject: [PATCH] msm: hotplug: Do not skip the platform init for boot core
+
+First warmboot for secondary cores is treated as cold boot
+and platform secondary init functionality is skipped. But
+for boot core the first warmboot is real warmboot so do the
+platform init  even for frist time for this core. This change
+is necessary for core0 hotplug support.
+
+Signed-off-by: Venkat Devarasetty <vdevaras@codeaurora.org>
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ arch/arm/mach-msm/hotplug.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-msm/hotplug.c b/arch/arm/mach-msm/hotplug.c
+index e7b0a9b..f404510 100644
+--- a/arch/arm/mach-msm/hotplug.c
++++ b/arch/arm/mach-msm/hotplug.c
+@@ -160,7 +160,8 @@ int msm_platform_secondary_init(unsigned int cpu)
+ 
+ 	if (!(*warm_boot)) {
+ 		*warm_boot = 1;
+-		return 0;
++		if (cpu)
++			return 0;
+ 	}
+ 	msm_jtag_restore_state();
+ #if defined(CONFIG_VFP) && defined (CONFIG_CPU_PM)

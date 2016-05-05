@@ -93,9 +93,9 @@ struct work_struct hotplug_boost_online_work;
 static unsigned int history[SAMPLING_PERIODS];
 static unsigned int index;
 
-static unsigned int min_online_cpus = 1;
+static unsigned int min_online_cpus = 2;
 
-static bool isEnabled = false;
+static bool isEnabled = true;
 static bool EnableOverride = false;
 
 static int min_online_cpus_fn_set(const char *arg, const struct kernel_param *kp)

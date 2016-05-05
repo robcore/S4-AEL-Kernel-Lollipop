@@ -27,7 +27,7 @@ typedef struct {
  *  modified for 2.6 by Hyok S. Choi <hyok.choi@samsung.com>
  */
 typedef struct {
-	unsigned long		end_brk;
+	unsigned long	end_brk;
 } mm_context_t;
 
 #endif
@@ -37,6 +37,7 @@ typedef struct {
  * so enable interrupts over the context switch to avoid high
  * latency.
  */
+#ifndef CONFIG_CPU_HAS_ASID
 #define __ARCH_WANT_INTERRUPTS_ON_CTXSW
-
+#endif
 #endif

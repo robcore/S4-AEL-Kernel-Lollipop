@@ -1,0 +1,92 @@
+From fcd87acd0a8f522b7a70291e0898d1cfc4286bf6 Mon Sep 17 00:00:00 2001
+From: Antti P Miettinen <amiettinen@nvidia.com>
+Date: Tue, 27 Dec 2011 12:28:21 +0200
+Subject: [PATCH] PM QoS: Add CPU frequency min/max as PM QoS params
+
+Add minimum and maximum CPU frequency as PM QoS parameters.
+
+Bug 888312
+
+Change-Id: I18abddded35a044a6ad8365035e31d1a2213a329
+Reviewed-on: http://git-master/r/72206
+Signed-off-by: Antti P Miettinen <amiettinen@nvidia.com>
+Signed-off-by: Varun Wadekar <vwadekar@nvidia.com>
+Reviewed-on: http://git-master/r/75883
+Reviewed-by: Automatic_Commit_Validation_User
+
+Rebase-Id: R1007bbef60489ecc81a9acd0ce3b0abfa9a05f3e
+---
+ include/linux/pm_qos.h |  4 ++++
+ kernel/power/qos.c     | 32 +++++++++++++++++++++++++++++++-
+ 2 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/pm_qos.h b/include/linux/pm_qos.h
+index d6e917d..61e312e 100644
+--- a/include/linux/pm_qos.h
++++ b/include/linux/pm_qos.h
+@@ -16,6 +16,8 @@ enum {
+ 	PM_QOS_NETWORK_LATENCY,
+ 	PM_QOS_NETWORK_THROUGHPUT,
+ 	PM_QOS_MAX_ONLINE_CPUS,
++	PM_QOS_CPU_FREQ_MIN,
++	PM_QOS_CPU_FREQ_MAX,
+ 
+ 	/* insert new class ID */
+ 	PM_QOS_NUM_CLASSES,
+@@ -27,6 +29,8 @@ enum {
+ #define PM_QOS_NETWORK_LAT_DEFAULT_VALUE	(2000 * USEC_PER_SEC)
+ #define PM_QOS_NETWORK_THROUGHPUT_DEFAULT_VALUE	0
+ #define PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE	LONG_MAX
++#define PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE	0
++#define PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE	LONG_MAX
+ #define PM_QOS_DEV_LAT_DEFAULT_VALUE		0
+ 
+ struct pm_qos_request {
+diff --git a/kernel/power/qos.c b/kernel/power/qos.c
+index 50c1724..b91dc97 100644
+--- a/kernel/power/qos.c
++++ b/kernel/power/qos.c
+@@ -115,12 +115,42 @@ static struct pm_qos_object max_online_cpus_pm_qos = {
+ };
+ 
+ 
++static BLOCKING_NOTIFIER_HEAD(cpu_freq_min_notifier);
++static struct pm_qos_constraints cpu_freq_min_constraints = {
++	.list = PLIST_HEAD_INIT(cpu_freq_min_constraints.list),
++	.target_value = PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE,
++	.default_value = PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE,
++	.type = PM_QOS_MAX,
++	.notifiers = &cpu_freq_min_notifier,
++};
++static struct pm_qos_object cpu_freq_min_pm_qos = {
++	.constraints = &cpu_freq_min_constraints,
++	.name = "cpu_freq_min",
++};
++
++
++static BLOCKING_NOTIFIER_HEAD(cpu_freq_max_notifier);
++static struct pm_qos_constraints cpu_freq_max_constraints = {
++	.list = PLIST_HEAD_INIT(cpu_freq_max_constraints.list),
++	.target_value = PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE,
++	.default_value = PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE,
++	.type = PM_QOS_MIN,
++	.notifiers = &cpu_freq_max_notifier,
++};
++static struct pm_qos_object cpu_freq_max_pm_qos = {
++	.constraints = &cpu_freq_max_constraints,
++	.name = "cpu_freq_max",
++};
++
++
+ static struct pm_qos_object *pm_qos_array[] = {
+ 	&null_pm_qos,
+ 	&cpu_dma_pm_qos,
+ 	&network_lat_pm_qos,
+ 	&network_throughput_pm_qos,
+-	&max_online_cpus_pm_qos
++	&max_online_cpus_pm_qos,
++	&cpu_freq_min_pm_qos,
++	&cpu_freq_max_pm_qos
+ };
+ 
+ static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
