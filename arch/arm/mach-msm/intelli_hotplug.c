@@ -267,10 +267,11 @@ static void __ref cpu_up_down_work(struct work_struct *work)
 				break;
 		}
 	} else if (target > online_cpus) {
-		for_each_online_cpu(cpu) {
+		for_each_cpu_not(cpu, cpu_online_mask) {
 			if (cpu == 0)
 				continue;
-				cpu_down(cpu);
+			cpu_up(cpu);
+			apply_down_lock(cpu);
 			if (target <= num_online_cpus())
 				break;
 		}
@@ -331,10 +332,11 @@ static void __ref intelli_plug_resume(struct work_struct *work)
 
 	if (required_wakeup) {
 		/* Fire up all CPUs */
-		for_each_online_cpu(cpu) {
+		for_each_cpu_not(cpu, cpu_online_mask) {
 			if (cpu == 0)
 				continue;
-			cpu_down(cpu);
+			cpu_up(cpu);
+			apply_down_lock(cpu);
 		}
 		dprintk("%s: wakeup boosted.\n", INTELLI_PLUG);
 	}
@@ -376,10 +378,11 @@ static void __ref __intelli_plug_resume(void)
 
 	if (!hotplug_suspend) {
 		/* Fire up all CPUs */
-		for_each_online_cpu(cpu) {
+		for_each_cpu_not(cpu, cpu_online_mask) {
 			if (cpu == 0)
 				continue;
-			cpu_down(cpu);
+			cpu_up(cpu);
+			apply_down_lock(cpu);
 		}
 		dprintk("%s: wakeup boosted.\n", INTELLI_PLUG);
 		return;

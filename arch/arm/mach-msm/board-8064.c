@@ -87,7 +87,6 @@
 #include "pm.h"
 #include "pm-boot.h"
 #include "devices-msm8x60.h"
-#include "platsmp.h"
 #include "smd_private.h"
 #include "sysmon.h"
 
@@ -3468,7 +3467,6 @@ MACHINE_START(APQ8064_CDP, "QCT APQ8064 CDP")
 	.init_early = apq8064_allocate_memory_regions,
 	.init_very_early = apq8064_early_reserve,
 	.restart = msm_restart,
-	.smp = &msm8960_smp_ops,
 MACHINE_END
 
 MACHINE_START(APQ8064_MTP, "QCT APQ8064 MTP")
@@ -3481,7 +3479,6 @@ MACHINE_START(APQ8064_MTP, "QCT APQ8064 MTP")
 	.init_early = apq8064_allocate_memory_regions,
 	.init_very_early = apq8064_early_reserve,
 	.restart = msm_restart,
-	.smp = &msm8960_smp_ops,
 MACHINE_END
 
 MACHINE_START(APQ8064_LIQUID, "QCT APQ8064 LIQUID")
@@ -3494,7 +3491,6 @@ MACHINE_START(APQ8064_LIQUID, "QCT APQ8064 LIQUID")
 	.init_early = apq8064_allocate_memory_regions,
 	.init_very_early = apq8064_early_reserve,
 	.restart = msm_restart,
-	.smp = &msm8960_smp_ops,
 MACHINE_END
 
 MACHINE_START(MPQ8064_CDP, "QCT MPQ8064 CDP")
@@ -3507,7 +3503,6 @@ MACHINE_START(MPQ8064_CDP, "QCT MPQ8064 CDP")
 	.init_early = apq8064_allocate_memory_regions,
 	.init_very_early = apq8064_early_reserve,
 	.restart = msm_restart,
-	.smp = &msm8960_smp_ops,
 MACHINE_END
 
 MACHINE_START(MPQ8064_HRD, "QCT MPQ8064 HRD")
@@ -3520,7 +3515,6 @@ MACHINE_START(MPQ8064_HRD, "QCT MPQ8064 HRD")
 	.init_early = apq8064_allocate_memory_regions,
 	.init_very_early = apq8064_early_reserve,
 	.restart = msm_restart,
-	.smp = &msm8960_smp_ops,
 MACHINE_END
 
 MACHINE_START(MPQ8064_DTV, "QCT MPQ8064 DTV")
@@ -3533,6 +3527,5 @@ MACHINE_START(MPQ8064_DTV, "QCT MPQ8064 DTV")
 	.init_early = apq8064_allocate_memory_regions,
 	.init_very_early = apq8064_early_reserve,
 	.restart = msm_restart,
-	.smp = &msm8960_smp_ops,
 MACHINE_END
 

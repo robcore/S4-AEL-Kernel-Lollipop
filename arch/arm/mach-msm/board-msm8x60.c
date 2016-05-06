@@ -103,7 +103,6 @@
 #include "clock.h"
 #include "pm-boot.h"
 #include "board-storage-common-a.h"
-#include "platsmp.h"
 
 #include <linux/msm_ion.h>
 #include <mach/ion.h>
@@ -10491,7 +10490,6 @@ MACHINE_START(MSM8X60_SURF, "QCT MSM8X60 SURF")
 	.timer = &msm_timer,
 	.init_early = msm8x60_charm_init_early,
 	.restart = msm_restart,
-	.smp = &scorpion_smp_ops,
 MACHINE_END
 
 MACHINE_START(MSM8X60_FFA, "QCT MSM8X60 FFA")
@@ -10503,7 +10501,6 @@ MACHINE_START(MSM8X60_FFA, "QCT MSM8X60 FFA")
 	.timer = &msm_timer,
 	.init_early = msm8x60_charm_init_early,
 	.restart = msm_restart,
-	.smp = &scorpion_smp_ops,
 MACHINE_END
 
 MACHINE_START(MSM8X60_FLUID, "QCT MSM8X60 FLUID")
@@ -10515,7 +10512,6 @@ MACHINE_START(MSM8X60_FLUID, "QCT MSM8X60 FLUID")
 	.timer = &msm_timer,
 	.init_early = msm8x60_charm_init_early,
 	.restart = msm_restart,
-	.smp = &scorpion_smp_ops,
 MACHINE_END
 
 MACHINE_START(MSM8X60_FUSION, "QCT MSM8X60 FUSION SURF")
@@ -10527,7 +10523,6 @@ MACHINE_START(MSM8X60_FUSION, "QCT MSM8X60 FUSION SURF")
 	.timer = &msm_timer,
 	.init_early = msm8x60_charm_init_early,
 	.restart = msm_restart,
-	.smp = &scorpion_smp_ops,
 MACHINE_END
 
 MACHINE_START(MSM8X60_FUSN_FFA, "QCT MSM8X60 FUSION FFA")
@@ -10539,7 +10534,6 @@ MACHINE_START(MSM8X60_FUSN_FFA, "QCT MSM8X60 FUSION FFA")
 	.timer = &msm_timer,
 	.init_early = msm8x60_charm_init_early,
 	.restart = msm_restart,
-	.smp = &scorpion_smp_ops,
 MACHINE_END
 
 MACHINE_START(MSM8X60_DRAGON, "QCT MSM8X60 DRAGON")
@@ -10551,5 +10545,4 @@ MACHINE_START(MSM8X60_DRAGON, "QCT MSM8X60 DRAGON")
 	.timer = &msm_timer,
 	.init_early = msm8x60_charm_init_early,
 	.restart = msm_restart,
-	.smp = &scorpion_smp_ops,
 MACHINE_END

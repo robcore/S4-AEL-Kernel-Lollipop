@@ -100,84 +100,12 @@ static struct pm_qos_object network_throughput_pm_qos = {
 	.name = "network_throughput",
 };
 
-static BLOCKING_NOTIFIER_HEAD(max_online_cpus_notifier);
-static struct pm_qos_constraints max_online_cpus_constraints = {
-	.list = PLIST_HEAD_INIT(max_online_cpus_constraints.list),
-	.target_value = PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE,
-	.default_value = PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE,
-	.type = PM_QOS_MIN,
-	.notifiers = &max_online_cpus_notifier,
-};
-static struct pm_qos_object max_online_cpus_pm_qos = {
-	.constraints = &max_online_cpus_constraints,
-	.name = "max_online_cpus",
-
-};
-
-
-static BLOCKING_NOTIFIER_HEAD(cpu_freq_min_notifier);
-static struct pm_qos_constraints cpu_freq_min_constraints = {
-	.list = PLIST_HEAD_INIT(cpu_freq_min_constraints.list),
-	.target_value = PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE,
-	.default_value = PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE,
-	.type = PM_QOS_MAX,
-	.notifiers = &cpu_freq_min_notifier,
-};
-static struct pm_qos_object cpu_freq_min_pm_qos = {
-	.constraints = &cpu_freq_min_constraints,
-	.name = "cpu_freq_min",
-};
-
-
-static BLOCKING_NOTIFIER_HEAD(cpu_freq_max_notifier);
-static struct pm_qos_constraints cpu_freq_max_constraints = {
-	.list = PLIST_HEAD_INIT(cpu_freq_max_constraints.list),
-	.target_value = PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE,
-	.default_value = PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE,
-	.type = PM_QOS_MIN,
-	.notifiers = &cpu_freq_max_notifier,
-};
-static struct pm_qos_object cpu_freq_max_pm_qos = {
-	.constraints = &cpu_freq_max_constraints,
-	.name = "cpu_freq_max",
-};
-
-static BLOCKING_NOTIFIER_HEAD(gpu_freq_min_notifier);
-static struct pm_qos_constraints gpu_freq_min_constraints = {
-	.list = PLIST_HEAD_INIT(gpu_freq_min_constraints.list),
-	.target_value = PM_QOS_GPU_FREQ_MIN_DEFAULT_VALUE,
-	.default_value = PM_QOS_GPU_FREQ_MIN_DEFAULT_VALUE,
-	.type = PM_QOS_MAX,
-	.notifiers = &gpu_freq_min_notifier,
-};
-static struct pm_qos_object gpu_freq_min_pm_qos = {
-	.constraints = &gpu_freq_min_constraints,
-	.name = "gpu_freq_min",
-};
-
-static BLOCKING_NOTIFIER_HEAD(gpu_freq_max_notifier);
-static struct pm_qos_constraints gpu_freq_max_constraints = {
-	.list = PLIST_HEAD_INIT(gpu_freq_max_constraints.list),
-	.target_value = PM_QOS_GPU_FREQ_MAX_DEFAULT_VALUE,
-	.default_value = PM_QOS_GPU_FREQ_MAX_DEFAULT_VALUE,
-	.type = PM_QOS_MIN,
-	.notifiers = &gpu_freq_max_notifier,
-};
-static struct pm_qos_object gpu_freq_max_pm_qos = {
-	.constraints = &gpu_freq_max_constraints,
-	.name = "gpu_freq_max",
-};
 
 static struct pm_qos_object *pm_qos_array[] = {
 	&null_pm_qos,
 	&cpu_dma_pm_qos,
 	&network_lat_pm_qos,
-	&network_throughput_pm_qos,
-	&max_online_cpus_pm_qos,
-	&cpu_freq_min_pm_qos,
-	&cpu_freq_max_pm_qos,
-	&gpu_freq_min_pm_qos,
-	&gpu_freq_max_pm_qos
+	&network_throughput_pm_qos
 };
 
 static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
@@ -211,7 +139,6 @@ static inline int pm_qos_get_value(struct pm_qos_constraints *c)
 	default:
 		/* runtime check for not using enum */
 		BUG();
-		return PM_QOS_DEFAULT_VALUE;
 	}
 }
 
@@ -282,69 +209,6 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 	} else {
 		return 0;
 	}
-}
-
-/**
- * pm_qos_flags_remove_req - Remove device PM QoS flags request.
- * @pqf: Device PM QoS flags set to remove the request from.
- * @req: Request to remove from the set.
- */
-static void pm_qos_flags_remove_req(struct pm_qos_flags *pqf,
-				    struct pm_qos_flags_request *req)
-{
-	s32 val = 0;
-
-	list_del(&req->node);
-	list_for_each_entry(req, &pqf->list, node)
-		val |= req->flags;
-
-	pqf->effective_flags = val;
-}
-
-/**
- * pm_qos_update_flags - Update a set of PM QoS flags.
- * @pqf: Set of flags to update.
- * @req: Request to add to the set, to modify, or to remove from the set.
- * @action: Action to take on the set.
- * @val: Value of the request to add or modify.
- *
- * Update the given set of PM QoS flags and call notifiers if the aggregate
- * value has changed.  Returns 1 if the aggregate constraint value has changed,
- * 0 otherwise.
- */
-bool pm_qos_update_flags(struct pm_qos_flags *pqf,
-			 struct pm_qos_flags_request *req,
-			 enum pm_qos_req_action action, s32 val)
-{
-	unsigned long irqflags;
-	s32 prev_value, curr_value;
-
-	spin_lock_irqsave(&pm_qos_lock, irqflags);
-
-	prev_value = list_empty(&pqf->list) ? 0 : pqf->effective_flags;
-
-	switch (action) {
-	case PM_QOS_REMOVE_REQ:
-		pm_qos_flags_remove_req(pqf, req);
-		break;
-	case PM_QOS_UPDATE_REQ:
-		pm_qos_flags_remove_req(pqf, req);
-	case PM_QOS_ADD_REQ:
-		req->flags = val;
-		INIT_LIST_HEAD(&req->node);
-		list_add_tail(&req->node, &pqf->list);
-		pqf->effective_flags |= val;
-		break;
-	default:
-		/* no action */
-		;
-	}
-
-	curr_value = list_empty(&pqf->list) ? 0 : pqf->effective_flags;
-
-	spin_unlock_irqrestore(&pm_qos_lock, irqflags);
-
-	return prev_value != curr_value;
 }
 
 /**
@@ -468,7 +332,6 @@ void pm_qos_update_request_timeout(struct pm_qos_request *req, s32 new_value,
 
 	schedule_delayed_work(&req->work, usecs_to_jiffies(timeout_us));
 }
-EXPORT_SYMBOL_GPL(pm_qos_update_request_timeout);
 
 /**
  * pm_qos_remove_request - modifies an existing qos request

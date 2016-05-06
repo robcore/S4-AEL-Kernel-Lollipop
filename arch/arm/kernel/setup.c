@@ -415,12 +415,6 @@ void cpu_init(void)
 		BUG();
 	}
 
-	/*
-	 * This only works on resume and secondary cores. For booting on the
-	 * boot cpu, smp_prepare_boot_cpu is called after percpu area setup.
-	 */
-	set_my_cpu_offset(per_cpu_offset(cpu));
-
 	cpu_proc_init();
 
 	/*
@@ -459,19 +453,18 @@ void cpu_init(void)
 	    : "r14");
 }
 
-u32 __cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = MPIDR_INVALID };
+int __cpu_logical_map[NR_CPUS];
 
 void __init smp_setup_processor_id(void)
 {
 	int i;
-	u32 mpidr = is_smp() ? read_cpuid_mpidr() & MPIDR_HWID_BITMASK : 0;
-	u32 cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
+	u32 cpu = is_smp() ? read_cpuid_mpidr() & 0xff : 0;
 
 	cpu_logical_map(0) = cpu;
-	for (i = 1; i < nr_cpu_ids; ++i)
+	for (i = 1; i < NR_CPUS; ++i)
 		cpu_logical_map(i) = i == cpu ? 0 : i;
 
-	printk(KERN_INFO "Booting Linux on physical CPU 0x%x\n", mpidr);
+	printk(KERN_INFO "Booting Linux on physical CPU %d\n", cpu);
 }
 
 static void __init setup_processor(void)
@@ -1009,10 +1002,8 @@ void __init setup_arch(char **cmdline_p)
 	unflatten_device_tree();
 
 #ifdef CONFIG_SMP
-	if (is_smp()) {
-		smp_set_ops(mdesc->smp);
+	if (is_smp())
 		smp_init_cpus();
-	}
 #endif
 	reserve_crashkernel();
 
