@@ -30,14 +30,6 @@
 #define rmb()	mb()
 #define wmb()	asm volatile ("": : :"memory")
 
-#ifndef dma_rmb
-#define dma_rmb()	rmb()
-#endif
-
-#ifndef dma_wmb
-#define dma_wmb()	wmb()
-#endif
-
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
