@@ -298,7 +298,7 @@ config DYNAMIC_FSYNC
 	  An experimental file sync control using Android's early suspend / late resume drivers
 
 config ASYNC_FSYNC
-	bool
+	tristate
 	string "asynchronous fsync"
 	default y
 
