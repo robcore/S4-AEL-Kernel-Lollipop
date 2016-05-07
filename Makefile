@@ -245,8 +245,8 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer -fgcse-las
-HOSTCXXFLAGS = -O3 -fgcse-las
+HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer
+HOSTCXXFLAGS = -O3 -fno-gcse
 
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
@@ -356,10 +356,10 @@ CC		= $(srctree)/scripts/gcc-wrapper.py $(REAL_CC)
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
-CFLAGS_MODULE   = -mtune=cortex-a15 -munaligned-access -fno-pic -mfpu=neon-vfpv4 -mvectorize-with-neon-quad -fpredictive-commoning -fgcse-las -fgcse-lm -ffast-math -fsingle-precision-constant
+CFLAGS_MODULE   = -mtune=cortex-a15 -munaligned-access -fno-pic -mfpu=neon-vfpv4 -mvectorize-with-neon-quad -fpredictive-commoning -fno-cond-mismatch -fsingle-precision-constant
 AFLAGS_MODULE   =
 LDFLAGS_MODULE  =
-CFLAGS_KERNEL	= -munaligned-access -mfpu=neon-vfpv4 -fgcse-las -fpredictive-commoning -fgcse-lm -fgcse-sm -fsched-spec-load -fsingle-precision-constant
+CFLAGS_KERNEL	= -munaligned-access -mfpu=neon-vfpv4 -fpredictive-commoning -fgcse-lm -fgcse-sm -fsched-spec-load -fsingle-precision-constant -fno-cond-mismatch
 AFLAGS_KERNEL	=
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
@@ -375,7 +375,7 @@ KBUILD_CPPFLAGS := -D__KERNEL__
 
 CFLAGS_A15 = -mtune=cortex-a15 -mfpu=neon
 
-KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
+KBUILD_CFLAGS   := -Wall -Wfatal-errors -Wextra -Wmissing-declarations -Wshadow -Wbad-function-cast -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common -Wno-unused-value \
 		   -Wno-format-security \
 		   -Wno-sizeof-pointer-memaccess \
