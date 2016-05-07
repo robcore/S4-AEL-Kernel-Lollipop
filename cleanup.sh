@@ -22,5 +22,6 @@ rm -rf $(pwd)/out/system/lib/modules >> /dev/null;
 rm -rf $(pwd)/out/tmp_modules >> /dev/null;
 export ARCH=arm
 export CROSS_COMPILE=/opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-
+make distclean;
 make clean;
 make mrproper
