@@ -327,7 +327,7 @@ struct page *dma_alloc_from_contiguous(struct device *dev, int count,
 		 count, align);
 
 	if (!count)
-		return 0;
+		return NULL;
 
 	mask = (1 << align) - 1;
 
@@ -374,15 +374,18 @@ error:
  * It returns false when provided pages do not belong to contiguous area and
  * true otherwise.
  */
-bool dma_release_from_contiguous(struct device *dev, unsigned long pfn,
+bool dma_release_from_contiguous(struct device *dev, struct page *pages,
 				 int count)
 {
 	struct cma *cma = dev_get_cma_area(dev);
+	unsigned long pfn;
 
-	if (!cma || !pfn)
+	if (!cma || !pages)
 		return false;
 
-	pr_debug("%s(pfn %lx)\n", __func__, pfn);
+	pr_debug("%s(page %p)\n", __func__, (void *)pages);
+
+	pfn = page_to_pfn(pages);
 
 	if (pfn < cma->base_pfn || pfn >= cma->base_pfn + cma->count)
 		return false;

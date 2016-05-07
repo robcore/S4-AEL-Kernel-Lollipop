@@ -24,7 +24,6 @@
 #define wmb()	asm volatile("sfence" ::: "memory")
 #endif
 
-<<<<<<< HEAD
 /**
  * read_barrier_depends - Flush all pending reads that subsequents reads
  * depend on.
@@ -81,28 +80,17 @@
 
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
-=======
->>>>>>> 1077fa3... arch: Add lightweight memory barriers dma_rmb() and dma_wmb()
 #ifdef CONFIG_X86_PPRO_FENCE
-#define dma_rmb()	rmb()
+# define smp_rmb()	rmb()
 #else
-#define dma_rmb()	barrier()
+# define smp_rmb()	barrier()
 #endif
-<<<<<<< HEAD
 #ifdef CONFIG_X86_OOSTORE
 # define smp_wmb() 	wmb()
 #else
 # define smp_wmb()	barrier()
 #endif
 #define smp_read_barrier_depends()	read_barrier_depends()
-=======
-#define dma_wmb()	barrier()
-
-#ifdef CONFIG_SMP
-#define smp_mb()	mb()
-#define smp_rmb()	dma_rmb()
-#define smp_wmb()	barrier()
->>>>>>> 1077fa3... arch: Add lightweight memory barriers dma_rmb() and dma_wmb()
 #define set_mb(var, value) do { (void)xchg(&var, value); } while (0)
 #else
 #define smp_mb()	barrier()
