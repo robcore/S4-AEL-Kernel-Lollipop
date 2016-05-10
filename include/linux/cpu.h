@@ -278,4 +278,7 @@ void idle_notifier_call_chain(unsigned long val);
 extern bool check_cpuboost(int cpu);
 extern bool wakeup_boost;
 
+/* warning shut if msm thermal holding cores off on high temp. */
+extern bool core_control;
+
 #endif /* _LINUX_CPU_H_ */
