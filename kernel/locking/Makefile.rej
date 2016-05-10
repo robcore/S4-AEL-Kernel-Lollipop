@@ -1,9 +1,11 @@
 --- kernel/locking/Makefile
 +++ kernel/locking/Makefile
-@@ -1,5 +1,5 @@
- 
--obj-y += mutex.o
-+obj-y += mutex.o semaphore.o
- 
- ifdef CONFIG_FUNCTION_TRACER
- CFLAGS_REMOVE_lockdep.o = -pg
+@@ -15,5 +15,8 @@ obj-$(CONFIG_LOCKDEP) += lockdep_proc.o
+ endif
+ obj-$(CONFIG_SMP) += spinlock.o
+ obj-$(CONFIG_PROVE_LOCKING) += spinlock.o
++obj-$(CONFIG_RT_MUTEXES) += rtmutex.o
++obj-$(CONFIG_DEBUG_RT_MUTEXES) += rtmutex-debug.o
++obj-$(CONFIG_RT_MUTEX_TESTER) += rtmutex-tester.o
+ obj-$(CONFIG_DEBUG_SPINLOCK) += spinlock.o
+ obj-$(CONFIG_DEBUG_SPINLOCK) += spinlock_debug.o
