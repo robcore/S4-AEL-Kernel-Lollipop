@@ -36,9 +36,6 @@
 #include <asm/system_misc.h>
 
 #include "signal.h"
-#ifdef CONFIG_SEC_DEBUG
-#include <mach/sec_debug.h>
-#endif
 
 #include <trace/events/exception.h>
 
@@ -76,7 +73,7 @@ void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long
 	if (first_call_chain)
 		set_crash_store_enable();
 #endif
-	printk("[<%08lx>] (%pS) from [<%08lx>] (%pS)\n", where, (void *)where, from, (void *)from);
+	printk("[<%08lx>] (%ps) from [<%08lx>] (%pS)\n", where, (void *)where, from, (void *)from);
 #ifdef CONFIG_LGE_CRASH_HANDLER
 	set_crash_store_disable();
 #endif
@@ -226,13 +223,6 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 }
 #endif
 
-void dump_stack(void)
-{
-	dump_backtrace(NULL, NULL);
-}
-
-EXPORT_SYMBOL(dump_stack);
-
 void show_stack(struct task_struct *tsk, unsigned long *sp)
 {
 	dump_backtrace(NULL, tsk);
@@ -314,9 +304,6 @@ void die(const char *str, struct pt_regs *regs, int err)
 	oops_enter();
 
 	raw_spin_lock_irq(&die_lock);
-#ifdef CONFIG_SEC_DEBUG_SCHED_LOG
-	secdbg_sched_msg("!!die!!");
-#endif
 	console_verbose();
 	bust_spinlocks(1);
 	if (!user_mode(regs))
@@ -324,9 +311,6 @@ void die(const char *str, struct pt_regs *regs, int err)
 	if (bug_type != BUG_TRAP_TYPE_NONE)
 		str = "Oops - BUG";
 	ret = __die(str, err, thread, regs);
-#ifdef CONFIG_SEC_DEBUG_SUBSYS
-	sec_debug_save_die_info(str, regs);
-#endif
 
 	if (regs && kexec_should_crash(thread->task))
 		crash_kexec(regs);
@@ -432,15 +416,17 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 #endif
 			instr = *(u32 *) pc;
 	} else if (thumb_mode(regs)) {
-		get_user(instr, (u16 __user *)pc);
+		if (get_user(instr, (u16 __user *)pc))
+			goto die_sig;
 		if (is_wide_instruction(instr)) {
 			unsigned int instr2;
-			get_user(instr2, (u16 __user *)pc+1);
+			if (get_user(instr2, (u16 __user *)pc+1))
+				goto die_sig;
 			instr <<= 16;
 			instr |= instr2;
 		}
-	} else {
-		get_user(instr, (u32 __user *)pc);
+	} else if (get_user(instr, (u32 __user *)pc)) {
+		goto die_sig;
 	}
 
 	if (call_undef_hook(regs, instr) == 0)
@@ -448,6 +434,7 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 
 	trace_undef_instr(regs, (void *)pc);
 
+die_sig:
 #ifdef CONFIG_DEBUG_USER
 	if (user_debug & UDBG_UNDEFINED) {
 		printk(KERN_INFO "%s (%d): undefined instruction: pc=%p\n",
@@ -522,62 +509,60 @@ static long do_cache_op_restart(struct restart_block *);
 static inline int
 __do_cache_op(unsigned long start, unsigned long end)
 {
- int ret;
+	int ret;
 
- do {
- unsigned long chunk = min(PAGE_SIZE, end - start);
+	do {
+		unsigned long chunk = min(PAGE_SIZE, end - start);
 
- if (signal_pending(current)) {
- struct thread_info *ti = current_thread_info();
+		if (signal_pending(current)) {
+			struct thread_info *ti = current_thread_info();
 
- ti->restart_block = (struct restart_block) {
- .fn = do_cache_op_restart,
- };
+			ti->restart_block = (struct restart_block) {
+				.fn	= do_cache_op_restart,
+			};
 
- ti->arm_restart_block = (struct arm_restart_block) {
- {
- .cache = {
- .start = start,
- .end = end,
- },
- },
- };
+			ti->arm_restart_block = (struct arm_restart_block) {
+				{
+					.cache = {
+						.start	= start,
+						.end	= end,
+					},
+				},
+			};
 
- return -ERESTART_RESTARTBLOCK;
- }
+			return -ERESTART_RESTARTBLOCK;
+		}
 
- ret = flush_cache_user_range(start, start + chunk);
- if (ret)
- return ret;
+		ret = flush_cache_user_range(start, start + chunk);
+		if (ret)
+			return ret;
 
- cond_resched();
- start += chunk;
- } while (start < end);
+		cond_resched();
+		start += chunk;
+	} while (start < end);
 
- return 0;
+	return 0;
 }
 
 static long do_cache_op_restart(struct restart_block *unused)
-
 {
- struct arm_restart_block *restart_block;
+	struct arm_restart_block *restart_block;
 
- restart_block = &current_thread_info()->arm_restart_block;
- return __do_cache_op(restart_block->cache.start,
- restart_block->cache.end);
+	restart_block = &current_thread_info()->arm_restart_block;
+	return __do_cache_op(restart_block->cache.start,
+			     restart_block->cache.end);
 }
+
 static inline int
 do_cache_op(unsigned long start, unsigned long end, int flags)
 {
-
 	if (end < start || flags)
 		return -EINVAL;
 
- if (!access_ok(VERIFY_READ, start, end - start))
- return -EFAULT;
+	if (!access_ok(VERIFY_READ, start, end - start))
+		return -EFAULT;
 
-return __do_cache_op(start, end);
-
+	return __do_cache_op(start, end);
 }
 
 /*
@@ -589,6 +574,10 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 {
 	struct thread_info *thread = current_thread_info();
 	siginfo_t info;
+
+	/* Emulate/fallthrough. */
+	if (no == -1)
+		return regs->ARM_r0;
 
 	if ((no >> 16) != (__ARM_NR_BASE>> 16))
 		return bad_syscall(no, regs);
