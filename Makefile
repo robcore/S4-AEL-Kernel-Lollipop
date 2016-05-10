@@ -391,7 +391,7 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Wno-format-security -Wno-deprecated-declarations \
 		   -Wno-sizeof-pointer-memaccess \
 		   -Wno-aggressive-loop-optimizations \
-		   -Wno-logical-not-parentheses \
+		   -Wno-logical-not-parentheses -Wno-discarded-array-qualifiers \
 		   -Werror-implicit-function-declaration -Wno-uninitialized \
 		   -Wno-sequence-point -Wno-unused-variable -Wno-unused-function \
 		   -fno-delete-null-pointer-checks -Wno-maybe-uninitialized -Wno-declaration-after-statement \
