@@ -25,6 +25,8 @@
 
 #include "smpboot.h"
 
+#include <trace/events/sched.h>
+
 #ifdef CONFIG_SMP
 /* Serializes the updates to cpu_online_mask, cpu_present_mask */
 static DEFINE_MUTEX(cpu_add_remove_lock);
@@ -40,6 +42,11 @@ void cpu_maps_update_begin(void)
 	mutex_lock(&cpu_add_remove_lock);
 }
 EXPORT_SYMBOL(cpu_maps_update_begin);
+
+int cpu_maps_is_updating(void)
+{
+	return mutex_is_locked(&cpu_add_remove_lock);
+}
 
 int cpu_maps_is_updating(void)
 {

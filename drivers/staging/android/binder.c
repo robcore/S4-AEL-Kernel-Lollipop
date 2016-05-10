@@ -537,9 +537,8 @@ static size_t binder_buffer_size(struct binder_proc *proc,
 {
 	if (list_is_last(&buffer->entry, &proc->buffers))
 		return proc->buffer + proc->buffer_size - (void *)buffer->data;
-	else
-		return (size_t)list_entry(buffer->entry.next,
-			struct binder_buffer, entry) - (size_t)buffer->data;
+	return (size_t)list_entry(buffer->entry.next,
+			  struct binder_buffer, entry) - (size_t)buffer->data;
 }
 
 static void binder_insert_free_buffer(struct binder_proc *proc,
@@ -2497,6 +2496,8 @@ retry:
 			struct task_struct *sender = t->from->proc->tsk;
 			tr.sender_pid = task_tgid_nr_ns(sender,
 							current->nsproxy->pid_ns);
+			if (tr.sender_pid == 0)
+				tr.sender_pid = task_tgid_nr(sender);
 		} else {
 			tr.sender_pid = 0;
 		}

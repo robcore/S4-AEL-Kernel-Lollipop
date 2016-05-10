@@ -1933,11 +1933,7 @@ static int ene_load_bincode(struct us_data *us, unsigned char flag)
 	kfree(buf);
 
 nofw:
-	if (sd_fw != NULL) {
-		release_firmware(sd_fw);
-		sd_fw = NULL;
-	}
-
+	release_firmware(sd_fw);
 	return result;
 }
 
@@ -2066,7 +2062,7 @@ static int ene_ms_init(struct us_data *us)
 {
 	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
 	int result;
-	u8 buf[0x200];
+	u8 buf[0x199];
 	u16 MSP_BlockSize, MSP_UserAreaBlocks;
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
 
@@ -2336,8 +2332,8 @@ static int ene_ub6250_probe(struct usb_interface *intf,
 	}
 
 	if (!(misc_reg03 & 0x01)) {
-		pr_info("ums_eneub6250: The driver only supports SD/MS card. "
-			"To use SM card, please build driver/staging/keucr\n");
+		pr_info("ums_eneub6250: This driver only supports SD/MS cards. "
+			"It does not support SM cards.\n");
 	}
 
 	return result;

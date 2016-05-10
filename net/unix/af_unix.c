@@ -944,8 +944,8 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	char *sun_path = sunaddr->sun_path;
 	struct dentry *dentry = NULL;
 	struct path path;
-	int err;
-	unsigned hash;
+	int err = 0;
+	unsigned hash = 0;
 	struct unix_address *addr;
 	struct hlist_head *list;
 
@@ -1009,8 +1009,9 @@ out_mknod_drop_write:
 		mnt_drop_write(path.mnt);
 		if (err)
 			goto out_mknod_dput;
-		mutex_unlock(&path.dentry->d_inode->i_mutex);
-		dput(path.dentry);
+		mntget(path.mnt);
+		dget(dentry);
+		done_path_create(&path, dentry);
 		path.dentry = dentry;
 
 		addr->hash = UNIX_HASH_SIZE;
@@ -1045,9 +1046,7 @@ out:
 	return err;
 
 out_mknod_dput:
-	dput(dentry);
-	mutex_unlock(&path.dentry->d_inode->i_mutex);
-	path_put(&path);
+	done_path_create(&path, dentry);
 out_mknod_parent:
 	if (err == -EEXIST)
 		err = -EADDRINUSE;
@@ -1087,8 +1086,8 @@ static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 	struct net *net = sock_net(sk);
 	struct sockaddr_un *sunaddr = (struct sockaddr_un *)addr;
 	struct sock *other;
-	unsigned hash;
-	int err;
+	unsigned hash = 0;
+	int err = 0;
 
 	if (addr->sa_family != AF_UNSPEC) {
 		err = unix_mkname(sunaddr, alen, &hash);
@@ -1187,10 +1186,10 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 	struct sock *newsk = NULL;
 	struct sock *other = NULL;
 	struct sk_buff *skb = NULL;
-	unsigned hash;
-	int st;
-	int err;
-	long timeo;
+	unsigned hash = 0;
+	int st = 0;
+	int err = 0;
+	long timeo = 0;
 
 	err = unix_mkname(sunaddr, addr_len, &hash);
 	if (err < 0)

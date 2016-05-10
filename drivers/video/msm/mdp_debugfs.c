@@ -1266,7 +1266,7 @@ static ssize_t hdmi_reg_read(
 		off = 0;
 		i = 0;
 		while (i++ < 4) {
-			data = readl(cp + off);
+			data = readl(*cp + off);
 			len = snprintf(bp, dlen, "%08x ", data);
 			tot += len;
 			bp += len;

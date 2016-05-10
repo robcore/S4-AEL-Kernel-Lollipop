@@ -193,7 +193,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
 export KBUILD_BUILDHOST := $(SUBARCH)
 ARCH		?=arm
-CROSS_COMPILE	?=/opt/toolchains/arm-cortex_a15-linux-gnueabihf-linaro_4.9.4-2015.06/bin/arm-cortex_a15-linux-gnueabihf-
+CROSS_COMPILE	?=/opt/toolchains/arm-cortex_a15-linux-gnueabihf_5.3/bin/arm-cortex_a15-linux-gnueabihf-
 
 # Architecture as present in compile.h
 UTS_MACHINE 	:= $(ARCH)
@@ -245,8 +245,8 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O3 -fomit-frame-pointer
-HOSTCXXFLAGS = -O3
+HOSTCFLAGS   = -Wall -fgraphite -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block -Wmissing-prototypes -Wstrict-prototypes -Ofast -fomit-frame-pointer -std=gnu89
+HOSTCXXFLAGS = -Ofast
 
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
@@ -356,13 +356,24 @@ CC		= $(srctree)/scripts/gcc-wrapper.py $(REAL_CC)
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
-CFLAGS_MODULE   = -mtune=cortex-a15 -munaligned-access -fno-pic -mfpu=neon-vfpv4 -mvectorize-with-neon-quad -fpredictive-commoning -fno-cond-mismatch -fsingle-precision-constant
-AFLAGS_MODULE   =
+
+KERNEL_FLAGS	= -marm -mtune=cortex-a15 -mcpu=cortex-a15 -mfpu=neon-vfpv4 \
+		  -mvectorize-with-neon-quad -ftree-vectorize \
+		  #-fsanitize=float-divide-by-zero -fsanitize=bounds \
+		  #-fsanitize=float-cast-overflow \
+		  -Wbool-compare
+
+#CFLAGS_MODULE   = -marm -mtune=cortex-a15 -munaligned-access -fno-pic -mfpu=neon-vfpv4 -mvectorize-with-neon-quad -fpredictive-commoning -fno-cond-mismatch -fsingle-precision-constant -mcpu=cortex-a15 -mtune=cortex-a15 -marm -mfpu=neon-vfpv4 -ftree-vectorize -mvectorize-with-neon-quad -funroll-loops -ftree-loop-im -ftree-loop-ivcanon -fmodulo-sched -fmodulo-sched-allow-regmoves -fivopts -mneon-for-64bits -fopenmp -fopenmp-simd -fsimd-cost-model=unlimited -fgraphite
+CFLAGS_MODULE   = -DMODULE $(KERNEL_FLAGS)
+AFLAGS_MODULE   = -DMODULE $(KERNEL_FLAGS)
 LDFLAGS_MODULE  =
-CFLAGS_KERNEL	= -munaligned-access -mfpu=neon-vfpv4 -fno-gcse -fpredictive-commoning -fsched-spec-load -fsingle-precision-constant -fno-cond-mismatch
+#CFLAGS_KERNEL	= -munaligned-access -mfpu=neon-vfpv4 -fpredictive-commoning -fsched-spec-load -fsingle-precision-constant -fno-cond-mismatch
+CFLAGS_KERNEL	= $(KERNEL_FLAGS)
+ifdef CONFIG_CC_GRAPHITE_OPTIMIZATION
+CFLAGS_KERNEL += -fgraphite-identity -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
+endif
 AFLAGS_KERNEL	=
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
-
 
 # Use LINUXINCLUDE when you must reference the include/ directory.
 # Needed to be compatible with the O= option
@@ -373,18 +384,22 @@ LINUXINCLUDE    := -I$(srctree)/arch/$(hdr-arch)/include \
 
 KBUILD_CPPFLAGS := -D__KERNEL__
 
-CFLAGS_A15 = -mtune=cortex-a15 -mfpu=neon
+CFLAGS_A15 = -mtune=cortex-a15 -mfpu=neon-vfpv4 -marm
 
-KBUILD_CFLAGS   := -Wall -Werror -Wextra -Wmissing-declarations -Wshadow -Wbad-function-cast -Wundef -Wstrict-prototypes -Wno-trigraphs \
+KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common -Wno-unused-value \
 		   -Wno-format-security \
 		   -Wno-sizeof-pointer-memaccess \
 		   -Wno-aggressive-loop-optimizations \
+		   -Wno-logical-not-parentheses \
 		   -Werror-implicit-function-declaration -Wno-uninitialized \
-		   -Wno-format-security -Wno-array-bounds -Wno-unused-variable -Wno-unused-function \
+		   -Wno-sequence-point -Wno-unused-variable -Wno-unused-function \
 		   -fno-delete-null-pointer-checks -Wno-maybe-uninitialized -Wno-declaration-after-statement \
 		   -mtune=cortex-a15 -mfpu=neon-vfpv4 \
-		   -funsafe-math-optimizations -ftree-vectorize
+		   -funsafe-math-optimizations -ftree-vectorize \
+		   -std=gnu89 \
+		   $(KERNEL_FLAGS)
+
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
@@ -577,8 +592,15 @@ all: vmlinux
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os $(call cc-disable-warning,maybe-uninitialized,)
 else
-KBUILD_CFLAGS	+= -O3
+KBUILD_CFLAGS	+= -O2
+ifdef CONFIG_CC_GRAPHITE_OPTIMIZATION
+KBUILD_CFLAGS += -fgraphite-identity -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
 endif
+endif
+
+# conserve stack if available
+# do this early so that an architecture can override it.
+KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
 
@@ -646,9 +668,6 @@ KBUILD_CFLAGS += $(call cc-disable-warning, pointer-sign)
 
 # disable invalid "can't wrap" optimizations for signed / pointers
 KBUILD_CFLAGS	+= $(call cc-option,-fno-strict-overflow)
-
-# conserve stack if available
-KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
 
 # use the deterministic mode of AR if available
 KBUILD_ARFLAGS := $(call ar-option,D)

@@ -361,6 +361,8 @@ static int __devinit msm_spm_dev_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(node, key, &val);
 	if (!ret)
 		spm_data.vctl_timeout_us = val;
+	else if (cpu == 0xffff)
+		goto fail;
 
 	/* optional */
 	key = "qcom,vctl-port";

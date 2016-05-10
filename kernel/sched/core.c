@@ -94,6 +94,22 @@ ATOMIC_NOTIFIER_HEAD(migration_notifier_head);
 RAW_NOTIFIER_HEAD(bgtsk_migration_notifier_head);
 #endif
 
+#ifdef smp_mb__before_atomic
+void __smp_mb__before_atomic(void)
+{
+	smp_mb__before_atomic();
+}
+EXPORT_SYMBOL(__smp_mb__before_atomic);
+#endif
+
+#ifdef smp_mb__after_atomic
+void __smp_mb__after_atomic(void)
+{
+	smp_mb__after_atomic();
+}
+EXPORT_SYMBOL(__smp_mb__after_atomic);
+#endif
+
 void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
 {
 	unsigned long delta;
@@ -537,7 +553,7 @@ static inline void init_hrtick(void)
 #ifdef CONFIG_SMP
 
 #ifndef tsk_is_polling
-#define tsk_is_polling(t) test_tsk_thread_flag(t, TIF_POLLING_NRFLAG)
+#define tsk_is_polling(t) 0
 #endif
 
 /*
@@ -5733,6 +5749,19 @@ static void migrate_tasks(unsigned int dead_cpu)
 	 * done here.
 	 */
 	rq->stop = NULL;
+
+	/* if there is one or more rt threads on the rq and if throttled,
+	 * we will deadlock in below loop. rt sched hrtimer have to run to
+	 * unthrottle the rt rq but irq is disabled in this context. Thus,
+	 * pick_next_task will not pick the rt task even if it is on the
+	 * runqueue. rq->nr_running never gets down to 1 and we will
+	 * loop forever here.
+	 * So we forcefully unthrottle the rt rq.
+	 */
+	unthrottle_rt_rq(rq);
+
+	/* Ensure any throttled groups are reachable by pick_next_task */
+	unthrottle_offline_cfs_rqs(rq);
 
 	/* if there is one or more rt threads on the rq and if throttled,
 	 * we will deadlock in below loop. rt sched hrtimer have to run to

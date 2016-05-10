@@ -16,6 +16,7 @@
 
 #include <linux/init.h>
 #include <linux/export.h>
+#include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/namei.h>
@@ -229,9 +230,6 @@ static int acl_permission_check(struct inode *inode, int mask)
 {
 	unsigned int mode = inode->i_mode;
 
-	if (current_user_ns() != inode_userns(inode))
-		goto other_perms;
-
 	if (likely(current_fsuid() == inode->i_uid))
 		mode >>= 6;
 	else {
@@ -245,7 +243,6 @@ static int acl_permission_check(struct inode *inode, int mask)
 			mode >>= 3;
 	}
 
-other_perms:
 	/*
 	 * If the DACs are ok we don't need any capability check.
 	 */
@@ -281,10 +278,10 @@ int generic_permission(struct inode *inode, int mask)
 
 	if (S_ISDIR(inode->i_mode)) {
 		/* DACs are overridable for directories */
-		if (ns_capable(inode_userns(inode), CAP_DAC_OVERRIDE))
+		if (inode_capable(inode, CAP_DAC_OVERRIDE))
 			return 0;
 		if (!(mask & MAY_WRITE))
-			if (ns_capable(inode_userns(inode), CAP_DAC_READ_SEARCH))
+			if (inode_capable(inode, CAP_DAC_READ_SEARCH))
 				return 0;
 		return -EACCES;
 	}
@@ -294,7 +291,7 @@ int generic_permission(struct inode *inode, int mask)
 	 * at least one exec bit set.
 	 */
 	if (!(mask & MAY_EXEC) || (inode->i_mode & S_IXUGO))
-		if (ns_capable(inode_userns(inode), CAP_DAC_OVERRIDE))
+		if (inode_capable(inode, CAP_DAC_OVERRIDE))
 			return 0;
 
 	/*
@@ -302,7 +299,7 @@ int generic_permission(struct inode *inode, int mask)
 	 */
 	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
 	if (mask == MAY_READ)
-		if (ns_capable(inode_userns(inode), CAP_DAC_READ_SEARCH))
+		if (inode_capable(inode, CAP_DAC_READ_SEARCH))
 			return 0;
 
 	return -EACCES;
@@ -1479,7 +1476,8 @@ EXPORT_SYMBOL(full_name_hash);
  */
 static inline unsigned long hash_name(const char *name, unsigned int *hashp)
 {
-	unsigned long a, mask, hash, len;
+	unsigned long a, b, adata, bdata, mask, hash, len;
+	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
 
 	hash = a = 0;
 	len = -sizeof(unsigned long);
@@ -1487,17 +1485,18 @@ static inline unsigned long hash_name(const char *name, unsigned int *hashp)
 		hash = (hash + a) * 9;
 		len += sizeof(unsigned long);
 		a = load_unaligned_zeropad(name+len);
-		/* Do we have any NUL or '/' bytes in this word? */
-		mask = has_zero(a) | has_zero(a ^ REPEAT_BYTE('/'));
-	} while (!mask);
+		b = a ^ REPEAT_BYTE('/');
+	} while (!(has_zero(a, &adata, &constants) | has_zero(b, &bdata, &constants)));
 
-	/* The mask *below* the first high bit set */
-	mask = (mask - 1) & ~mask;
-	mask >>= 7;
-	hash += a & mask;
+	adata = prep_zero_mask(a, adata, &constants);
+	bdata = prep_zero_mask(b, bdata, &constants);
+
+	mask = create_zero_mask(adata | bdata);
+
+	hash += a & zero_bytemask(mask);
 	*hashp = fold_hash(hash);
 
-	return len + count_masked_bytes(mask);
+	return len + find_zero(mask);
 }
 
 #else
@@ -1806,12 +1805,8 @@ static int do_path_lookup(int dfd, const char *name,
 	if (unlikely(retval == -ESTALE))
 		retval = path_lookupat(dfd, name, flags | LOOKUP_REVAL, nd);
 
-	if (likely(!retval)) {
-		if (unlikely(!audit_dummy_context())) {
-			if (nd->path.dentry && nd->inode)
-				audit_inode(name, nd->path.dentry);
-		}
-	}
+	if (likely(!retval))
+		audit_inode(name, nd->path.dentry);
 	return retval;
 }
 
@@ -1962,15 +1957,11 @@ static inline int check_sticky(struct inode *dir, struct inode *inode)
 
 	if (!(dir->i_mode & S_ISVTX))
 		return 0;
-	if (current_user_ns() != inode_userns(inode))
-		goto other_userns;
 	if (inode->i_uid == fsuid)
 		return 0;
 	if (dir->i_uid == fsuid)
 		return 0;
-
-other_userns:
-	return !ns_capable(inode_userns(inode), CAP_FOWNER);
+	return !inode_capable(inode, CAP_FOWNER);
 }
 
 /*
@@ -2539,6 +2530,14 @@ out:
 }
 EXPORT_SYMBOL(kern_path_create);
 
+void done_path_create(struct path *path, struct dentry *dentry)
+{
+	dput(dentry);
+	mutex_unlock(&path->dentry->d_inode->i_mutex);
+	path_put(path);
+}
+EXPORT_SYMBOL(done_path_create);
+
 struct dentry *user_path_create(int dfd, const char __user *pathname, struct path *path, int is_dir)
 {
 	char *tmp = getname(pathname);
@@ -2559,7 +2558,7 @@ int vfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 		return error;
 
 	if ((S_ISCHR(mode) || S_ISBLK(mode)) &&
-	    !ns_capable(inode_userns(dir), CAP_MKNOD))
+	    !inode_capable(dir, CAP_MKNOD))
 		return -EPERM;
 
 	if (!dir->i_op->mknod)
@@ -2636,9 +2635,7 @@ SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, umode_t, mode,
 out_drop_write:
 	mnt_drop_write(path.mnt);
 out_dput:
-	dput(dentry);
-	mutex_unlock(&path.dentry->d_inode->i_mutex);
-	path_put(&path);
+	done_path_create(&path, dentry);
 
 	return error;
 }
@@ -2695,9 +2692,7 @@ SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, umode_t, mode)
 out_drop_write:
 	mnt_drop_write(path.mnt);
 out_dput:
-	dput(dentry);
-	mutex_unlock(&path.dentry->d_inode->i_mutex);
-	path_put(&path);
+	done_path_create(&path, dentry);
 	return error;
 }
 
@@ -2770,7 +2765,7 @@ out:
 static long do_rmdir(int dfd, const char __user *pathname)
 {
 	int error = 0;
-	char * name;
+	char *name = NULL;
 	struct dentry *dentry;
 	struct nameidata nd;
 
@@ -2866,7 +2861,7 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry)
 static long do_unlinkat(int dfd, const char __user *pathname)
 {
 	int error;
-	char *name;
+	char *name = NULL;
 	struct dentry *dentry;
 	struct nameidata nd;
 	struct inode *inode = NULL;
@@ -2958,7 +2953,7 @@ SYSCALL_DEFINE3(symlinkat, const char __user *, oldname,
 		int, newdfd, const char __user *, newname)
 {
 	int error;
-	char *from;
+	char *from = NULL;
 	struct dentry *dentry;
 	struct path path;
 
@@ -2981,9 +2976,7 @@ SYSCALL_DEFINE3(symlinkat, const char __user *, oldname,
 out_drop_write:
 	mnt_drop_write(path.mnt);
 out_dput:
-	dput(dentry);
-	mutex_unlock(&path.dentry->d_inode->i_mutex);
-	path_put(&path);
+	done_path_create(&path, dentry);
 out_putname:
 	putname(from);
 	return error;
@@ -3055,6 +3048,7 @@ SYSCALL_DEFINE5(linkat, int, olddfd, const char __user *, oldname,
 	int how = 0;
 	int error;
 
+	memset(&old_path, 0, sizeof(old_path));
 	if ((flags & ~(AT_SYMLINK_FOLLOW | AT_EMPTY_PATH)) != 0)
 		return -EINVAL;
 	/*
@@ -3093,9 +3087,7 @@ SYSCALL_DEFINE5(linkat, int, olddfd, const char __user *, oldname,
 out_drop_write:
 	mnt_drop_write(new_path.mnt);
 out_dput:
-	dput(new_dentry);
-	mutex_unlock(&new_path.dentry->d_inode->i_mutex);
-	path_put(&new_path);
+	done_path_create(&new_path, new_dentry);
 out:
 	path_put(&old_path);
 
@@ -3266,8 +3258,8 @@ SYSCALL_DEFINE4(renameat, int, olddfd, const char __user *, oldname,
 	struct dentry *old_dentry, *new_dentry;
 	struct dentry *trap;
 	struct nameidata oldnd, newnd;
-	char *from;
-	char *to;
+	char *from = NULL;
+	char *to = NULL;
 	int error;
 
 	error = user_path_parent(olddfd, oldname, &oldnd, &from);

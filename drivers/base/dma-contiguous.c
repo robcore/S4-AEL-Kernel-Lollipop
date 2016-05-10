@@ -245,6 +245,7 @@ int __init dma_declare_contiguous(struct device *dev, unsigned long size,
 		pr_err("Not enough slots for CMA reserved regions!\n");
 		return -ENOSPC;
 	}
+	mutex_init(&cma->lock);
 
 	if (!size)
 		return -EINVAL;
@@ -327,7 +328,7 @@ struct page *dma_alloc_from_contiguous(struct device *dev, int count,
 		 count, align);
 
 	if (!count)
-		return NULL;
+		return 0;
 
 	mask = (1 << align) - 1;
 
@@ -364,6 +365,20 @@ error:
 	return NULL;
 }
 
+phys_addr_t cma_get_base(struct device *dev)
+{
+	struct cma *cma = dev_get_cma_area(dev);
+
+	return cma->base_pfn << PAGE_SHIFT;
+}
+
+static void clear_cma_bitmap(struct cma *cma, unsigned long pfn, int count)
+{
+	mutex_lock(&cma->lock);
+	bitmap_clear(cma->bitmap, pfn - cma->base_pfn, count);
+	mutex_unlock(&cma->lock);
+}
+
 /**
  * dma_release_from_contiguous() - release allocated pages
  * @dev:   Pointer to device for which the pages were allocated.
@@ -374,18 +389,15 @@ error:
  * It returns false when provided pages do not belong to contiguous area and
  * true otherwise.
  */
-bool dma_release_from_contiguous(struct device *dev, struct page *pages,
+bool dma_release_from_contiguous(struct device *dev, unsigned long pfn,
 				 int count)
 {
 	struct cma *cma = dev_get_cma_area(dev);
-	unsigned long pfn;
 
-	if (!cma || !pages)
+	if (!cma || !pfn)
 		return false;
 
-	pr_debug("%s(page %p)\n", __func__, (void *)pages);
-
-	pfn = page_to_pfn(pages);
+	pr_debug("%s(pfn %lx)\n", __func__, pfn);
 
 	if (pfn < cma->base_pfn || pfn >= cma->base_pfn + cma->count)
 		return false;

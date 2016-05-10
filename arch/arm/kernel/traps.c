@@ -577,7 +577,7 @@ do_cache_op(unsigned long start, unsigned long end, int flags)
  return -EFAULT;
 
 return __do_cache_op(start, end);
-  
+
 }
 
 /*
@@ -623,8 +623,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	 * the specified region).
 	 */
 	case NR(cacheflush):
-		do_cache_op(regs->ARM_r0, regs->ARM_r1, regs->ARM_r2);
-		return 0;
+		return do_cache_op(regs->ARM_r0, regs->ARM_r1, regs->ARM_r2);
 
 	case NR(usr26):
 		if (!(elf_hwcap & HWCAP_26BIT))
@@ -639,7 +638,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		return regs->ARM_r0;
 
 	case NR(set_tls):
-		thread->tp_value = regs->ARM_r0;
+		thread->tp_value[0] = regs->ARM_r0;
 		if (tls_emu)
 			return 0;
 		if (has_tls_reg) {
@@ -757,7 +756,7 @@ static int get_tp_trap(struct pt_regs *regs, unsigned int instr)
 	int reg = (instr >> 12) & 15;
 	if (reg == 15)
 		return 1;
-	regs->uregs[reg] = current_thread_info()->tp_value;
+	regs->uregs[reg] = current_thread_info()->tp_value[0];
 	regs->ARM_pc += 4;
 	return 0;
 }

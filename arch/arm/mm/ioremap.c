@@ -38,6 +38,70 @@
 #include <asm/mach/map.h>
 #include "mm.h"
 
+
+LIST_HEAD(static_vmlist);
+
+static struct static_vm *find_static_vm_paddr(phys_addr_t paddr,
+			size_t size, unsigned int mtype)
+{
+	struct static_vm *svm;
+	struct vm_struct *vm;
+
+	list_for_each_entry(svm, &static_vmlist, list) {
+		vm = &svm->vm;
+		if (!(vm->flags & VM_ARM_STATIC_MAPPING))
+			continue;
+		if ((vm->flags & VM_ARM_MTYPE_MASK) != VM_ARM_MTYPE(mtype))
+			continue;
+
+		if (vm->phys_addr > paddr ||
+			paddr + size - 1 > vm->phys_addr + vm->size - 1)
+			continue;
+
+		return svm;
+	}
+
+	return NULL;
+}
+
+struct static_vm *find_static_vm_vaddr(void *vaddr)
+{
+	struct static_vm *svm;
+	struct vm_struct *vm;
+
+	list_for_each_entry(svm, &static_vmlist, list) {
+		vm = &svm->vm;
+
+		/* static_vmlist is ascending order */
+		if (vm->addr > vaddr)
+			break;
+
+		if (vm->addr <= vaddr && vm->addr + vm->size > vaddr)
+			return svm;
+	}
+
+	return NULL;
+}
+
+void __init add_static_vm_early(struct static_vm *svm)
+{
+	struct static_vm *curr_svm;
+	struct vm_struct *vm;
+	void *vaddr;
+
+	vm = &svm->vm;
+	vm_area_add_early(vm);
+	vaddr = vm->addr;
+
+	list_for_each_entry(curr_svm, &static_vmlist, list) {
+		vm = &curr_svm->vm;
+
+		if (vm->addr > vaddr)
+			break;
+	}
+	list_add_tail(&svm->list, &curr_svm->list);
+}
+
 int ioremap_page(unsigned long virt, unsigned long phys,
 		 const struct mem_type *mtype)
 {
@@ -255,6 +319,7 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
  	if (!area)
  		return NULL;
  	addr = (unsigned long)area->addr;
+	area->phys_addr = __pfn_to_phys(pfn);
 
 #if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
 	if (DOMAIN_IO == 0 &&
@@ -280,11 +345,11 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
 	return (void __iomem *) (offset + addr);
 }
 
-void __iomem *__arm_ioremap_caller(unsigned long phys_addr, size_t size,
+void __iomem *__arm_ioremap_caller(phys_addr_t phys_addr, size_t size,
 	unsigned int mtype, void *caller)
 {
-	unsigned long last_addr;
- 	unsigned long offset = phys_addr & ~PAGE_MASK;
+	phys_addr_t last_addr;
+	phys_addr_t offset = phys_addr & ~PAGE_MASK;
  	unsigned long pfn = __phys_to_pfn(phys_addr);
 
  	/*
@@ -316,12 +381,12 @@ __arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
 }
 EXPORT_SYMBOL(__arm_ioremap_pfn);
 
-void __iomem * (*arch_ioremap_caller)(unsigned long, size_t,
+void __iomem * (*arch_ioremap_caller)(phys_addr_t, size_t,
 				      unsigned int, void *) =
 	__arm_ioremap_caller;
 
 void __iomem *
-__arm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
+__arm_ioremap(phys_addr_t phys_addr, size_t size, unsigned int mtype)
 {
 	return arch_ioremap_caller(phys_addr, size, mtype,
 		__builtin_return_address(0));
@@ -336,7 +401,7 @@ EXPORT_SYMBOL(__arm_ioremap);
  * CONFIG_GENERIC_ALLOCATOR for allocating external memory.
  */
 void __iomem *
-__arm_ioremap_exec(unsigned long phys_addr, size_t size, bool cached)
+__arm_ioremap_exec(phys_addr_t phys_addr, size_t size, bool cached)
 {
 	unsigned int mtype;
 

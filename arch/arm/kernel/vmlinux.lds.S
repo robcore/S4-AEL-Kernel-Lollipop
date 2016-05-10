@@ -141,6 +141,8 @@ SECTIONS
 	}
 #endif
 
+	NOTES
+
 	_etext = .;			/* End of text and rodata section */
 
 #ifndef CONFIG_XIP_KERNEL
@@ -227,8 +229,8 @@ SECTIONS
 	__data_loc = ALIGN(4);		/* location in binary */
 	. = PAGE_OFFSET + TEXT_OFFSET;
 #else
-	__init_end = .;
 	. = ALIGN(THREAD_SIZE);
+	__init_end = .;
 	__data_loc = .;
 #endif
 
@@ -332,13 +334,10 @@ SECTIONS
 	}
 #endif
 
-	NOTES
-
 	BSS_SECTION(0, 0, 0)
 	_end = .;
 
 	STABS_DEBUG
-	.comment 0 : { *(.comment) }
 }
 
 /*

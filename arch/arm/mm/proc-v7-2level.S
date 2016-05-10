@@ -40,7 +40,7 @@
 ENTRY(cpu_v7_switch_mm)
 #ifdef CONFIG_MMU
 	mov	r2, #0
-	ldr	r1, [r1, #MM_CONTEXT_ID]	@ get mm->context.id
+	mmid	r1, r1				@ get mm->context.id
 	ALT_SMP(orr	r0, r0, #TTB_FLAGS_SMP)
 	ALT_UP(orr	r0, r0, #TTB_FLAGS_UP)
 #ifdef CONFIG_ARM_ERRATA_430973
@@ -110,7 +110,11 @@ ENTRY(cpu_v7_set_pte_ext)
 	orrne	r3, r3, #PTE_EXT_XN
 
 	tst	r1, #L_PTE_YOUNG
-	tstne	r1, #L_PTE_PRESENT
+	tstne	r1, #L_PTE_VALID
+#ifndef CONFIG_CPU_USE_DOMAINS
+	eorne	r1, r1, #L_PTE_NONE
+	tstne	r1, #L_PTE_NONE
+#endif
 	moveq	r3, #0
 
  ARM(	str	r3, [r0, #2048]! )

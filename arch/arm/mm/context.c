@@ -89,13 +89,16 @@ static int contextidr_notifier(struct notifier_block *unused, unsigned long cmd,
 	if (cmd != THREAD_NOTIFY_SWITCH)
 		return NOTIFY_DONE;
 
-	pid = task_pid_nr(thread->task);
-	local_irq_save(flags);
-	contextidr = read_contextidr();
-	contextidr &= ~ASID_MASK;
-	contextidr |= pid << ASID_BITS;
-	write_contextidr(contextidr);
-	local_irq_restore(flags);
+	pid = task_pid_nr(thread->task) << ASID_BITS;
+	asm volatile(
+	"	mrc	p15, 0, %0, c13, c0, 1\n"
+	"	and	%0, %0, %2\n"
+	"	orr	%0, %0, %1\n"
+	"	mcr	p15, 0, %0, c13, c0, 1\n"
+	: "=r" (contextidr), "+r" (pid)
+	: "I" (~ASID_MASK));
+	uncached_logk(LOGK_CTXID, (void *)contextidr);
+	isb();
 
 	return NOTIFY_OK;
 }

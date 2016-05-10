@@ -2,8 +2,6 @@
 # Makefile for some libs needed in the kernel.
 #
 
-KBUILD_CFLAGS	+=-O3
-
 ifdef CONFIG_FUNCTION_TRACER
 ORIG_CFLAGS := $(KBUILD_CFLAGS)
 KBUILD_CFLAGS = $(subst -pg,,$(ORIG_CFLAGS))
@@ -128,6 +126,9 @@ obj-$(CONFIG_SIGNATURE) += digsig.o
 obj-$(CONFIG_CLZ_TAB) += clz_tab.o
 
 obj-$(CONFIG_QMI_ENCDEC) += qmi_encdec.o
+
+obj-$(CONFIG_GENERIC_STRNCPY_FROM_USER) += strncpy_from_user.o
+obj-$(CONFIG_GENERIC_STRNLEN_USER) += strnlen_user.o
 
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h

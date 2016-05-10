@@ -561,21 +561,21 @@ ENDPROC(__und_usr)
 	@ Fall-through from Thumb-2 __und_usr
 	@
 #ifdef CONFIG_NEON
+	get_thread_info r10			@ get current thread
 	adr	r6, .LCneon_thumb_opcodes
 	b	2f
 #endif
 call_fpe:
+	get_thread_info r10			@ get current thread
 #ifdef CONFIG_NEON
 	adr	r6, .LCneon_arm_opcodes
-2:
-	ldr	r7, [r6], #4			@ mask value
-	cmp	r7, #0				@ end mask?
-	beq	1f
-	and	r8, r0, r7
+2:	ldr	r5, [r6], #4			@ mask value
 	ldr	r7, [r6], #4			@ opcode bits matching in mask
+	cmp	r5, #0				@ end mask?
+	beq	1f
+	and	r8, r0, r5
 	cmp	r8, r7				@ NEON instruction?
 	bne	2b
-	get_thread_info r10
 	mov	r7, #1
 	strb	r7, [r10, #TI_USED_CP + 10]	@ mark CP#10 as used
 	strb	r7, [r10, #TI_USED_CP + 11]	@ mark CP#11 as used
@@ -589,7 +589,6 @@ call_fpe:
 	teqne	r8, #0x0f000000			@ SWI (ARM6/7 bug)?
 #endif
 	moveq	pc, lr
-	get_thread_info r10			@ get current thread
 	and	r8, r0, #0x00000f00		@ mask out CP number
  THUMB(	lsr	r8, r8, #8		)
 	mov	r7, #1
@@ -731,29 +730,23 @@ ENTRY(__switch_to)
  UNWIND(.fnstart	)
  UNWIND(.cantunwind	)
 	add	ip, r1, #TI_CPU_SAVE
-	ldr	r3, [r2, #TI_TP_VALUE]
  ARM(	stmia	ip!, {r4 - sl, fp, sp, lr} )	@ Store most regs on stack
  THUMB(	stmia	ip!, {r4 - sl, fp}	   )	@ Store most regs on stack
  THUMB(	str	sp, [ip], #4		   )
  THUMB(	str	lr, [ip], #4		   )
+	ldr	r4, [r2, #TI_TP_VALUE]
+	ldr	r5, [r2, #TI_TP_VALUE + 4]
 #ifdef CONFIG_CPU_USE_DOMAINS
 	ldr	r6, [r2, #TI_CPU_DOMAIN]
 #endif
-	set_tls	r3, r4, r5
+	switch_tls r1, r4, r5, r3, r7
 #if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
 	ldr	r7, [r2, #TI_TASK]
 	ldr	r8, =__stack_chk_guard
 	ldr	r7, [r7, #TSK_STACK_CANARY]
 #endif
 #ifdef CONFIG_CPU_USE_DOMAINS
-#ifdef CONFIG_EMULATE_DOMAIN_MANAGER_V7
-	stmdb	r13!, {r0-r3, lr}
-	mov	r0, r6
-	bl	emulate_domain_manager_set
-	ldmia	r13!, {r0-r3, lr}
-#else
 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
-#endif
 #endif
 	mov	r5, r0
 	add	r4, r2, #TI_CPU_SAVE

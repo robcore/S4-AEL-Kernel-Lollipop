@@ -2506,6 +2506,8 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 	dma_cookie_t cookie;
 	unsigned long flags;
 
+	tasklet_kill(&pch->task);
+	
 	spin_lock_irqsave(&pch->lock, flags);
 
 	/* Assign cookies to all nodes */

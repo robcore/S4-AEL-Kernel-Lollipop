@@ -31,10 +31,6 @@
 #include <mach/msm_iomap.h>
 #endif
 
-#ifdef CONFIG_EMULATE_DOMAIN_MANAGER_V7
-#include <asm/domain.h>
-#endif /* CONFIG_EMULATE_DOMAIN_MANAGER_V7 */
-
 #include "fault.h"
 
 #define CREATE_TRACE_POINTS
@@ -363,6 +359,13 @@ retry:
 	if (likely(!(fault & (VM_FAULT_ERROR | VM_FAULT_BADMAP | VM_FAULT_BADACCESS))))
 		return 0;
 
+	/*
+	 * If we are in kernel mode at this point, we
+	 * have no context to handle this fault with.
+	 */
+	if (!user_mode(regs))
+		goto no_context;
+
 	if (fault & VM_FAULT_OOM) {
 		/*
 		 * We ran out of memory, call the OOM killer, and return to
@@ -372,13 +375,6 @@ retry:
 		pagefault_out_of_memory();
 		return 0;
 	}
-
-	/*
-	 * If we are in kernel mode at this point, we
-	 * have no context to handle this fault with.
-	 */
-	if (!user_mode(regs))
-		goto no_context;
 
 	if (fault & VM_FAULT_SIGBUS) {
 		/*
@@ -463,8 +459,16 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 
 	if (pud_none(*pud_k))
 		goto bad_area;
-	if (!pud_present(*pud))
+	if (!pud_present(*pud)) {
 		set_pud(pud, *pud_k);
+		/*
+		 * There is a small window during free_pgtables() where the
+		 * user *pud entry is 0 but the TLB has not been invalidated
+		 * and we get a level 2 (pmd) translation fault caused by the
+		 * intermediate TLB caching of the old level 1 (pud) entry.
+		 */
+		flush_tlb_kernel_page(addr);
+	}
 
 	pmd = pmd_offset(pud, addr);
 	pmd_k = pmd_offset(pud_k, addr);
@@ -487,8 +491,9 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 #endif
 	if (pmd_none(pmd_k[index]))
 		goto bad_area;
+	if (!pmd_present(pmd[index]))
+		copy_pmd(pmd, pmd_k);
 
-	copy_pmd(pmd, pmd_k);
 	return 0;
 
 bad_area:
@@ -672,11 +677,6 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	const struct fsr_info *inf = fsr_info + fsr_fs(fsr);
 	struct siginfo info;
 
-#ifdef CONFIG_EMULATE_DOMAIN_MANAGER_V7
-	if (emulate_domain_manager_data_abort(fsr, addr))
-		return;
-#endif
-
 #ifdef CONFIG_MSM_KRAIT_TBB_ABORT_HANDLER
 	if (krait_tbb_fixup(fsr, regs))
 		return;
@@ -713,11 +713,6 @@ do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
 	const struct fsr_info *inf = ifsr_info + fsr_fs(ifsr);
 	struct siginfo info;
-
-#ifdef CONFIG_EMULATE_DOMAIN_MANAGER_V7
-	if (emulate_domain_manager_prefetch_abort(ifsr, addr))
-		return;
-#endif
 
 	if (!inf->fn(addr, ifsr | FSR_LNX_PF, regs))
 		return;

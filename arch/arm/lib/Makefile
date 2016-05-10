@@ -4,13 +4,10 @@
 # Copyright (C) 1995-2000 Russell King
 #
 
-KBUILD_CFLAGS	+=-O3
-
 lib-y		:= backtrace.o changebit.o csumipv6.o csumpartial.o   \
 		   csumpartialcopy.o csumpartialcopyuser.o clearbit.o \
-		   delay.o findbit.o memchr.o		    	      \
-		   memset.o memzero.o setbit.o              	      \
-		   strncpy_from_user.o strnlen_user.o                 \
+		   delay.o delay-loop.o findbit.o memchr.o            \
+		   memset.o memzero.o setbit.o                        \
 		   strchr.o strrchr.o                                 \
 		   testchangebit.o testclearbit.o testsetbit.o        \
 		   ashldi3.o ashrdi3.o lshrdi3.o muldi3.o             \
@@ -18,7 +15,7 @@ lib-y		:= backtrace.o changebit.o csumipv6.o csumpartial.o   \
 		   io-readsb.o io-writesb.o io-readsl.o io-writesl.o  \
 		   call_with_stack.o
 
-mmu-y	:= clear_user.o getuser.o putuser.o
+mmu-y	:= clear_user.o getuser.o putuser.o cmp_page.o
 
 # the code in uaccess.S is not preemption safe and
 # probably faster on ARMv3 only
@@ -54,7 +51,7 @@ $(obj)/csumpartialcopy.o:	$(obj)/csumpartialcopygeneric.S
 $(obj)/csumpartialcopyuser.o:	$(obj)/csumpartialcopygeneric.S
 
 ifeq ($(CONFIG_KERNEL_MODE_NEON),y)
-  NEON_FLAGS			:= -mfloat-abi=softfp -mfpu=neon
+  NEON_FLAGS			:= -mfloat-abi=softfp -marm -mfpu=neon-vfpv4 -funsafe-math-optimizations
   CFLAGS_xor-neon.o		+= $(NEON_FLAGS)
   obj-$(CONFIG_XOR_BLOCKS)	+= xor-neon.o
 endif

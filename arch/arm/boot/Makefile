@@ -11,8 +11,6 @@
 # Copyright (C) 1995-2002 Russell King
 #
 
-KBUILD_CFLAGS	+=-O3
-
 ifeq ($(CONFIG_CRYPTO_FIPS_OLD_INTEGRITY_CHECK),y)
 MKFIPS          := $(srctree)/scripts/mk_fipsbinary.sh
 endif
