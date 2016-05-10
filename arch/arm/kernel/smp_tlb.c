@@ -116,11 +116,6 @@ static void broadcast_tlb_mm_a15_erratum(struct mm_struct *mm)
 	put_cpu();
 }
 
-static inline void ipi_flush_bp_all(void *ignored)
-{
-	local_flush_bp_all();
-}
-
 void flush_tlb_all(void)
 {
 	if (tlb_ops_need_broadcast())

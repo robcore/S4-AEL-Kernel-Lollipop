@@ -25,28 +25,22 @@
 
 #include "smpboot.h"
 
-#include <trace/events/sched.h>
-
 #ifdef CONFIG_SMP
 /* Serializes the updates to cpu_online_mask, cpu_present_mask */
 static DEFINE_MUTEX(cpu_add_remove_lock);
 
 /*
- * The following two API's must be used when attempting to serialize
- * the updates to cpu_online_mask, cpu_present_mask. Also, they must
- * be used to protect CPU hotplug callback (un)registration performed
- * using __register_cpu_notifier() or __unregister_cpu_notifier().
+ * The following two APIs (cpu_maps_update_begin/done) must be used when
+ * attempting to serialize the updates to cpu_online_mask & cpu_present_mask.
+ * The APIs cpu_notifier_register_begin/done() must be used to protect CPU
+ * hotplug callback (un)registration performed using __register_cpu_notifier()
+ * or __unregister_cpu_notifier().
  */
 void cpu_maps_update_begin(void)
 {
 	mutex_lock(&cpu_add_remove_lock);
 }
-EXPORT_SYMBOL(cpu_maps_update_begin);
-
-int cpu_maps_is_updating(void)
-{
-	return mutex_is_locked(&cpu_add_remove_lock);
-}
+EXPORT_SYMBOL(cpu_notifier_register_begin);
 
 int cpu_maps_is_updating(void)
 {
@@ -57,7 +51,7 @@ void cpu_maps_update_done(void)
 {
 	mutex_unlock(&cpu_add_remove_lock);
 }
-EXPORT_SYMBOL(cpu_maps_update_done);
+EXPORT_SYMBOL(cpu_notifier_register_done);
 
 static RAW_NOTIFIER_HEAD(cpu_chain);
 
@@ -226,6 +220,12 @@ void __ref unregister_cpu_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL(unregister_cpu_notifier);
 
+void __ref __unregister_cpu_notifier(struct notifier_block *nb)
+{
+	raw_notifier_chain_unregister(&cpu_chain, nb);
+}
+EXPORT_SYMBOL(__unregister_cpu_notifier);
+
 /**
  * clear_tasks_mm_cpumask - Safely clear tasks' mm_cpumask for a CPU
  * @cpu: a CPU id
@@ -267,12 +267,6 @@ void clear_tasks_mm_cpumask(int cpu)
 	rcu_read_unlock();
 }
 
-void __ref __unregister_cpu_notifier(struct notifier_block *nb)
-{
-	raw_notifier_chain_unregister(&cpu_chain, nb);
-}
-EXPORT_SYMBOL(__unregister_cpu_notifier);
-
 static inline void check_for_tasks(int cpu)
 {
 	struct task_struct *p;
@@ -280,8 +274,9 @@ static inline void check_for_tasks(int cpu)
 
 	write_lock_irq(&tasklist_lock);
 	for_each_process(p) {
+		task_cputime(p, &utime, &stime);
 		if (task_cpu(p) == cpu && p->state == TASK_RUNNING &&
-		    (p->utime || p->stime))
+		    (utime || stime))
 			printk(KERN_WARNING "Task %s (pid = %d) is on cpu %d "
 				"(state = %ld, flags = %x)\n",
 				p->comm, task_pid_nr(p), cpu,
@@ -358,8 +353,8 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	 *
 	 * Wait for the stop thread to go away.
 	 */
-	while (!idle_cpu(cpu))
-		cpu_relax();
+	while (!idle_cpu_relaxed(cpu))
+		cpu_read_relax();
 
 	/* This actually kills the CPU. */
 	__cpu_die(cpu);
@@ -427,7 +422,9 @@ static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
 	ret = __cpu_notify(CPU_UP_PREPARE | mod, hcpu, -1, &nr_calls);
 	if (ret) {
 		nr_calls--;
-		printk(KERN_WARNING "%s: attempt to bring up CPU %u failed\n",
+		if (!core_control)
+			printk_ratelimited(KERN_WARNING
+				"%s: attempt to bring up CPU %u failed\n",
 				__func__, cpu);
 		goto out_notify;
 	}

@@ -21,7 +21,6 @@
 #include <asm/ucontext.h>
 #include <asm/unistd.h>
 #include <asm/vfp.h>
-
 #include "signal.h"
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
@@ -69,17 +68,8 @@ const unsigned long syscall_restart_code[2] = {
 asmlinkage int sys_sigsuspend(int restart, unsigned long oldmask, old_sigset_t mask)
 {
 	sigset_t blocked;
-
-	current->saved_sigmask = current->blocked;
-
-	mask &= _BLOCKABLE;
 	siginitset(&blocked, mask);
-	set_current_blocked(&blocked);
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_restore_sigmask();
-	return -ERESTARTNOHAND;
+	return sigsuspend(&blocked);
 }
 
 asmlinkage int
@@ -441,17 +431,12 @@ setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 		 */
 		thumb = handler & 1;
 
-#if __LINUX_ARM_ARCH__ >= 6
+#if __LINUX_ARM_ARCH__ >= 7
 		/*
-		 * Clear the If-Then Thumb-2 execution state.  ARM spec
-		 * requires this to be all 000s in ARM mode.  Snapdragon
-		 * S4/Krait misbehaves on a Thumb=>ARM signal transition
-		 * without this.
-		 *
-		 * We must do this whenever we are running on a Thumb-2
-		 * capable CPU, which includes ARMv6T2.  However, we elect
-		 * to do this whenever we're on an ARMv6 or later CPU for
-		 * simplicity.
+		 * Clear the If-Then Thumb-2 execution state
+		 * ARM spec requires this to be all 000s in ARM mode
+		 * Snapdragon S4/Krait misbehaves on a Thumb=>ARM
+		 * signal transition without this.
 		 */
 		cpsr &= ~PSR_IT_MASK;
 #endif
@@ -655,9 +640,11 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:
-		case -ERESTART_RESTARTBLOCK:
 			regs->ARM_r0 = regs->ARM_ORIG_r0;
 			regs->ARM_pc = restart_addr;
+			break;
+		case -ERESTART_RESTARTBLOCK:
+			regs->ARM_r0 = -EINTR;
 			break;
 		}
 	}
@@ -679,14 +666,12 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		 * debugger has chosen to restart at a different PC.
 		 */
 		if (regs->ARM_pc == restart_addr) {
-			if (retval == -ERESTARTNOHAND ||
-			    retval == -ERESTART_RESTARTBLOCK
+			if (retval == -ERESTARTNOHAND
 			    || (retval == -ERESTARTSYS
 				&& !(ka.sa.sa_flags & SA_RESTART))) {
 				regs->ARM_r0 = -EINTR;
 				regs->ARM_pc = continue_addr;
 			}
-			clear_thread_flag(TIF_SYSCALL_RESTARTSYS);
 		}
 
 		if (test_thread_flag(TIF_RESTORE_SIGMASK))
@@ -714,15 +699,38 @@ static void do_signal(struct pt_regs *regs, int syscall)
 		 * ignore the restart.
 		 */
 		if (retval == -ERESTART_RESTARTBLOCK
-		    && regs->ARM_pc == restart_addr)
-			set_thread_flag(TIF_SYSCALL_RESTARTSYS);
-	}
+		    && regs->ARM_pc == continue_addr) {
+			if (thumb_mode(regs)) {
+				regs->ARM_r7 = __NR_restart_syscall - __NR_SYSCALL_BASE;
+				regs->ARM_pc -= 2;
+			} else {
+#if defined(CONFIG_AEABI) && !defined(CONFIG_OABI_COMPAT)
+				regs->ARM_r7 = __NR_restart_syscall;
+				regs->ARM_pc -= 4;
+#else
+				u32 __user *usp;
 
-	/* If there's no signal to deliver, we just put the saved sigmask
-	 * back.
-	 */
-	if (test_and_clear_thread_flag(TIF_RESTORE_SIGMASK))
-		set_current_blocked(&current->saved_sigmask);
+				regs->ARM_sp -= 4;
+				usp = (u32 __user *)regs->ARM_sp;
+
+				if (put_user(regs->ARM_pc, usp) == 0) {
+					regs->ARM_pc = KERN_RESTART_CODE;
+				} else {
+					regs->ARM_sp += 4;
+					force_sigsegv(0, current);
+				}
+#endif
+			}
+		}
+
+		/* If there's no signal to deliver, we just put the saved sigmask
+		 * back.
+		 */
+		if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+			clear_thread_flag(TIF_RESTORE_SIGMASK);
+			sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+		}
+	}
 }
 
 asmlinkage void
@@ -734,8 +742,6 @@ do_notify_resume(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 	if (thread_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
-		if (current->replacement_session_keyring)
-			key_replace_session_keyring();
 	}
 }
 

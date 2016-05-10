@@ -309,11 +309,13 @@ static int do_fsync(unsigned int fd, int datasync)
 {
 	struct file *file;
 	int ret = -EBADF;
+	int fput_needed;
 #ifdef CONFIG_ASYNC_FSYNC
 	struct fsync_work *fwork;
 #endif
 
-	file = fget(fd);
+	file = fget_light(fd, &fput_needed);
+
 	if (file) {
 		ktime_t fsync_t, fsync_diff;
 		char pathname[256], *path;

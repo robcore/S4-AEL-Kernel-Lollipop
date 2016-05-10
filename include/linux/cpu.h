@@ -167,6 +167,9 @@ extern void cpu_maps_update_begin(void);
 int cpu_maps_is_updating(void);
 extern void cpu_maps_update_done(void);
 
+#define cpu_notifier_register_begin	cpu_maps_update_begin
+#define cpu_notifier_register_done	cpu_maps_update_done
+
 #else	/* CONFIG_SMP */
 
 #define cpu_notifier(fn, pri)	do { (void)(fn); } while (0)
@@ -200,6 +203,14 @@ static inline int cpu_maps_is_updating(void)
 }
 
 static inline void cpu_maps_update_done(void)
+{
+}
+
+static inline void cpu_notifier_register_begin(void)
+{
+}
+
+static inline void cpu_notifier_register_done(void)
 {
 }
 

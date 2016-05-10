@@ -90,7 +90,6 @@ extern unsigned long arm_dma_pfn_limit;
 #define arm_dma_pfn_limit (~0ul >> PAGE_SHIFT)
 #endif
 
-struct map_desc;
 extern phys_addr_t arm_lowmem_limit;
 
 void __init bootmem_init(void);
