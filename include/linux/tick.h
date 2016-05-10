@@ -78,7 +78,7 @@ extern int tick_program_event(ktime_t expires, int force);
 extern void tick_setup_sched_timer(void);
 # endif
 
-# if defined CONFIG_NO_HZ || defined CONFIG_HIGH_RES_TIMERS
+# if defined CONFIG_NO_HZ_COMMON || defined CONFIG_HIGH_RES_TIMERS
 extern void tick_cancel_sched_timer(int cpu);
 # else
 static inline void tick_cancel_sched_timer(int cpu) { }
@@ -138,7 +138,7 @@ static inline ktime_t tick_nohz_get_sleep_length(void)
 }
 static inline u64 get_cpu_idle_time_us(int cpu, u64 *unused) { return -1; }
 static inline u64 get_cpu_iowait_time_us(int cpu, u64 *unused) { return -1; }
-# endif /* !NO_HZ */
+# endif /* !CONFIG_NO_HZ_COMMON */
 
 #ifdef CONFIG_NO_HZ_EXTENDED
 extern int tick_nohz_extended_cpu(int cpu);

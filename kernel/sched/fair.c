@@ -5363,7 +5363,7 @@ out_unlock:
 	return 0;
 }
 
-#ifdef CONFIG_NO_HZ
+#ifdef CONFIG_NO_HZ_COMMON
 /*
  * idle load balancing details
  * - When one of the busy CPUs notice that there may be an idle rebalancing
@@ -5584,7 +5584,7 @@ out:
 
 #ifdef CONFIG_NO_HZ
 /*
- * In CONFIG_NO_HZ case, the idle balance kickee will do the
+ * In CONFIG_NO_HZ_COMMON case, the idle balance kickee will do the
  * rebalancing for all the cpus for whom scheduler ticks are stopped.
  */
 static void nohz_idle_balance(int this_cpu, enum cpu_idle_type idle)
@@ -5672,7 +5672,7 @@ static inline int nohz_kick_needed(struct rq *rq, int cpu)
 		if (sd->flags & SD_SHARE_PKG_RESOURCES && nr_busy > 1)
 			goto need_kick_unlock;
 
-		if (sd->flags & SD_ASYM_PACKING && nr_busy != sg->group_weight
+		if (sd->flags & SD_ASYM_PACKING
 		    && (cpumask_first_and(nohz.idle_cpus_mask,
 					  sched_domain_span(sd)) < cpu))
 			goto need_kick_unlock;
@@ -6267,7 +6267,7 @@ __init void init_sched_fair_class(void)
 #ifdef CONFIG_SMP
 	open_softirq(SCHED_SOFTIRQ, run_rebalance_domains);
 
-#ifdef CONFIG_NO_HZ
+#ifdef CONFIG_NO_HZ_COMMON
 	nohz.next_balance = jiffies;
 	zalloc_cpumask_var(&nohz.idle_cpus_mask, GFP_NOWAIT);
 	cpu_notifier(sched_ilb_notifier, 0);
