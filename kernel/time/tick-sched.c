@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/rq_stats.h>
+#include <linux/irq_work.h>
 
 #include <asm/irq_regs.h>
 
@@ -128,6 +129,25 @@ static int __init tick_nohz_extended_setup(char *str)
 }
 __setup("nohz_extended=", tick_nohz_extended_setup);
 
+static int __cpuinit tick_nohz_cpu_down_callback(struct notifier_block *nfb,
+						 unsigned long action,
+						 void *hcpu)
+{
+	unsigned int cpu = (unsigned long)hcpu;
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_DOWN_PREPARE:
+		/*
+		 * If we handle the timekeeping duty for full dynticks CPUs,
+		 * we can't safely shutdown that CPU.
+		 */
+		if (have_nohz_extended_mask && tick_do_timer_cpu == cpu)
+			return -EINVAL;
+		break;
+	}
+	return NOTIFY_OK;
+}
+
 static int __init init_tick_nohz_extended(void)
 {
 	cpumask_var_t online_nohz;
@@ -135,6 +155,8 @@ static int __init init_tick_nohz_extended(void)
 
 	if (!have_nohz_extended_mask)
 		return 0;
+
+	cpu_notifier(tick_nohz_cpu_down_callback, 0);
 
 	if (!zalloc_cpumask_var(&online_nohz, GFP_KERNEL)) {
 		pr_warning("NO_HZ: Not enough memory to check extended nohz mask\n");
@@ -150,11 +172,17 @@ static int __init init_tick_nohz_extended(void)
 	/* Ensure we keep a CPU outside the dynticks range for timekeeping */
 	cpumask_and(online_nohz, cpu_online_mask, nohz_extended_mask);
 	if (cpumask_equal(online_nohz, cpu_online_mask)) {
-		cpu = cpumask_any(cpu_online_mask);
 		pr_warning("NO_HZ: Must keep at least one online CPU "
 			   "out of nohz_extended range\n");
+		/*
+		 * We know the current CPU doesn't have its tick stopped.
+		 * Let's use it for the timekeeping duty.
+		 */
+		preempt_disable();
+		cpu = smp_processor_id();
 		pr_warning("NO_HZ: Clearing %d from nohz_extended range\n", cpu);
 		cpumask_clear_cpu(cpu, nohz_extended_mask);
+		preempt_enable();
 	}
 	put_online_cpus();
 	free_cpumask_var(online_nohz);
@@ -339,18 +367,16 @@ u64 get_cpu_iowait_time_us(int cpu, u64 *last_update_time)
 }
 EXPORT_SYMBOL_GPL(get_cpu_iowait_time_us);
 
-static void tick_nohz_stop_sched_tick(struct tick_sched *ts)
+static void tick_nohz_stop_sched_tick(struct tick_sched *ts, ktime_t now)
 {
 	unsigned long seq, last_jiffies, next_jiffies, delta_jiffies;
-	ktime_t last_update, expires, now;
+	ktime_t last_update, expires;
 	struct clock_event_device *dev = __get_cpu_var(tick_cpu_device).evtdev;
 	u64 time_delta;
 	int cpu;
 
 	cpu = smp_processor_id();
 	ts = &per_cpu(tick_cpu_sched, cpu);
-
-	now = tick_nohz_start_idle(cpu, ts);
 
 	/*
 	 * If this cpu is offline and it is the one which updates
@@ -394,7 +420,7 @@ static void tick_nohz_stop_sched_tick(struct tick_sched *ts)
 	} while (read_seqretry(&xtime_lock, seq));
 
 	if (rcu_needs_cpu(cpu) || printk_needs_cpu(cpu) ||
-	    arch_needs_cpu(cpu)) {
+	    arch_needs_cpu(cpu) || irq_work_needs_cpu()) {
 		next_jiffies = last_jiffies + 1;
 		delta_jiffies = 1;
 	} else {
@@ -474,7 +500,7 @@ static void tick_nohz_stop_sched_tick(struct tick_sched *ts)
 			nohz_balance_enter_idle(cpu);
 			calc_load_enter_idle();
 
-			ts->idle_tick = hrtimer_get_expires(&ts->sched_timer);
+			ts->last_tick = hrtimer_get_expires(&ts->sched_timer);
 			ts->tick_stopped = 1;
 			ts->idle_jiffies = last_jiffies;
 		}
@@ -515,6 +541,14 @@ out:
 	ts->last_jiffies = last_jiffies;
 }
 
+static void __tick_nohz_idle_enter(struct tick_sched *ts)
+{
+	ktime_t now;
+
+	now = tick_nohz_start_idle(smp_processor_id(), ts);
+	tick_nohz_stop_sched_tick(ts, now);
+}
+
 /**
  * tick_nohz_idle_enter - stop the idle tick from the idle task
  *
@@ -550,7 +584,7 @@ void tick_nohz_idle_enter(void)
 	 * update of the idle time accounting in tick_nohz_start_idle().
 	 */
 	ts->inidle = 1;
-	tick_nohz_stop_sched_tick(ts);
+	__tick_nohz_idle_enter(ts);
 
 	local_irq_enable();
 }
@@ -573,7 +607,7 @@ void tick_nohz_irq_exit(void)
 
 	local_irq_save(flags);
 
-	tick_nohz_stop_sched_tick(ts);
+	__tick_nohz_idle_enter(ts);
 
 	local_irq_restore(flags);
 }
@@ -593,7 +627,7 @@ ktime_t tick_nohz_get_sleep_length(void)
 static void tick_nohz_restart(struct tick_sched *ts, ktime_t now)
 {
 	hrtimer_cancel(&ts->sched_timer);
-	hrtimer_set_expires(&ts->sched_timer, ts->idle_tick);
+	hrtimer_set_expires(&ts->sched_timer, ts->last_tick);
 
 	while (1) {
 		/* Forward the time to expire in the future */
@@ -616,39 +650,11 @@ static void tick_nohz_restart(struct tick_sched *ts, ktime_t now)
 	}
 }
 
-/**
- * tick_nohz_idle_exit - restart the idle tick from the idle task
- *
- * Restart the idle tick when the CPU is woken up from idle
- * This also exit the RCU extended quiescent state. The CPU
- * can use RCU again after this function is called.
- */
-void tick_nohz_idle_exit(void)
+static void tick_nohz_restart_sched_tick(struct tick_sched *ts, ktime_t now)
 {
-	int cpu = smp_processor_id();
-	struct tick_sched *ts = &per_cpu(tick_cpu_sched, cpu);
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
 	unsigned long ticks;
 #endif
-	ktime_t now;
-
-	local_irq_disable();
-
-	WARN_ON_ONCE(!ts->inidle);
-
-	ts->inidle = 0;
-
-	if (ts->idle_active || ts->tick_stopped)
-		now = ktime_get();
-
-	if (ts->idle_active)
-		tick_nohz_stop_idle(cpu, now);
-
-	if (!ts->tick_stopped) {
-		local_irq_enable();
-		return;
-	}
-
 	/* Update jiffies first */
 	tick_do_update_jiffies64(now);
 	update_cpu_load_nohz();
@@ -676,6 +682,35 @@ void tick_nohz_idle_exit(void)
 	ts->idle_exittime = now;
 
 	tick_nohz_restart(ts, now);
+}
+
+/**
+ * tick_nohz_idle_exit - restart the idle tick from the idle task
+ *
+ * Restart the idle tick when the CPU is woken up from idle
+ * This also exit the RCU extended quiescent state. The CPU
+ * can use RCU again after this function is called.
+ */
+void tick_nohz_idle_exit(void)
+{
+	int cpu = smp_processor_id();
+	struct tick_sched *ts = &per_cpu(tick_cpu_sched, cpu);
+	ktime_t now;
+
+	local_irq_disable();
+
+	WARN_ON_ONCE(!ts->inidle);
+
+	ts->inidle = 0;
+
+	if (ts->idle_active || ts->tick_stopped)
+		now = ktime_get();
+
+	if (ts->idle_active)
+		tick_nohz_stop_idle(cpu, now);
+
+	if (ts->tick_stopped)
+		tick_nohz_restart_sched_tick(ts, now);
 
 	local_irq_enable();
 }
