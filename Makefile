@@ -388,7 +388,7 @@ CFLAGS_A15 = -mtune=cortex-a15 -mfpu=neon-vfpv4 -marm
 
 KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common -Wno-unused-value \
-		   -Wno-format-security \
+		   -Wno-format-security -Wno-deprecated-declarations \
 		   -Wno-sizeof-pointer-memaccess \
 		   -Wno-aggressive-loop-optimizations \
 		   -Wno-logical-not-parentheses \
