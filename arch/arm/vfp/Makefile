@@ -9,7 +9,7 @@
 
 KBUILD_AFLAGS	:=$(KBUILD_AFLAGS:-mhard-float=-Wa,-mfpu=neon-vfpv4 -mfloat-abi=hard)
 KBUILD_CFLAGS	+=-O2
-LDFLAGS		+=#--no-warn-mismatch
+LDFLAGS		+=--no-warn-mismatch
 
 obj-y			+= vfp.o
 

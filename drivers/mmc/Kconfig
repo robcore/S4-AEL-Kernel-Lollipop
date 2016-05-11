@@ -30,7 +30,7 @@ config MMC_PERF_PROFILING
 config MMC_SUPPORT_STLOG
 	bool "Enable storage log"
 	depends on MMC && PROC_STLOG
-	default y
+	default n
 
 if MMC
 
