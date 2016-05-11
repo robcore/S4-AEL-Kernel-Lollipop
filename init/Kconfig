@@ -387,6 +387,7 @@ config AUDIT_LOGINUID_IMMUTABLE
 	  but may not be backwards compatible with older init systems.
 
 source "kernel/irq/Kconfig"
+source "kernel/time/Kconfig"
 
 menu "RCU Subsystem"
 
@@ -1036,6 +1037,7 @@ config HOTPLUG
 config PRINTK
 	default y
 	bool "Enable support for printk" if EXPERT
+	select IRQ_WORK
 	help
 	  This option enables normal printk support. Removing it
 	  eliminates most of the message strings from the kernel image

@@ -436,6 +436,8 @@ static int __init arch_timer_cpu_pm_init(void)
 }
 #endif
 
+static struct clock_event_device arch_timer_global_evt;
+
 static int __init arch_timer_common_register(void)
 {
 	int err;

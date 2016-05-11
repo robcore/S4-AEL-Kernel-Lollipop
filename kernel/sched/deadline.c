@@ -121,7 +121,7 @@ static inline void dl_clear_overload(struct rq *rq)
 
 static void update_dl_migration(struct dl_rq *dl_rq)
 {
-	if (dl_rq->dl_nr_migratory && dl_rq->dl_nr_total > 1) {
+	if (dl_rq->dl_nr_migratory && dl_rq->dl_nr_running > 1) {
 		if (!dl_rq->overloaded) {
 			dl_set_overload(rq_of_dl_rq(dl_rq));
 			dl_rq->overloaded = 1;
@@ -134,9 +134,6 @@ static void update_dl_migration(struct dl_rq *dl_rq)
 
 static void inc_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 {
-	dl_rq = &rq_of_dl_rq(dl_rq)->dl;
-
-	dl_rq->dl_nr_total++;
 	if (dl_se->nr_cpus_allowed > 1)
 		dl_rq->dl_nr_migratory++;
 
@@ -145,9 +142,6 @@ static void inc_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 
 static void dec_dl_migration(struct sched_dl_entity *dl_se, struct dl_rq *dl_rq)
 {
-	dl_rq = &rq_of_dl_rq(dl_rq)->dl;
-
-	dl_rq->dl_nr_total--;
 	if (dl_se->nr_cpus_allowed > 1)
 		dl_rq->dl_nr_migratory--;
 
@@ -349,7 +343,8 @@ static void replenish_dl_entity(struct sched_dl_entity *dl_se,
  * disrupting the schedulability of the system. Otherwise, we should
  * refill the runtime and set the deadline a period in the future,
  * because keeping the current (absolute) deadline of the task would
- * result in breaking guarantees promised to other tasks.
+ * result in breaking guarantees promised to other tasks (refer to
+ * Documentation/scheduler/sched-deadline.txt for more informations).
  *
  * This function returns true if:
  *
@@ -563,6 +558,8 @@ int dl_runtime_exceeded(struct rq *rq, struct sched_dl_entity *dl_se)
 	return 1;
 }
 
+extern bool sched_rt_bandwidth_account(struct rt_rq *rt_rq);
+
 /*
  * Update the current task's runtime statistics (provided it is still
  * a -deadline task and has not been removed from the dl_rq).
@@ -626,11 +623,13 @@ static void update_curr_dl(struct rq *rq)
 		struct rt_rq *rt_rq = &rq->rt;
 
 		raw_spin_lock(&rt_rq->rt_runtime_lock);
-		rt_rq->rt_time += delta_exec;
 		/*
 		 * We'll let actual RT tasks worry about the overflow here, we
-		 * have our own CBS to keep us inline -- see above.
+		 * have our own CBS to keep us inline; only account when RT
+		 * bandwidth is relevant.
 		 */
+		if (sched_rt_bandwidth_account(rt_rq))
+			rt_rq->rt_time += delta_exec;
 		raw_spin_unlock(&rt_rq->rt_runtime_lock);
 	}
 }

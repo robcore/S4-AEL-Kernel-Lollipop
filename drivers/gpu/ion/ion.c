@@ -1586,6 +1586,10 @@ static int ion_debug_heap_show(struct seq_file *s, void *unused)
 	struct ion_heap *heap = s->private;
 	struct ion_device *dev = heap->dev;
 	struct rb_node *n;
+	size_t size;
+
+	if (!heap->ops->phys)
+		return;
 
 	seq_printf(s, "%16.s %16.s %16.s\n", "client", "pid", "size");
 

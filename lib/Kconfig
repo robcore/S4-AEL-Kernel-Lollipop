@@ -2,10 +2,10 @@
 # Library configuration
 #
 
+menu "Library routines"
+
 config BINARY_PRINTF
 	def_bool n
-
-menu "Library routines"
 
 config RAID6_PQ
 	tristate

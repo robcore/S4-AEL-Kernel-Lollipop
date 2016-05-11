@@ -450,7 +450,6 @@ struct dl_rq {
 	} earliest_dl;
 
 	unsigned long dl_nr_migratory;
-	unsigned long dl_nr_total;
 	int overloaded;
 
 	/*
@@ -481,6 +480,9 @@ struct root_domain {
 	struct rcu_head rcu;
 	cpumask_var_t span;
 	cpumask_var_t online;
+
+	/* Indicate more than one runnable task for any CPU */
+	bool overload;
 
 	/*
 	 * The bit corresponding to a CPU gets set here if such CPU has more
@@ -635,6 +637,16 @@ struct rq {
 	unsigned int ttwu_count;
 	unsigned int ttwu_local;
 #endif
+
+static inline u64 rq_clock(struct rq *rq)
+{
+	return rq->clock;
+}
+
+static inline u64 rq_clock_task(struct rq *rq)
+{
+	return rq->clock_task;
+}
 
 #ifdef CONFIG_SMP
 	struct llist_head wake_list;
@@ -1164,7 +1176,7 @@ extern const struct sched_class idle_sched_class;
 
 extern void update_group_power(struct sched_domain *sd, int cpu);
 
-extern void trigger_load_balance(struct rq *rq, int cpu);
+extern void trigger_load_balance(struct rq *rq);
 extern void idle_balance(int this_cpu, struct rq *this_rq);
 
 #else	/* CONFIG_SMP */
@@ -1284,15 +1296,20 @@ static inline void inc_nr_running(struct rq *rq)
 #endif
 	rq->nr_running++;
 
-#ifdef CONFIG_NO_HZ_FULL
 	if (rq->nr_running == 2) {
+#ifdef CONFIG_SMP
+		if (!rq->rd->overload)
+			rq->rd->overload = true;
+#endif
+
+#ifdef CONFIG_NO_HZ_FULL
 		if (tick_nohz_full_cpu(rq->cpu)) {
 			/* Order rq->nr_running write against the IPI */
 			smp_wmb();
 			smp_send_reschedule(rq->cpu);
 		}
-       }
 #endif
+	}
 
 #if defined(CONFIG_INTELLI_HOTPLUG) || defined(CONFIG_MSM_RUN_QUEUE_STATS_BE_CONSERVATIVE)
 	write_seqcount_end(&nr_stats->ave_seqcnt);

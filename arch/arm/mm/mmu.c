@@ -35,6 +35,8 @@
 
 #include <asm/user_accessible_timer.h>
 
+#include <asm/user_accessible_timer.h>
+
 #include "mm.h"
 #include "tcm.h"
 
@@ -312,6 +314,13 @@ static struct mem_type mem_types[] = {
 				L_PTE_XN,
 		.prot_l1   = PMD_TYPE_TABLE,
 		.domain    = DOMAIN_KERNEL,
+	},
+	[MT_DEVICE_USER_ACCESSIBLE] = {
+		.prot_pte  = PROT_PTE_DEVICE | L_PTE_MT_DEV_SHARED |
+				L_PTE_SHARED | L_PTE_USER | L_PTE_RDONLY,
+		.prot_l1   = PMD_TYPE_TABLE,
+		.prot_sect = PROT_SECT_DEVICE | PMD_SECT_S,
+		.domain    = DOMAIN_IO,
 	},
 	[MT_DEVICE_USER_ACCESSIBLE] = {
 		.prot_pte  = PROT_PTE_DEVICE | L_PTE_MT_DEV_SHARED |
@@ -1244,6 +1253,20 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 	if (mdesc->map_io)
 		mdesc->map_io();
 	fill_pmd_gaps();
+
+	if (use_user_accessible_timers()) {
+		/*
+		 * Generate a mapping for the timer page.
+		 */
+		int page_addr = get_timer_page_address();
+		if (page_addr != ARM_USER_ACCESSIBLE_TIMERS_INVALID_PAGE) {
+			map.pfn = __phys_to_pfn(page_addr);
+			map.virtual = CONFIG_ARM_USER_ACCESSIBLE_TIMER_BASE;
+			map.length = PAGE_SIZE;
+			map.type = MT_DEVICE_USER_ACCESSIBLE;
+			create_mapping(&map);
+		}
+	}
 
 	if (use_user_accessible_timers()) {
 		/*
