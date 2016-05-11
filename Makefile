@@ -164,7 +164,6 @@ export srctree objtree VPATH
 # line overrides the setting of ARCH below.  If a native build is happening,
 # then ARCH is assigned, getting whatever value it gets normally, and
 # SUBARCH is subsequently ignored.
-ARCH :=
 
 SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 				  -e s/arm.*/arm/ -e s/sa110/arm/ \
@@ -246,7 +245,7 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   = -Wall -fgraphite -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block -Wmissing-prototypes -Wstrict-prototypes -Ofast -fomit-frame-pointer
+HOSTCFLAGS   = -Wall -fgraphite -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block -Wmissing-prototypes -Wstrict-prototypes -Ofast -fomit-frame-pointer -std=gnu89
 HOSTCXXFLAGS = -Ofast
 
 # Decide whether to build built-in, modular, or both.
@@ -359,10 +358,10 @@ CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
 
 KERNEL_FLAGS	= -marm -mtune=cortex-a15 -mcpu=cortex-a15 -mfpu=neon-vfpv4 \
-		  -mvectorize-with-neon-quad -fgcse-after-reload -fgcse-sm \
-		  -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fweb \
-		  -frename-registers -ftree-loop-linear -ftree-vectorize \
-		  -fmodulo-sched -ffast-math -funsafe-math-optimizations
+		  -mvectorize-with-neon-quad -ftree-vectorize \
+		  #-fsanitize=float-divide-by-zero -fsanitize=bounds \
+		  #-fsanitize=float-cast-overflow \
+		  -Wbool-compare
 
 CFLAGS_MODULE   = -marm -mtune=cortex-a15 -munaligned-access -fno-pic -mfpu=neon-vfpv4 -mvectorize-with-neon-quad -fpredictive-commoning -fno-cond-mismatch -fsingle-precision-constant -mcpu=cortex-a15 -ftree-vectorize -mvectorize-with-neon-quad -funroll-loops -ftree-loop-im -ftree-loop-ivcanon -fmodulo-sched -fmodulo-sched-allow-regmoves -fivopts -mneon-for-64bits -fopenmp -fopenmp-simd -fsimd-cost-model=unlimited -fgraphite
 CFLAGS_MODULE   = -DMODULE $(KERNEL_FLAGS)
@@ -375,7 +374,6 @@ CFLAGS_MODULE   = -marm -mtune=cortex-a15 -munaligned-access -fno-pic -mfpu=neon
 endif
 AFLAGS_KERNEL	=
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
-
 
 # Use LINUXINCLUDE when you must reference the include/ directory.
 # Needed to be compatible with the O= option
@@ -398,7 +396,8 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Wno-sequence-point -Wno-unused-variable -Wno-unused-function \
 		   -fno-delete-null-pointer-checks -Wno-maybe-uninitialized -Wno-declaration-after-statement \
 		   -mtune=cortex-a15 -mfpu=neon-vfpv4 \
-		   -funsafe-math-optimizations -ftree-vectorize
+		   -funsafe-math-optimizations -ftree-vectorize \
+		   -std=gnu89 \
 		   $(KERNEL_FLAGS)
 
 KBUILD_AFLAGS_KERNEL :=

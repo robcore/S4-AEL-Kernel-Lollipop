@@ -1,0 +1,1053 @@
+From 436218a4144b0f98cf2e71b435561f03f68e49f6 Mon Sep 17 00:00:00 2001
+From: robcore <robpatershuk@gmail.com>
+Date: Wed, 11 May 2016 13:24:09 -0600
+Subject: [PATCH] to be reverted
+
+---
+ Makefile                             |  15 +-
+ arch/arm/Makefile                    |   8 -
+ arch/arm/kernel/arch_timer.c.orig    | 613 -----------------------------------
+ arch/arm/mach-msm/Kconfig            |   2 -
+ arch/arm/mach-msm/Makefile           |   3 +
+ arch/arm/vfp/Makefile                |   2 +-
+ block/Kconfig                        |   2 +-
+ build-all.py                         |   2 +-
+ cherryp.sh                           |   5 -
+ drivers/base/Kconfig                 |  19 +-
+ drivers/cpufreq/Kconfig              |   1 -
+ drivers/cpuidle/Kconfig              |   2 +
+ drivers/crypto/msm/Makefile          |   2 +
+ drivers/mmc/Kconfig                  |   2 +-
+ drivers/mmc/card/Kconfig             |   2 +
+ drivers/net/phy/Makefile             |   2 +
+ drivers/net/wireless/bcmdhd/Makefile |   4 +-
+ drivers/staging/android/Kconfig      |  12 +
+ drivers/staging/zcache/Kconfig       |   3 +-
+ drivers/thermal/Kconfig              |   8 +
+ net/Makefile                         |   2 +-
+ sound/soc/codecs/Makefile            |   5 +
+ sound/soc/msm/Makefile               |   2 +-
+ 23 files changed, 69 insertions(+), 649 deletions(-)
+ delete mode 100644 arch/arm/kernel/arch_timer.c.orig
+ delete mode 100644 cherryp.sh
+
+diff --git a/Makefile b/Makefile
+index b1a8209..93645e7 100644
+--- a/Makefile
++++ b/Makefile
+@@ -164,6 +164,7 @@ export srctree objtree VPATH
+ # line overrides the setting of ARCH below.  If a native build is happening,
+ # then ARCH is assigned, getting whatever value it gets normally, and
+ # SUBARCH is subsequently ignored.
++ARCH :=
+ 
+ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
+ 				  -e s/arm.*/arm/ -e s/sa110/arm/ \
+@@ -245,7 +246,7 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
+ 
+ HOSTCC       = gcc
+ HOSTCXX      = g++
+-HOSTCFLAGS   = -Wall -fgraphite -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block -Wmissing-prototypes -Wstrict-prototypes -Ofast -fomit-frame-pointer -std=gnu89
++HOSTCFLAGS   = -Wall -fgraphite -floop-flatten -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block -Wmissing-prototypes -Wstrict-prototypes -Ofast -fomit-frame-pointer
+ HOSTCXXFLAGS = -Ofast
+ 
+ # Decide whether to build built-in, modular, or both.
+@@ -358,10 +359,10 @@ CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
+ 		  -Wbitwise -Wno-return-void $(CF)
+ 
+ KERNEL_FLAGS	= -marm -mtune=cortex-a15 -mcpu=cortex-a15 -mfpu=neon-vfpv4 \
+-		  -mvectorize-with-neon-quad -ftree-vectorize \
+-		  #-fsanitize=float-divide-by-zero -fsanitize=bounds \
+-		  #-fsanitize=float-cast-overflow \
+-		  -Wbool-compare
++		  -mvectorize-with-neon-quad -fgcse-after-reload -fgcse-sm \
++		  -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fweb \
++		  -frename-registers -ftree-loop-linear -ftree-vectorize \
++		  -fmodulo-sched -ffast-math -funsafe-math-optimizations
+ 
+ CFLAGS_MODULE   = -marm -mtune=cortex-a15 -munaligned-access -fno-pic -mfpu=neon-vfpv4 -mvectorize-with-neon-quad -fpredictive-commoning -fno-cond-mismatch -fsingle-precision-constant -mcpu=cortex-a15 -ftree-vectorize -mvectorize-with-neon-quad -funroll-loops -ftree-loop-im -ftree-loop-ivcanon -fmodulo-sched -fmodulo-sched-allow-regmoves -fivopts -mneon-for-64bits -fopenmp -fopenmp-simd -fsimd-cost-model=unlimited -fgraphite
+ CFLAGS_MODULE   = -DMODULE $(KERNEL_FLAGS)
+@@ -375,6 +376,7 @@ endif
+ AFLAGS_KERNEL	=
+ CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
+ 
++
+ # Use LINUXINCLUDE when you must reference the include/ directory.
+ # Needed to be compatible with the O= option
+ LINUXINCLUDE    := -I$(srctree)/arch/$(hdr-arch)/include \
+@@ -396,8 +398,7 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
+ 		   -Wno-sequence-point -Wno-unused-variable -Wno-unused-function \
+ 		   -fno-delete-null-pointer-checks -Wno-maybe-uninitialized -Wno-declaration-after-statement \
+ 		   -mtune=cortex-a15 -mfpu=neon-vfpv4 \
+-		   -funsafe-math-optimizations -ftree-vectorize \
+-		   -std=gnu89 \
++		   -funsafe-math-optimizations -ftree-vectorize
+ 		   $(KERNEL_FLAGS)
+ 
+ KBUILD_AFLAGS_KERNEL :=
+diff --git a/arch/arm/Makefile b/arch/arm/Makefile
+index 9f1f48e..6857034 100644
+--- a/arch/arm/Makefile
++++ b/arch/arm/Makefile
+@@ -60,14 +60,6 @@ endif
+ 
+ comma = ,
+ 
+-#
+-# The Scalar Replacement of Aggregates (SRA) optimization pass in GCC 4.9 and
+-# later may result in code being generated that handles signed short and signed
+-# char struct members incorrectly. So disable it.
+-# (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=65932)
+-#
+-#KBUILD_CFLAGS	+= $(call cc-option,-fno-ipa-sra)
+-
+ # This selects which instruction set is used.
+ # Note that GCC does not numerically define an architecture version
+ # macro, but instead defines a whole series of macros which makes
+diff --git a/arch/arm/kernel/arch_timer.c.orig b/arch/arm/kernel/arch_timer.c.orig
+deleted file mode 100644
+index 697f859..0000000
+--- a/arch/arm/kernel/arch_timer.c.orig
++++ /dev/null
+@@ -1,613 +0,0 @@
+-/*
+- *  linux/arch/arm/kernel/arch_timer.c
+- *
+- *  Copyright (C) 2011 ARM Ltd.
+- *  All Rights Reserved
+- *
+- * This program is free software; you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 2 as
+- * published by the Free Software Foundation.
+- */
+-#include <linux/init.h>
+-#include <linux/kernel.h>
+-#include <linux/delay.h>
+-#include <linux/timex.h>
+-#include <linux/device.h>
+-#include <linux/smp.h>
+-#include <linux/cpu.h>
+-#include <linux/jiffies.h>
+-#include <linux/clockchips.h>
+-#include <linux/interrupt.h>
+-#include <linux/of_irq.h>
+-#include <linux/of_address.h>
+-#include <linux/io.h>
+-#include <linux/irq.h>
+-#include <linux/export.h>
+-#include <linux/slab.h>
+-
+-#include <asm/cputype.h>
+-#include <asm/delay.h>
+-#include <asm/localtimer.h>
+-#include <asm/arch_timer.h>
+-#include <asm/sched_clock.h>
+-#include <asm/hardware/gic.h>
+-#include <asm/system_info.h>
+-
+-static unsigned long arch_timer_rate;
+-static int arch_timer_spi;
+-static int arch_timer_ppi;
+-static int arch_timer_ppi2;
+-
+-static struct clock_event_device __percpu **arch_timer_evt;
+-static void __iomem *timer_base;
+-
+-static struct delay_timer arch_delay_timer;
+-
+-/*
+- * Architected system timer support.
+- */
+-
+-#define ARCH_TIMER_CTRL_ENABLE		(1 << 0)
+-#define ARCH_TIMER_CTRL_IT_MASK		(1 << 1)
+-#define ARCH_TIMER_CTRL_IT_STAT		(1 << 2)
+-
+-#define ARCH_TIMER_REG_CTRL		0
+-#define ARCH_TIMER_REG_FREQ		1
+-#define ARCH_TIMER_REG_TVAL		2
+-
+-/* Iomapped Register Offsets */
+-#define QTIMER_CNTP_LOW_REG		0x000
+-#define QTIMER_CNTP_HIGH_REG		0x004
+-#define QTIMER_CNTV_LOW_REG		0x008
+-#define QTIMER_CNTV_HIGH_REG		0x00C
+-#define QTIMER_CTRL_REG			0x02C
+-#define QTIMER_FREQ_REG			0x010
+-#define QTIMER_CNTP_TVAL_REG		0x028
+-#define QTIMER_CNTV_TVAL_REG		0x038
+-
+-static inline void timer_reg_write_mem(int reg, u32 val)
+-{
+-	switch (reg) {
+-	case ARCH_TIMER_REG_CTRL:
+-		__raw_writel(val, timer_base + QTIMER_CTRL_REG);
+-		break;
+-	case ARCH_TIMER_REG_TVAL:
+-		__raw_writel(val, timer_base + QTIMER_CNTP_TVAL_REG);
+-		break;
+-	}
+-}
+-
+-static inline void timer_reg_write_cp15(int reg, u32 val)
+-{
+-	switch (reg) {
+-	case ARCH_TIMER_REG_CTRL:
+-		asm volatile("mcr p15, 0, %0, c14, c2, 1" : : "r" (val));
+-		break;
+-	case ARCH_TIMER_REG_TVAL:
+-		asm volatile("mcr p15, 0, %0, c14, c2, 0" : : "r" (val));
+-		break;
+-	}
+-
+-	isb();
+-}
+-
+-static inline void arch_timer_reg_write(int cp15, int reg, u32 val)
+-{
+-	if (cp15)
+-		timer_reg_write_cp15(reg, val);
+-	else
+-		timer_reg_write_mem(reg, val);
+-}
+-
+-static inline u32 timer_reg_read_mem(int reg)
+-{
+-	u32 val;
+-
+-	switch (reg) {
+-	case ARCH_TIMER_REG_CTRL:
+-		val = __raw_readl(timer_base + QTIMER_CTRL_REG);
+-		break;
+-	case ARCH_TIMER_REG_FREQ:
+-		val = __raw_readl(timer_base + QTIMER_FREQ_REG);
+-		break;
+-	case ARCH_TIMER_REG_TVAL:
+-		val = __raw_readl(timer_base + QTIMER_CNTP_TVAL_REG);
+-		break;
+-	default:
+-		BUG();
+-	}
+-
+-	return val;
+-}
+-
+-static inline u32 timer_reg_read_cp15(int reg)
+-{
+-	u32 val;
+-
+-	switch (reg) {
+-	case ARCH_TIMER_REG_CTRL:
+-		asm volatile("mrc p15, 0, %0, c14, c2, 1" : "=r" (val));
+-		break;
+-	case ARCH_TIMER_REG_FREQ:
+-		asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (val));
+-		break;
+-	case ARCH_TIMER_REG_TVAL:
+-		asm volatile("mrc p15, 0, %0, c14, c2, 0" : "=r" (val));
+-		break;
+-	default:
+-		BUG();
+-	}
+-
+-	return val;
+-}
+-
+-static inline u32 arch_timer_reg_read(int cp15, int reg)
+-{
+-	if (cp15)
+-		return timer_reg_read_cp15(reg);
+-	else
+-		return timer_reg_read_mem(reg);
+-}
+-
+-static inline irqreturn_t arch_timer_handler(int cp15,
+-					     struct clock_event_device *evt)
+-{
+-	unsigned long ctrl;
+-
+-	ctrl = arch_timer_reg_read(cp15, ARCH_TIMER_REG_CTRL);
+-	if (ctrl & ARCH_TIMER_CTRL_IT_STAT) {
+-		ctrl |= ARCH_TIMER_CTRL_IT_MASK;
+-		arch_timer_reg_write(cp15, ARCH_TIMER_REG_CTRL, ctrl);
+-		evt->event_handler(evt);
+-		return IRQ_HANDLED;
+-	}
+-
+-	return IRQ_NONE;
+-}
+-
+-static irqreturn_t arch_timer_handler_cp15(int irq, void *dev_id)
+-{
+-	struct clock_event_device *evt = *(struct clock_event_device **)dev_id;
+-	return arch_timer_handler(1, evt);
+-}
+-
+-static irqreturn_t arch_timer_handler_mem(int irq, void *dev_id)
+-{
+-	return arch_timer_handler(0, dev_id);
+-}
+-
+-static inline void arch_timer_set_mode(int cp15, enum clock_event_mode mode,
+-				struct clock_event_device *clk)
+-{
+-	unsigned long ctrl;
+-
+-	switch (mode) {
+-	case CLOCK_EVT_MODE_UNUSED:
+-	case CLOCK_EVT_MODE_SHUTDOWN:
+-		ctrl = arch_timer_reg_read(cp15, ARCH_TIMER_REG_CTRL);
+-		ctrl &= ~ARCH_TIMER_CTRL_ENABLE;
+-		arch_timer_reg_write(cp15, ARCH_TIMER_REG_CTRL, ctrl);
+-		break;
+-	case CLOCK_EVT_MODE_ONESHOT:
+-		ctrl = arch_timer_reg_read(cp15, ARCH_TIMER_REG_CTRL);
+-		ctrl |= ARCH_TIMER_CTRL_ENABLE;
+-		arch_timer_reg_write(cp15, ARCH_TIMER_REG_CTRL, ctrl);
+-	default:
+-		break;
+-	}
+-}
+-
+-static void arch_timer_set_mode_cp15(enum clock_event_mode mode,
+-				struct clock_event_device *clk)
+-{
+-	arch_timer_set_mode(1, mode, clk);
+-}
+-
+-static void arch_timer_set_mode_mem(enum clock_event_mode mode,
+-				struct clock_event_device *clk)
+-{
+-	arch_timer_set_mode(0, mode, clk);
+-}
+-
+-static int arch_timer_set_next_event(int cp15, unsigned long evt,
+-				     struct clock_event_device *unused)
+-{
+-	unsigned long ctrl;
+-
+-	ctrl = arch_timer_reg_read(cp15, ARCH_TIMER_REG_CTRL);
+-	ctrl &= ~ARCH_TIMER_CTRL_IT_MASK;
+-	arch_timer_reg_write(cp15, ARCH_TIMER_REG_CTRL, ctrl);
+-	arch_timer_reg_write(cp15, ARCH_TIMER_REG_TVAL, evt);
+-
+-	return 0;
+-}
+-
+-static int arch_timer_set_next_event_cp15(unsigned long evt,
+-				     struct clock_event_device *unused)
+-{
+-	return arch_timer_set_next_event(1, evt, unused);
+-}
+-
+-static int arch_timer_set_next_event_mem(unsigned long evt,
+-				     struct clock_event_device *unused)
+-{
+-	return arch_timer_set_next_event(0, evt, unused);
+-}
+-
+-static int __cpuinit arch_timer_setup(struct clock_event_device *clk)
+-{
+-	/* setup clock event only once for CPU 0 */
+-	if (!smp_processor_id() && clk->irq == arch_timer_ppi)
+-		return 0;
+-
+-	clk->features = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_C3STOP;
+-	clk->name = "arch_sys_timer";
+-	clk->rating = 450;
+-	clk->set_mode = arch_timer_set_mode_cp15;
+-	clk->set_next_event = arch_timer_set_next_event_cp15;
+-	clk->irq = arch_timer_ppi;
+-
+-	/* Be safe... */
+-	clk->set_mode(CLOCK_EVT_MODE_SHUTDOWN, clk);
+-
+-	clockevents_config_and_register(clk, arch_timer_rate,
+-					0xf, 0x7fffffff);
+-
+-	*__this_cpu_ptr(arch_timer_evt) = clk;
+-
+-	enable_percpu_irq(clk->irq, 0);
+-	if (arch_timer_ppi2)
+-		enable_percpu_irq(arch_timer_ppi2, 0);
+-
+-	return 0;
+-}
+-
+-/* Is the optional system timer available? */
+-static int local_timer_is_architected(void)
+-{
+-	return (cpu_architecture() >= CPU_ARCH_ARMv7) &&
+-		((read_cpuid_ext(CPUID_EXT_PFR1) >> 16) & 0xf) == 1;
+-}
+-
+-static int arch_timer_available(void)
+-{
+-	unsigned long freq;
+-
+-	if (arch_timer_rate == 0) {
+-		arch_timer_reg_write(1, ARCH_TIMER_REG_CTRL, 0);
+-		freq = arch_timer_reg_read(1, ARCH_TIMER_REG_FREQ);
+-
+-		/* Check the timer frequency. */
+-		if (freq == 0) {
+-			pr_warn("Architected timer frequency not available\n");
+-			return -EINVAL;
+-		}
+-
+-		arch_timer_rate = freq;
+-		pr_info("Architected local timer running at %lu.%02luMHz.\n",
+-			freq / 1000000, (freq / 10000) % 100);
+-	}
+-
+-	return 0;
+-}
+-
+-static inline cycle_t notrace counter_get_cntpct_mem(void)
+-{
+-	u32 cvall, cvalh, thigh;
+-
+-	do {
+-		cvalh = __raw_readl(timer_base + QTIMER_CNTP_HIGH_REG);
+-		cvall = __raw_readl(timer_base + QTIMER_CNTP_LOW_REG);
+-		thigh = __raw_readl(timer_base + QTIMER_CNTP_HIGH_REG);
+-	} while (cvalh != thigh);
+-
+-	return ((cycle_t) cvalh << 32) | cvall;
+-}
+-
+-static inline cycle_t notrace counter_get_cntpct_cp15(void)
+-{
+-	u32 cvall, cvalh;
+-
+-	asm volatile("mrrc p15, 0, %0, %1, c14" : "=r" (cvall), "=r" (cvalh));
+-	return ((cycle_t) cvalh << 32) | cvall;
+-}
+-
+-static inline cycle_t notrace counter_get_cntvct_mem(void)
+-{
+-	u32 cvall, cvalh, thigh;
+-
+-	do {
+-		cvalh = __raw_readl(timer_base + QTIMER_CNTV_HIGH_REG);
+-		cvall = __raw_readl(timer_base + QTIMER_CNTV_LOW_REG);
+-		thigh = __raw_readl(timer_base + QTIMER_CNTV_HIGH_REG);
+-	} while (cvalh != thigh);
+-
+-	return ((cycle_t) cvalh << 32) | cvall;
+-}
+-
+-static inline cycle_t notrace counter_get_cntvct_cp15(void)
+-{
+-	u32 cvall, cvalh;
+-
+-	asm volatile("mrrc p15, 1, %0, %1, c14" : "=r" (cvall), "=r" (cvalh));
+-	return ((cycle_t) cvalh << 32) | cvall;
+-}
+-
+-static cycle_t (*get_cntpct_func)(void) = counter_get_cntpct_cp15;
+-static cycle_t (*get_cntvct_func)(void) = counter_get_cntvct_cp15;
+-
+-cycle_t arch_counter_get_cntpct(void)
+-{
+-	return get_cntpct_func();
+-}
+-EXPORT_SYMBOL(arch_counter_get_cntpct);
+-
+-static cycle_t arch_counter_read(struct clocksource *cs)
+-{
+-	return arch_counter_get_cntpct();
+-}
+-
+-static unsigned long arch_timer_read_current_timer(void)
+-{
+-	return arch_counter_get_cntpct();
+-}
+-
+-static struct clocksource clocksource_counter = {
+-	.name	= "arch_sys_counter",
+-	.rating	= 400,
+-	.read	= arch_counter_read,
+-	.mask	= CLOCKSOURCE_MASK(56),
+-	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+-};
+-
+-static u32 arch_counter_get_cntvct32(void)
+-{
+-	cycle_t cntvct;
+-
+-	cntvct = get_cntvct_func();
+-
+-	/*
+-	 * The sched_clock infrastructure only knows about counters
+-	 * with at most 32bits. Forget about the upper 24 bits for the
+-	 * time being...
+-	 */
+-	return (u32)(cntvct & (u32)~0);
+-}
+-
+-static u32 notrace arch_timer_update_sched_clock(void)
+-{
+-	return arch_counter_get_cntvct32();
+-}
+-
+-static void __cpuinit arch_timer_stop(struct clock_event_device *clk)
+-{
+-	pr_debug("arch_timer_teardown disable IRQ%d cpu #%d\n",
+-		 clk->irq, smp_processor_id());
+-	disable_percpu_irq(clk->irq);
+-	if (arch_timer_ppi2)
+-		disable_percpu_irq(arch_timer_ppi2);
+-	clk->set_mode(CLOCK_EVT_MODE_UNUSED, clk);
+-}
+-
+-static struct local_timer_ops arch_timer_ops __cpuinitdata = {
+-	.setup	= arch_timer_setup,
+-	.stop	= arch_timer_stop,
+-};
+-
+-static struct clock_event_device arch_timer_global_evt;
+-
+-static void __init arch_timer_counter_init(void)
+-{
+-	clocksource_register_hz(&clocksource_counter, arch_timer_rate);
+-
+-	setup_sched_clock(arch_timer_update_sched_clock, 32, arch_timer_rate);
+-
+-	/* Use the architected timer for the delay loop. */
+-	arch_delay_timer.read_current_timer = &arch_timer_read_current_timer;
+-	arch_delay_timer.freq = arch_timer_rate;
+-	register_current_timer_delay(&arch_delay_timer);
+-}
+-
+-static int __init arch_timer_common_register(void)
+-{
+-	int err;
+-
+-	if (!local_timer_is_architected())
+-		return -ENXIO;
+-
+-	err = arch_timer_available();
+-	if (err)
+-		return err;
+-
+-	arch_timer_evt = alloc_percpu(struct clock_event_device *);
+-	if (!arch_timer_evt)
+-		return -ENOMEM;
+-
+-	err = request_percpu_irq(arch_timer_ppi, arch_timer_handler_cp15,
+-			 "arch_timer", arch_timer_evt);
+-	if (err) {
+-		pr_err("arch_timer: can't register interrupt %d (%d)\n",
+-		       arch_timer_ppi, err);
+-		goto out_free;
+-	}
+-
+-	if (arch_timer_ppi2) {
+-		err = request_percpu_irq(arch_timer_ppi2,
+-				arch_timer_handler_cp15,
+-				"arch_timer", arch_timer_evt);
+-		if (err) {
+-			pr_err("arch_timer: can't register interrupt %d (%d)\n",
+-			       arch_timer_ppi2, err);
+-			arch_timer_ppi2 = 0;
+-			goto out_free_irq;
+-		}
+-	}
+-
+-	err = local_timer_register(&arch_timer_ops);
+-	if (err) {
+-		/*
+-		 * We couldn't register as a local timer (could be
+-		 * because we're on a UP platform, or because some
+-		 * other local timer is already present...). Try as a
+-		 * global timer instead.
+-		 */
+-		arch_timer_global_evt.cpumask = cpumask_of(0);
+-		err = arch_timer_setup(&arch_timer_global_evt);
+-	}
+-
+-	if (err)
+-		goto out_free_irq;
+-
+-	return 0;
+-
+-out_free_irq:
+-	free_percpu_irq(arch_timer_ppi, arch_timer_evt);
+-	if (arch_timer_ppi2)
+-		free_percpu_irq(arch_timer_ppi2, arch_timer_evt);
+-
+-out_free:
+-	free_percpu(arch_timer_evt);
+-
+-	return err;
+-}
+-
+-static int __init arch_timer_mem_register(void)
+-{
+-	int err;
+-	struct clock_event_device *clk;
+-
+-	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+-	if (!clk)
+-		return -ENOMEM;
+-
+-	clk->features = CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_DYNIRQ;
+-	clk->name = "arch_mem_timer";
+-	clk->rating = 400;
+-	clk->set_mode = arch_timer_set_mode_mem;
+-	clk->set_next_event = arch_timer_set_next_event_mem;
+-	clk->irq = arch_timer_spi;
+-	clk->cpumask = cpu_all_mask;
+-
+-	clk->set_mode(CLOCK_EVT_MODE_SHUTDOWN, clk);
+-
+-	clockevents_config_and_register(clk, arch_timer_rate,
+-					0xf, 0x7fffffff);
+-
+-	err = request_irq(arch_timer_spi, arch_timer_handler_mem, 0,
+-		"arch_timer", clk);
+-
+-	return err;
+-}
+-
+-int __init arch_timer_register(struct arch_timer *at)
+-{
+-	if (at->res[0].start <= 0 || !(at->res[0].flags & IORESOURCE_IRQ))
+-		return -EINVAL;
+-
+-	arch_timer_ppi = at->res[0].start;
+-
+-	if (at->res[1].start > 0 && (at->res[1].flags & IORESOURCE_IRQ))
+-		arch_timer_ppi2 = at->res[1].start;
+-
+-	if (at->res[2].start > 0 && at->res[2].end > 0 &&
+-					(at->res[2].flags & IORESOURCE_MEM))
+-		timer_base = ioremap(at->res[2].start,
+-				resource_size(&at->res[2]));
+-
+-	if (!timer_base) {
+-		pr_err("arch_timer: cant map timer base\n");
+-		return -ENOMEM;
+-	}
+-
+-	return arch_timer_common_register();
+-}
+-
+-#ifdef CONFIG_OF
+-static const struct of_device_id arch_timer_of_match[] __initconst = {
+-	{ .compatible	= "arm,armv7-timer",	},
+-	{},
+-};
+-
+-static const struct of_device_id arch_timer_mem_of_match[] __initconst = {
+-	{ .compatible	= "arm,armv7-timer-mem",	},
+-	{},
+-};
+-
+-int __init arch_timer_of_register(void)
+-{
+-	struct device_node *np, *frame;
+-	u32 freq;
+-	int ret;
+-	int has_cp15 = false, has_mem = false;
+-
+-	np = of_find_matching_node(NULL, arch_timer_of_match);
+-	if (np) {
+-		has_cp15 = true;
+-		/*
+-		 * Try to determine the frequency from the device tree
+-		 */
+-		if (!of_property_read_u32(np, "clock-frequency", &freq))
+-			arch_timer_rate = freq;
+-
+-		ret = irq_of_parse_and_map(np, 0);
+-		if (ret <= 0) {
+-			pr_err("arch_timer: interrupt not specified in timer node\n");
+-			return -ENODEV;
+-		}
+-		arch_timer_ppi = ret;
+-		ret = irq_of_parse_and_map(np, 1);
+-		if (ret > 0)
+-			arch_timer_ppi2 = ret;
+-
+-		ret = arch_timer_common_register();
+-		if (ret)
+-			return ret;
+-	}
+-
+-	np = of_find_matching_node(NULL, arch_timer_mem_of_match);
+-	if (np) {
+-		has_mem = true;
+-
+-		if (!has_cp15) {
+-			get_cntpct_func = counter_get_cntpct_mem;
+-			get_cntvct_func = counter_get_cntvct_mem;
+-		}
+-		/*
+-		 * Try to determine the frequency from the device tree
+-		 */
+-		if (!of_property_read_u32(np, "clock-frequency", &freq))
+-			arch_timer_rate = freq;
+-
+-		frame = of_get_next_child(np, NULL);
+-		if (!frame) {
+-			pr_err("arch_timer: no child frame\n");
+-			return -EINVAL;
+-		}
+-
+-		timer_base = of_iomap(frame, 0);
+-		if (!timer_base) {
+-			pr_err("arch_timer: cant map timer base\n");
+-			return -ENOMEM;
+-		}
+-
+-		arch_timer_spi = irq_of_parse_and_map(frame, 0);
+-		if (!arch_timer_spi) {
+-			pr_err("arch_timer: no physical timer irq\n");
+-			return -EINVAL;
+-		}
+-
+-		ret = arch_timer_mem_register();
+-		if (ret)
+-			return ret;
+-	}
+-
+-	if (!has_cp15 && !has_mem) {
+-		pr_err("arch_timer: can't find DT node\n");
+-		return -ENODEV;
+-	}
+-
+-	arch_timer_counter_init();
+-
+-	return 0;
+-}
+-#endif
+diff --git a/arch/arm/mach-msm/Kconfig b/arch/arm/mach-msm/Kconfig
+index d5cd9f0..d21b42f 100755
+--- a/arch/arm/mach-msm/Kconfig
++++ b/arch/arm/mach-msm/Kconfig
+@@ -157,7 +157,6 @@ config ARCH_MSM8960
+ 	select MSM_SPM_V2
+ 	select MSM_L2_SPM
+ 	select MSM_NATIVE_RESTART
+-	select DONT_MAP_HOLE_AFTER_MEMBANK0
+ 	select ENABLE_VMALLOC_SAVINGS
+ 	select MSM_REMOTE_SPINLOCK_SFPB
+ 	select ARCH_HAS_HOLES_MEMORYMODEL
+@@ -199,7 +198,6 @@ config ARCH_MSM8930
+ 	select MSM_SPM_V2
+ 	select MSM_L2_SPM
+ 	select MSM_NATIVE_RESTART
+-	select DONT_MAP_HOLE_AFTER_MEMBANK0
+ 	select MSM_REMOTE_SPINLOCK_SFPB
+ 	select ARCH_HAS_HOLES_MEMORYMODEL
+ 	select MSM_ULTRASOUND
+diff --git a/arch/arm/mach-msm/Makefile b/arch/arm/mach-msm/Makefile
+index ad71ff2..e92ed88 100755
+--- a/arch/arm/mach-msm/Makefile
++++ b/arch/arm/mach-msm/Makefile
+@@ -25,6 +25,9 @@ endif
+ obj-y += acpuclock.o
+ obj-$(CONFIG_HW_PERF_EVENTS) += perf_trace_counters.o
+ obj-$(CONFIG_ARCH_MSM_KRAIT) += acpuclock-krait.o
++ifdef CONFIG_ARCH_MSM_KRAIT
++obj-$(CONFIG_DEBUG_FS) += acpuclock-krait-debug.o
++endif
+ obj-$(CONFIG_ARCH_MSM7X27) += acpuclock-7627.o clock-pll.o
+ obj-$(CONFIG_ARCH_MSM_SCORPION) += pmu.o
+ obj-$(CONFIG_ARCH_MSM_SCORPIONMP) += perf_event_msm_l2.o
+diff --git a/arch/arm/vfp/Makefile b/arch/arm/vfp/Makefile
+index 296ce6a..8367fb5 100755
+--- a/arch/arm/vfp/Makefile
++++ b/arch/arm/vfp/Makefile
+@@ -9,7 +9,7 @@
+ 
+ KBUILD_AFLAGS	:=$(KBUILD_AFLAGS:-mhard-float=-Wa,-mfpu=neon-vfpv4 -mfloat-abi=hard)
+ KBUILD_CFLAGS	+=-O2
+-LDFLAGS		+=#--no-warn-mismatch
++LDFLAGS		+=--no-warn-mismatch
+ 
+ obj-y			+= vfp.o
+ 
+diff --git a/block/Kconfig b/block/Kconfig
+index dcca494..1bd4f60 100755
+--- a/block/Kconfig
++++ b/block/Kconfig
+@@ -115,6 +115,6 @@ config BLOCK_COMPAT
+ config BLOCK_SUPPORT_STLOG
+  	bool "Enable storage log"
+  	depends on BLOCK && PROC_STLOG
+- 	default y
++ 	default n
+ 
+ source block/Kconfig.iosched
+diff --git a/build-all.py b/build-all.py
+index 253c241..ba9ebb7 100755
+--- a/build-all.py
++++ b/build-all.py
+@@ -51,7 +51,7 @@
+ pwd = os.environ.get("PWD")
+ make_env.update({
+         'ARCH': 'arm',
+-        'CROSS_COMPILE': pwd + '/../prebuilts/gcc/linux-x86/arm/arm-eabi-4.7/bin/arm-eabi-',
++        'CROSS_COMPILE': '/opt/toolchains/gcc-linaro-5.3-2016.02-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-',
+         'KCONFIG_NOTIMESTAMP': 'true' })
+ all_options = {}
+ 
+diff --git a/cherryp.sh b/cherryp.sh
+deleted file mode 100644
+index 4851268..0000000
+--- a/cherryp.sh
++++ /dev/null
+@@ -1,5 +0,0 @@
+-#!/bin/bash
+-git rev-list --reverse b4fa7bc65d43ec7c30fd54267ab45ebf342be663^..c170a545082a1fa074818ed6f017e0a2b09b07f6 | while read rev  
+-do 
+-	git cherry-pick $rev || break
+-done
+diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
+index 0b92897..4c8a298 100755
+--- a/drivers/base/Kconfig
++++ b/drivers/base/Kconfig
+@@ -276,7 +276,7 @@ config CMA_SIZE_PERCENTAGE
+ 
+ choice
+ 	prompt "Selected region size"
+-	default CMA_SIZE_SEL_ABSOLUTE
++	default CMA_SIZE_SEL_MBYTES
+ 
+ config CMA_SIZE_SEL_MBYTES
+ 	bool "Use mega bytes value only"
+@@ -312,13 +312,26 @@ config CMA_ALIGNMENT
+ 
+ config CMA_AREAS
+ 	int "Maximum count of the CMA device-private areas"
+-	default 7
++	default 15
+ 	help
+ 	  CMA allows to create CMA areas for particular devices. This parameter
+ 	  sets the maximum number of such device private CMA areas in the
+ 	  system.
+ 
+-	  If unsure, leave the default value "7".
++	  If unsure, leave the default value "15".
++
++config CMA_RESERVE_DEFAULT_AREA
++	bool "Permanently reserve the default area"
++	help
++	  By default, contiguous regions are given back to the page allocator so
++	  the memory may be used when not in contiguous forms. This has better
++	  utilization but the allocation time may be slower. Say Y here to
++	  never have the default region be returned to the page allocator.
++	  This means the memory will always be available for contiguous
++	  allocations but the pages will never be available for anything else
++	  except contiguous allocations.
++
++	  If unsure, say n.
+ 
+ endif
+ 
+diff --git a/drivers/cpufreq/Kconfig b/drivers/cpufreq/Kconfig
+index 2ba62b4..4b77db8 100755
+--- a/drivers/cpufreq/Kconfig
++++ b/drivers/cpufreq/Kconfig
+@@ -2,7 +2,6 @@ menu "CPU Frequency scaling"
+ 
+ config CPU_FREQ
+ 	bool "CPU Frequency scaling"
+-	default y
+ 	help
+ 	  CPU Frequency scaling allows you to change the clock speed of
+ 	  CPUs on the fly. This is a nice method to save power, because
+diff --git a/drivers/cpuidle/Kconfig b/drivers/cpuidle/Kconfig
+index a76b689..3a2bc4b 100755
+--- a/drivers/cpuidle/Kconfig
++++ b/drivers/cpuidle/Kconfig
+@@ -2,6 +2,8 @@
+ config CPU_IDLE
+ 	bool "CPU idle PM support"
+ 	default y if ACPI || PPC_PSERIES
++	select CPU_IDLE_GOV_LADDER if (!NO_HZ && !NO_HZ_IDLE)
++	select CPU_IDLE_GOV_MENU if (NO_HZ || NO_HZ_IDLE)
+ 	help
+ 	  CPU idle is a generic framework for supporting software-controlled
+ 	  idle processor power management.  It includes modular cross-platform
+diff --git a/drivers/crypto/msm/Makefile b/drivers/crypto/msm/Makefile
+index df9acf2..ea230e6 100755
+--- a/drivers/crypto/msm/Makefile
++++ b/drivers/crypto/msm/Makefile
+@@ -1,3 +1,5 @@
++CFLAGS_qcedev.o += -w
++
+ obj-$(CONFIG_CRYPTO_DEV_QCEDEV) += qcedev.o
+ ifeq ($(CONFIG_CRYPTO_DEV_QCE50), y)
+ 	obj-$(CONFIG_CRYPTO_DEV_QCE) += qce50.o
+diff --git a/drivers/mmc/Kconfig b/drivers/mmc/Kconfig
+index cb6a02d..8e12cd2 100755
+--- a/drivers/mmc/Kconfig
++++ b/drivers/mmc/Kconfig
+@@ -30,7 +30,7 @@ config MMC_PERF_PROFILING
+ config MMC_SUPPORT_STLOG
+ 	bool "Enable storage log"
+ 	depends on MMC && PROC_STLOG
+-	default y
++	default n
+ 
+ if MMC
+ 
+diff --git a/drivers/mmc/card/Kconfig b/drivers/mmc/card/Kconfig
+index 5f38db2..e2ab5eb 100755
+--- a/drivers/mmc/card/Kconfig
++++ b/drivers/mmc/card/Kconfig
+@@ -74,6 +74,7 @@ config SDIO_UART
+ 
+ config MMC_TEST
+ 	tristate "MMC host test driver"
++	default n
+ 	help
+ 	  Development driver that performs a series of reads and writes
+ 	  to a memory card in order to expose certain well known bugs
+@@ -108,6 +109,7 @@ config MMC_BKOPS_NODE_GID
+ config MMC_BLOCK_TEST
+ 	tristate "MMC block test"
+ 	depends on MMC_BLOCK && IOSCHED_TEST
++	default n
+ 	help
+ 	  MMC block test can be used with test iosched to test the MMC block
+ 	  device.
+diff --git a/drivers/net/phy/Makefile b/drivers/net/phy/Makefile
+index b7438b1..fcf58f7 100755
+--- a/drivers/net/phy/Makefile
++++ b/drivers/net/phy/Makefile
+@@ -1,5 +1,7 @@
+ # Makefile for Linux PHY drivers
+ 
++CFLAGS_phy.o += -w
++
+ libphy-objs			:= phy.o phy_device.o mdio_bus.o
+ 
+ obj-$(CONFIG_PHYLIB)		+= libphy.o
+diff --git a/drivers/net/wireless/bcmdhd/Makefile b/drivers/net/wireless/bcmdhd/Makefile
+index 780e243..db03b2b 100755
+--- a/drivers/net/wireless/bcmdhd/Makefile
++++ b/drivers/net/wireless/bcmdhd/Makefile
+@@ -20,8 +20,8 @@ DHDCFLAGS += -DCUSTOMER_HW4
+ DHDCFLAGS += -DWL_CFG80211
+ 
+ # Debug
+-DHDCFLAGS += -DSIMPLE_MAC_PRINT
+-DHDCFLAGS += -DDEBUGFS_CFG80211
++#DHDCFLAGS += -DSIMPLE_MAC_PRINT
++#DHDCFLAGS += -DDEBUGFS_CFG80211
+ # Print out kernel panic point of file and line info when assertion happened
+ DHDCFLAGS += -DBCMASSERT_LOG
+ 
+diff --git a/drivers/staging/android/Kconfig b/drivers/staging/android/Kconfig
+index df9c038..cc2188a 100755
+--- a/drivers/staging/android/Kconfig
++++ b/drivers/staging/android/Kconfig
+@@ -12,6 +12,18 @@ config ANDROID_BINDER_IPC
+ 	bool "Android Binder IPC Driver"
+ 	default n
+ 
++config ANDROID_BINDER_IPC_32BIT
++	bool "Use old 32-bit binder api"
++	depends on !64BIT
++	---help---
++	  The Binder API has been changed to support both 32 and 64bit
++	  applications in a mixed environment.
++
++	  Enable this to support an old 32-bit Android user-space (v4.4 and
++	  earlier).
++
++	  Note that enabling this will break newer Android user-space.
++
+ config ASHMEM
+ 	bool "Enable the Anonymous Shared Memory Subsystem"
+ 	default n
+diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
+index 7048e01..340c1ad 100755
+--- a/drivers/staging/zcache/Kconfig
++++ b/drivers/staging/zcache/Kconfig
+@@ -2,8 +2,7 @@ config ZCACHE
+ 	bool "Dynamic compression of swap pages and clean pagecache pages"
+ 	# X86 dependency is because zsmalloc uses non-portable pte/tlb
+ 	# functions
+-	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO=y && X86
+-	select ZSMALLOC
++	depends on (CLEANCACHE || FRONTSWAP) && CRYPTO=y && ZSMALLOC=y
+ 	select CRYPTO_LZO
+ 	default n
+ 	help
+diff --git a/drivers/thermal/Kconfig b/drivers/thermal/Kconfig
+index 2c730ec..268d5c9 100755
+--- a/drivers/thermal/Kconfig
++++ b/drivers/thermal/Kconfig
+@@ -77,12 +77,20 @@ config THERMAL_MONITOR
+ 	bool "Monitor thermal state and limit CPU Frequency"
+ 	depends on THERMAL_TSENS8960 || THERMAL_TSENS8974
+ 	depends on CPU_FREQ_MSM
++	default y
+ 	help
+ 	  This enables thermal monitoring capability in the kernel in the
+ 	  absence of a system wide thermal monitoring entity or until such an
+ 	  entity starts running in the userspace. Monitors TSENS temperature
+ 	  and limits the max frequency of the cores.
+ 
++config INTELLI_THERMAL_STATS
++	bool "Enable intelli_thermal statistics"
++	depends on THERMAL_MONITOR
++	default n
++	help
++	  This enables intelli_thermal statistics
++
+ config SPEAR_THERMAL
+ 	bool "SPEAr thermal sensor driver"
+ 	depends on THERMAL
+diff --git a/net/Makefile b/net/Makefile
+index 6865dab..49747a3 100755
+--- a/net/Makefile
++++ b/net/Makefile
+@@ -9,7 +9,7 @@ obj-y	:= nonet.o
+ 
+ obj-$(CONFIG_NET)		:= socket.o core/
+ 
+-tmp-$(CONFIG_COMPAT) 		:= compat.o
++tmp-$(CONFIG_COMPAT)		:= compat.o
+ obj-$(CONFIG_NET)		+= $(tmp-y)
+ 
+ # LLC has to be linked before the files in net/802/
+diff --git a/sound/soc/codecs/Makefile b/sound/soc/codecs/Makefile
+index 143ba13..570da2c 100755
+--- a/sound/soc/codecs/Makefile
++++ b/sound/soc/codecs/Makefile
+@@ -1,3 +1,7 @@
++CFLAGS_es325.o += -w
++CFLAGS_wcd9310.o += -w
++CFLAGS_wcd9304.o += -w
++
+ snd-soc-88pm860x-objs := 88pm860x-codec.o
+ snd-soc-ac97-objs := ac97.o
+ snd-soc-ad1836-objs := ad1836.o
+@@ -51,6 +55,7 @@ snd-soc-uda1380-objs := uda1380.o
+ snd-soc-wcd9304-objs := wcd9304.o wcd9304-tables.o
+ snd-soc-wcd9306-objs := wcd9306.o wcd9306-tables.o wcd9xxx-resmgr.o wcd9xxx-common.o
+ snd-soc-wcd9310-objs := wcd9310.o wcd9310-tables.o
++CFLAGS_wcd9310.o += -fno-aggressive-loop-optimizations
+ snd-soc-es325-objs := es325.o
+ snd-soc-cs8427-objs := cs8427.o
+ snd-soc-wcd9320-objs := wcd9320.o wcd9320-tables.o
+diff --git a/sound/soc/msm/Makefile b/sound/soc/msm/Makefile
+index f50460d..622b624 100755
+--- a/sound/soc/msm/Makefile
++++ b/sound/soc/msm/Makefile
+@@ -58,7 +58,7 @@ obj-$(CONFIG_SND_SOC_MSM_QDSP6_INTF) += qdsp6/
+ snd-soc-qdsp6-objs := msm-dai-q6.o msm-pcm-q6.o msm-multi-ch-pcm-q6.o msm-lowlatency-pcm-q6.o msm-pcm-loopback.o msm-pcm-routing.o msm-dai-fe.o msm-compr-q6.o msm-dai-stub.o
+ obj-$(CONFIG_SND_SOC_MSM_QDSP6_HDMI_AUDIO) += msm-dai-q6-hdmi.o
+ obj-$(CONFIG_SND_SOC_VOICE) += msm-pcm-voice.o msm-pcm-voip.o
+-snd-soc-qdsp6-objs += msm-pcm-afe.o
++snd-soc-qdsp6-objs += msm-pcm-lpa.o msm-pcm-afe.o
+ obj-$(CONFIG_SND_SOC_QDSP6) += snd-soc-qdsp6.o
+ 
+ ifdef CONFIG_MACH_GOLDEN

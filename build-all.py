@@ -51,7 +51,7 @@ make_env = os.environ
 pwd = os.environ.get("PWD")
 make_env.update({
         'ARCH': 'arm',
-        'CROSS_COMPILE': '/opt/toolchains/gcc-linaro-5.3-2016.02-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-',
+        'CROSS_COMPILE': pwd + '/../prebuilts/gcc/linux-x86/arm/arm-eabi-4.7/bin/arm-eabi-',
         'KCONFIG_NOTIMESTAMP': 'true' })
 all_options = {}
 
