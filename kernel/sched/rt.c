@@ -440,21 +440,6 @@ static void sched_rt_rq_dequeue(struct rt_rq *rt_rq)
 		dequeue_rt_entity(rt_se);
 }
 
-int unthrottle_rt_rq(struct rq *rq)
-{
-	/* if requested from the migration task we will
-	 * unthrottle the rt rq.
-	 */
-	if (rq->rt.rt_throttled
-		&& current->sched_class == &stop_sched_class) {
-		rq->rt.rt_throttled = 0;
-		//printk_sched("sched: RT unthrottled for migration\n");
-		return 1;
-	}
-
-	return 0;
-}
-
 static inline int rt_rq_throttled(struct rt_rq *rt_rq)
 {
 	return rt_rq->rt_throttled && !rt_rq->rt_nr_boosted;
@@ -1357,7 +1342,6 @@ static struct task_struct *_pick_next_task_rt(struct rq *rq)
 		rq->skip_clock_update = 0;
 		update_rq_clock(rq);
 	}
-
 	p = rt_task_of(rt_se);
 	p->se.exec_start = rq->clock_task;
 

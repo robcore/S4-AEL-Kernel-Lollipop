@@ -89,18 +89,26 @@ int sync_filesystem(struct super_block *sb)
 }
 EXPORT_SYMBOL_GPL(sync_filesystem);
 
-static void sync_one_sb(struct super_block *sb, void *arg)
+static void sync_inodes_one_sb(struct super_block *sb, void *arg)
 {
 	if (!(sb->s_flags & MS_RDONLY))
-		__sync_filesystem(sb, *(int *)arg);
+		sync_inodes_sb(sb);
 }
-/*
- * Sync all the data for all the filesystems (called by sys_sync() and
- * emergency sync)
- */
-static void sync_filesystems(int wait)
+
+static void sync_fs_one_sb(struct super_block *sb, void *arg)
 {
-	iterate_supers(sync_one_sb, &wait);
+	if (!(sb->s_flags & MS_RDONLY) && sb->s_op->sync_fs)
+		sb->s_op->sync_fs(sb, *(int *)arg);
+}
+
+static void fdatawrite_one_bdev(struct block_device *bdev, void *arg)
+{
+	filemap_fdatawrite(bdev->bd_inode->i_mapping);
+}
+
+static void fdatawait_one_bdev(struct block_device *bdev, void *arg)
+{
+	filemap_fdatawait(bdev->bd_inode->i_mapping);
 }
 
 /*
@@ -109,9 +117,15 @@ static void sync_filesystems(int wait)
  */
 static void do_sync(void)
 {
+	int nowait = 0, wait = 1;
+
 	wakeup_flusher_threads(0, WB_REASON_SYNC);
-	sync_filesystems(0);
-	sync_filesystems(1);
+	iterate_supers(writeback_inodes_one_sb, NULL);
+	iterate_supers(sync_fs_one_sb, &nowait);
+	iterate_supers(sync_inodes_one_sb, NULL);
+	iterate_supers(sync_fs_one_sb, &wait);
+	iterate_bdevs(fdatawrite_one_bdev, NULL);
+	iterate_bdevs(fdatawait_one_bdev, NULL);
 	if (unlikely(laptop_mode))
 		laptop_sync_completion();
 	return;
@@ -173,12 +187,18 @@ SYSCALL_DEFINE0(sync)
 
 static void do_sync_work(struct work_struct *work)
 {
+	int nowait = 0;
+
 	/*
 	 * Sync twice to reduce the possibility we skipped some inodes / pages
 	 * because they were temporarily locked
 	 */
-	sync_filesystems(0);
-	sync_filesystems(0);
+	iterate_supers(sync_inodes_one_sb, &nowait);
+	iterate_supers(sync_fs_one_sb, &nowait);
+	iterate_bdevs(fdatawrite_one_bdev, NULL);
+	iterate_supers(sync_inodes_one_sb, &nowait);
+	iterate_supers(sync_fs_one_sb, &nowait);
+	iterate_bdevs(fdatawrite_one_bdev, NULL);
 	printk("Emergency Sync complete\n");
 	kfree(work);
 }
