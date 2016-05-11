@@ -1,0 +1,22 @@
+--- kernel/rtmutex.c
++++ kernel/rtmutex.c
+@@ -509,8 +599,8 @@ static int task_blocks_on_rt_mutex(struct rt_mutex *lock,
+ 
+ 	if (waiter == rt_mutex_top_waiter(lock)) {
+ 		raw_spin_lock_irqsave(&owner->pi_lock, flags);
+-		plist_del(&top_waiter->pi_list_entry, &owner->pi_waiters);
+-		plist_add(&waiter->pi_list_entry, &owner->pi_waiters);
++		rt_mutex_dequeue_pi(owner, top_waiter);
++		rt_mutex_enqueue_pi(owner, waiter);
+ 
+ 		__rt_mutex_adjust_prio(owner);
+ 		if (owner->pi_blocked_on)
+@@ -613,8 +703,6 @@ static void remove_waiter(struct rt_mutex *lock,
+ 		raw_spin_unlock_irqrestore(&owner->pi_lock, flags);
+ 	}
+ 
+-	WARN_ON(!plist_node_empty(&waiter->pi_list_entry));
+-
+ 	if (!chain_walk)
+ 		return;
+ 
