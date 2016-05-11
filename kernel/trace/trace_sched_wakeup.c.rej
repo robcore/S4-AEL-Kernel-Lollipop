@@ -1,0 +1,10 @@
+--- kernel/trace/trace_sched_wakeup.c
++++ kernel/trace/trace_sched_wakeup.c
+@@ -15,6 +15,7 @@
+ #include <linux/kallsyms.h>
+ #include <linux/uaccess.h>
+ #include <linux/ftrace.h>
++#include <linux/sched/deadline.h>
+ #include <trace/events/sched.h>
+ 
+ #include "trace.h"
