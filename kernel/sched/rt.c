@@ -456,10 +456,10 @@ static void sched_rt_rq_dequeue(struct rt_rq *rt_rq)
 
 int unthrottle_rt_rq(struct rq *rq)
 {
-	/* if requested from the migration task we will 
+	/* if requested from the migration task we will
 	 * unthrottle the rt rq.
 	 */
-	if (rq->rt.rt_throttled 
+	if (rq->rt.rt_throttled
 		&& current->sched_class == &stop_sched_class) {
 		rq->rt.rt_throttled = 0;
 		//printk_sched("sched: RT unthrottled for migration\n");
@@ -1273,8 +1273,7 @@ select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
 	 */
 	if (curr && unlikely(rt_task(curr)) &&
 	    (curr->nr_cpus_allowed < 2 ||
-	     curr->prio <= p->prio) &&
-	    (p->nr_cpus_allowed > 1)) {
+		curr->prio <= p->prio)) {
 		int target = find_lowest_rq(p);
 
 		/*

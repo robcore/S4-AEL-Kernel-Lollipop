@@ -1,0 +1,35 @@
+From 4d59ddd77b56db6d6f3aacf5a41dc42fe3252b6c Mon Sep 17 00:00:00 2001
+From: Shawn Bohrer <sbohrer@rgmadvisors.com>
+Date: Sat, 5 Oct 2013 12:20:29 -0500
+Subject: [PATCH] sched/rt: Remove redundant nr_cpus_allowed test
+
+Date	Fri, 4 Oct 2013 14:24:53 -0500
+
+From: Shawn Bohrer <sbohrer@rgmadvisors.com>
+
+In 76854c7e8f3f4172fef091e78d88b3b751463ac6 "sched: Use
+rt.nr_cpus_allowed to recover select_task_rq() cycles" an optimization
+was added to select_task_rq_rt() that immediately returns when
+p->nr_cpus_allowed == 1 at the beginning of the function.  This makes
+the latter p->nr_cpus_allowed > 1 check redundant and can be removed.
+Signed-off-by: Shawn Bohrer <sbohrer@rgmadvisors.com>
+
+Signed-off-by: Paul Reioux <reioux@gmail.com>
+---
+ kernel/sched/rt.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
+index e1572bb..63ec92c 100644
+--- a/kernel/sched/rt.c
++++ b/kernel/sched/rt.c
+@@ -1264,8 +1264,7 @@ select_task_rq_rt(struct task_struct *p, int sd_flag, int flags)
+ 	 */
+ 	if (curr && unlikely(rt_task(curr)) &&
+ 	    (curr->rt.nr_cpus_allowed < 2 ||
+-	     curr->prio <= p->prio) &&
+-	    (p->rt.nr_cpus_allowed > 1)) {
++		curr->prio <= p->prio)) {
+ 		int target = find_lowest_rq(p);
+ 
+ 		if (target != -1)
