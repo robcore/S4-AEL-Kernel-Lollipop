@@ -76,6 +76,10 @@ struct mutex_waiter {
 #ifdef CONFIG_DEBUG_MUTEXES
 	void			*magic;
 #endif
+#ifdef CONFIG_DEBUG_WW_MUTEX_SLOWPATH
+	unsigned deadlock_inject_interval;
+	unsigned deadlock_inject_countdown;
+#endif
 };
 
 #ifdef CONFIG_DEBUG_MUTEXES
@@ -152,6 +156,10 @@ static inline void ww_mutex_init(struct ww_mutex *lock,
 	lock->ctx = NULL;
 #ifdef CONFIG_DEBUG_MUTEXES
 	lock->ww_class = ww_class;
+#endif
+#ifdef CONFIG_DEBUG_WW_MUTEX_SLOWPATH
+	ctx->deadlock_inject_interval = 1;
+	ctx->deadlock_inject_countdown = ctx->stamp & 0xf;
 #endif
 #ifdef CONFIG_DEBUG_WW_MUTEX_SLOWPATH
 	ctx->deadlock_inject_interval = 1;
