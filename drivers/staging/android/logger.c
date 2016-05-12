@@ -17,8 +17,6 @@
  * GNU General Public License for more details.
  */
 
-#define pr_fmt(fmt) "logger: " fmt
-
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -498,8 +496,6 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 
 	mutex_lock(&log->mutex);
 
-	orig = log->w_off;
-
 	/*
 	 * Fix up any readers, pulling them forward to the first readable
 	 * entry after (what will be) the new write offset. We do this now
@@ -542,15 +538,7 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	return ret;
 }
 
-static struct logger_log *get_log_from_minor(int minor)
-{
-	struct logger_log *log;
-
-	list_for_each_entry(log, &log_list, logs)
-		if (log->misc.minor == minor)
-			return log;
-	return NULL;
-}
+static struct logger_log *get_log_from_minor(int);
 
 /*
  * logger_open - the log's open() file operation
@@ -709,11 +697,6 @@ static long logger_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case LOGGER_FLUSH_LOG:
 		if (!(file->f_mode & FMODE_WRITE)) {
 			ret = -EBADF;
-			break;
-		}
-		if (!(in_egroup_p(file->f_dentry->d_inode->i_gid) ||
-				capable(CAP_SYSLOG))) {
-			ret = -EPERM;
 			break;
 		}
 		list_for_each_entry(reader, &log->readers, list)
