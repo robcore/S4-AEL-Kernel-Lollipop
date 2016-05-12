@@ -123,6 +123,38 @@ static int ext4_verify_csum_type(struct super_block *sb,
 	return es->s_checksum_type == EXT4_CRC32C_CHKSUM;
 }
 
+static __le32 ext4_superblock_csum(struct super_block *sb,
+				   struct ext4_super_block *es)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	int offset = offsetof(struct ext4_super_block, s_checksum);
+	__u32 csum;
+
+	csum = ext4_chksum(sbi, ~0, (char *)es, offset);
+
+	return cpu_to_le32(csum);
+}
+
+int ext4_superblock_csum_verify(struct super_block *sb,
+				struct ext4_super_block *es)
+{
+	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
+				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
+		return 1;
+
+	return es->s_checksum == ext4_superblock_csum(sb, es);
+}
+
+void ext4_superblock_csum_set(struct super_block *sb,
+			      struct ext4_super_block *es)
+{
+	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
+		EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
+		return;
+
+	es->s_checksum = ext4_superblock_csum(sb, es);
+}
+
 void *ext4_kvmalloc(size_t size, gfp_t flags)
 {
 	void *ret;
@@ -301,33 +333,17 @@ static void ext4_put_nojournal(handle_t *handle)
  * journal_end calls result in the superblock being marked dirty, so
  * that sync() will call the filesystem's write_super callback if
  * appropriate.
- *
- * To avoid j_barrier hold in userspace when a user calls freeze(),
- * ext4 prevents a new handle from being started by s_frozen, which
- * is in an upper layer.
  */
 handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 {
 	journal_t *journal;
-	handle_t  *handle;
 
 	trace_ext4_journal_start(sb, nblocks, _RET_IP_);
 	if (sb->s_flags & MS_RDONLY)
 		return ERR_PTR(-EROFS);
 
+	WARN_ON(sb->s_writers.frozen == SB_FREEZE_COMPLETE);
 	journal = EXT4_SB(sb)->s_journal;
-	handle = ext4_journal_current_handle();
-
-	/*
-	 * If a handle has been started, it should be allowed to
-	 * finish, otherwise deadlock could happen between freeze
-	 * and others(e.g. truncate) due to the restart of the
-	 * journal handle if the filesystem is forzen and active
-	 * handles are not stopped.
-	 */
-	if (!handle)
-		vfs_check_frozen(sb, SB_FREEZE_TRANS);
-
 	if (!journal)
 		return ext4_get_nojournal();
 	/*
@@ -970,6 +986,8 @@ static void ext4_put_super(struct super_block *sb)
 	unlock_super(sb);
 	kobject_put(&sbi->s_kobj);
 	wait_for_completion(&sbi->s_kobj_unregister);
+	if (sbi->s_chksum_driver)
+		crypto_free_shash(sbi->s_chksum_driver);
 	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
 }
@@ -1975,41 +1993,67 @@ failed:
 	return 0;
 }
 
-__le16 ext4_group_desc_csum(struct ext4_sb_info *sbi, __u32 block_group,
-			    struct ext4_group_desc *gdp)
+static __le16 ext4_group_desc_csum(struct ext4_sb_info *sbi, __u32 block_group,
+				   struct ext4_group_desc *gdp)
 {
+	int offset;
 	__u16 crc = 0;
+	__le32 le_group = cpu_to_le32(block_group);
 
-	if (sbi->s_es->s_feature_ro_compat &
-	    cpu_to_le32(EXT4_FEATURE_RO_COMPAT_GDT_CSUM)) {
-		int offset = offsetof(struct ext4_group_desc, bg_checksum);
-		__le32 le_group = cpu_to_le32(block_group);
+	if ((sbi->s_es->s_feature_ro_compat &
+	     cpu_to_le32(EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))) {
+		/* Use new metadata_csum algorithm */
+		__u16 old_csum;
+		__u32 csum32;
 
-		crc = crc16(~0, sbi->s_es->s_uuid, sizeof(sbi->s_es->s_uuid));
-		crc = crc16(crc, (__u8 *)&le_group, sizeof(le_group));
-		crc = crc16(crc, (__u8 *)gdp, offset);
-		offset += sizeof(gdp->bg_checksum); /* skip checksum */
-		/* for checksum of struct ext4_group_desc do the rest...*/
-		if ((sbi->s_es->s_feature_incompat &
-		     cpu_to_le32(EXT4_FEATURE_INCOMPAT_64BIT)) &&
-		    offset < le16_to_cpu(sbi->s_es->s_desc_size))
-			crc = crc16(crc, (__u8 *)gdp + offset,
-				    le16_to_cpu(sbi->s_es->s_desc_size) -
-					offset);
+		old_csum = gdp->bg_checksum;
+		gdp->bg_checksum = 0;
+		csum32 = ext4_chksum(sbi, sbi->s_csum_seed, (__u8 *)&le_group,
+				     sizeof(le_group));
+		csum32 = ext4_chksum(sbi, csum32, (__u8 *)gdp,
+				     sbi->s_desc_size);
+		gdp->bg_checksum = old_csum;
+
+		crc = csum32 & 0xFFFF;
+		goto out;
 	}
 
+	/* old crc16 code */
+	offset = offsetof(struct ext4_group_desc, bg_checksum);
+
+	crc = crc16(~0, sbi->s_es->s_uuid, sizeof(sbi->s_es->s_uuid));
+	crc = crc16(crc, (__u8 *)&le_group, sizeof(le_group));
+	crc = crc16(crc, (__u8 *)gdp, offset);
+	offset += sizeof(gdp->bg_checksum); /* skip checksum */
+	/* for checksum of struct ext4_group_desc do the rest...*/
+	if ((sbi->s_es->s_feature_incompat &
+	     cpu_to_le32(EXT4_FEATURE_INCOMPAT_64BIT)) &&
+	    offset < le16_to_cpu(sbi->s_es->s_desc_size))
+		crc = crc16(crc, (__u8 *)gdp + offset,
+			    le16_to_cpu(sbi->s_es->s_desc_size) -
+				offset);
+
+out:
 	return cpu_to_le16(crc);
 }
 
-int ext4_group_desc_csum_verify(struct ext4_sb_info *sbi, __u32 block_group,
+int ext4_group_desc_csum_verify(struct super_block *sb, __u32 block_group,
 				struct ext4_group_desc *gdp)
 {
-	if ((sbi->s_es->s_feature_ro_compat &
-	     cpu_to_le32(EXT4_FEATURE_RO_COMPAT_GDT_CSUM)) &&
-	    (gdp->bg_checksum != ext4_group_desc_csum(sbi, block_group, gdp)))
+	if (ext4_has_group_desc_csum(sb) &&
+	    (gdp->bg_checksum != ext4_group_desc_csum(EXT4_SB(sb),
+						      block_group, gdp)))
 		return 0;
 
 	return 1;
+}
+
+void ext4_group_desc_csum_set(struct super_block *sb, __u32 block_group,
+			      struct ext4_group_desc *gdp)
+{
+	if (!ext4_has_group_desc_csum(sb))
+		return;
+	gdp->bg_checksum = ext4_group_desc_csum(EXT4_SB(sb), block_group, gdp);
 }
 
 /* Called at mount-time, super-block is locked */
@@ -2066,7 +2110,7 @@ static int ext4_check_descriptors(struct super_block *sb,
 			return 0;
 		}
 		ext4_lock_group(sb, i);
-		if (!ext4_group_desc_csum_verify(sbi, i, gdp)) {
+		if (!ext4_group_desc_csum_verify(sb, i, gdp)) {
 			ext4_msg(sb, KERN_ERR, "ext4_check_descriptors: "
 				 "Checksum for group %u failed (%u!=%u)",
 				 i, le16_to_cpu(ext4_group_desc_csum(sbi, i,
@@ -2689,6 +2733,7 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 	sb = elr->lr_super;
 	ngroups = EXT4_SB(sb)->s_groups_count;
 
+	sb_start_write(sb);
 	for (group = elr->lr_next_group; group < ngroups; group++) {
 		gdp = ext4_get_group_desc(sb, group, NULL);
 		if (!gdp) {
@@ -2715,6 +2760,7 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 		elr->lr_next_sched = jiffies + elr->lr_timeout;
 		elr->lr_next_group = group + 1;
 	}
+	sb_end_write(sb);
 
 	return ret;
 }
@@ -3207,6 +3253,13 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		goto cantfind_ext4;
 	sbi->s_kbytes_written = le64_to_cpu(es->s_kbytes_written);
 
+	/* Warn if metadata_csum and gdt_csum are both set. */
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
+				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM) &&
+	    EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_GDT_CSUM))
+		ext4_warning(sb, KERN_INFO "metadata_csum and uninit_bg are "
+			     "redundant flags; please run fsck.");
+
 	/* Check for a known checksum algorithm */
 	if (!ext4_verify_csum_type(sb, es)) {
 		ext4_msg(sb, KERN_ERR, "VFS: Found ext4 filesystem with "
@@ -3214,6 +3267,32 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		silent = 1;
 		goto cantfind_ext4;
 	}
+
+	/* Load the checksum driver */
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
+				       EXT4_FEATURE_RO_COMPAT_METADATA_CSUM)) {
+		sbi->s_chksum_driver = crypto_alloc_shash("crc32c", 0, 0);
+		if (IS_ERR(sbi->s_chksum_driver)) {
+			ext4_msg(sb, KERN_ERR, "Cannot load crc32c driver.");
+			ret = PTR_ERR(sbi->s_chksum_driver);
+			sbi->s_chksum_driver = NULL;
+			goto failed_mount;
+		}
+	}
+
+	/* Check superblock checksum */
+	if (!ext4_superblock_csum_verify(sb, es)) {
+		ext4_msg(sb, KERN_ERR, "VFS: Found ext4 filesystem with "
+			 "invalid superblock checksum.  Run e2fsck?");
+		silent = 1;
+		goto cantfind_ext4;
+	}
+
+	/* Precompute checksum seed for all metadata */
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
+			EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
+		sbi->s_csum_seed = ext4_chksum(sbi, ~0, es->s_uuid,
+					       sizeof(es->s_uuid));
 
 	/* Set defaults before we parse the mount options */
 	def_mount_opts = le32_to_cpu(es->s_default_mount_opts);
@@ -4233,6 +4312,7 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 				&EXT4_SB(sb)->s_freeinodes_counter));
 	sb->s_dirt = 0;
 	BUFFER_TRACE(sbh, "marking dirty");
+	ext4_superblock_csum_set(sb, es);
 	mark_buffer_dirty(sbh);
 	if (sync) {
 		error = sync_dirty_buffer(sbh);
@@ -4330,10 +4410,8 @@ int ext4_force_commit(struct super_block *sb)
 		return 0;
 
 	journal = EXT4_SB(sb)->s_journal;
-	if (journal) {
-		vfs_check_frozen(sb, SB_FREEZE_TRANS);
+	if (journal)
 		ret = ext4_journal_force_commit(journal);
-	}
 
 	return ret;
 }
@@ -4365,9 +4443,8 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
  * gives us a chance to flush the journal completely and mark the fs clean.
  *
  * Note that only this function cannot bring a filesystem to be in a clean
- * state independently, because ext4 prevents a new handle from being started
- * by @sb->s_frozen, which stays in an upper layer.  It thus needs help from
- * the upper layer.
+ * state independently. It relies on upper layer to stop all data & metadata
+ * modifications.
  */
 static int ext4_freeze(struct super_block *sb)
 {
@@ -4394,7 +4471,7 @@ static int ext4_freeze(struct super_block *sb)
 	EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
 	error = ext4_commit_super(sb, 1);
 out:
-	/* we rely on s_frozen to stop further updates */
+	/* we rely on upper layer to stop further updates */
 	jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 	return error;
 }
@@ -4543,7 +4620,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 				struct ext4_group_desc *gdp =
 					ext4_get_group_desc(sb, g, NULL);
 
-				if (!ext4_group_desc_csum_verify(sbi, g, gdp)) {
+				if (!ext4_group_desc_csum_verify(sb, g, gdp)) {
 					ext4_msg(sb, KERN_ERR,
 	       "ext4_remount: Checksum for group %u failed (%u!=%u)",
 		g, le16_to_cpu(ext4_group_desc_csum(sbi, g, gdp)),

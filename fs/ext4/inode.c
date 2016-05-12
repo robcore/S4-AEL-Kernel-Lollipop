@@ -232,6 +232,11 @@ void ext4_evict_inode(struct inode *inode)
 		ext4_begin_ordered_truncate(inode, 0);
 	truncate_inode_pages(&inode->i_data, 0);
 
+	/*
+	 * Protect us against freezing - iput() caller didn't have to have any
+	 * protection against it
+	 */
+	sb_start_intwrite(inode->i_sb);
 	handle = ext4_journal_start(inode, ext4_blocks_for_truncate(inode)+3);
 	if (IS_ERR(handle)) {
 		ext4_std_error(inode->i_sb, PTR_ERR(handle));
@@ -241,6 +246,7 @@ void ext4_evict_inode(struct inode *inode)
 		 * cleaned up.
 		 */
 		ext4_orphan_del(NULL, inode);
+		sb_end_intwrite(inode->i_sb);
 		goto no_delete;
 	}
 
@@ -272,6 +278,7 @@ void ext4_evict_inode(struct inode *inode)
 		stop_handle:
 			ext4_journal_stop(handle);
 			ext4_orphan_del(NULL, inode);
+			sb_end_intwrite(inode->i_sb);
 			goto no_delete;
 		}
 	}
@@ -300,6 +307,7 @@ void ext4_evict_inode(struct inode *inode)
 	else
 		ext4_free_inode(handle, inode);
 	ext4_journal_stop(handle);
+	sb_end_intwrite(inode->i_sb);
 	return;
 no_delete:
 	ext4_clear_inode(inode);	/* We must guarantee clearing of inode... */
@@ -3670,8 +3678,7 @@ make_io:
 				b = table;
 			end = b + EXT4_SB(sb)->s_inode_readahead_blks;
 			num = EXT4_INODES_PER_GROUP(sb);
-			if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
-				       EXT4_FEATURE_RO_COMPAT_GDT_CSUM))
+			if (ext4_has_group_desc_csum(sb))
 				num -= ext4_itable_unused_count(sb, gdp);
 			table += num / inodes_per_block;
 			if (end > table)
@@ -4145,7 +4152,7 @@ static int ext4_do_update_inode(handle_t *handle,
 			EXT4_SET_RO_COMPAT_FEATURE(sb,
 					EXT4_FEATURE_RO_COMPAT_LARGE_FILE);
 			ext4_handle_sync(handle);
-			err = ext4_handle_dirty_super(handle, sb);
+			err = ext4_handle_dirty_super_now(handle, sb);
 		}
 	}
 	raw_inode->i_generation = cpu_to_le32(inode->i_generation);
@@ -4418,7 +4425,8 @@ int ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	 * will return the blocks that include the delayed allocation
 	 * blocks for this file.
 	 */
-	delalloc_blocks = EXT4_I(inode)->i_reserved_data_blocks;
+	delalloc_blocks = EXT4_C2B(EXT4_SB(inode->i_sb),
+				EXT4_I(inode)->i_reserved_data_blocks);
 
 	stat->blocks += delalloc_blocks << (inode->i_sb->s_blocksize_bits-9);
 	return 0;
@@ -4811,11 +4819,7 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	get_block_t *get_block;
 	int retries = 0;
 
-	/*
-	 * This check is racy but catches the common case. We rely on
-	 * __block_page_mkwrite() to do a reliable check.
-	 */
-	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
+	sb_start_pagefault(inode->i_sb);
 	/* Delalloc case is easy... */
 	if (test_opt(inode->i_sb, DELALLOC) &&
 	    !ext4_should_journal_data(inode) &&
@@ -4883,5 +4887,6 @@ retry_alloc:
 out_ret:
 	ret = block_page_mkwrite_return(ret);
 out:
+	sb_end_pagefault(inode->i_sb);
 	return ret;
 }
