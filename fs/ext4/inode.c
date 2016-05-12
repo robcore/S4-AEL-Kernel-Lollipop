@@ -3369,6 +3369,16 @@ static int ext4_discard_partial_page_buffers_no_lock(handle_t *handle,
 		/* The length of space until the end of the block */
 		end_of_block = blocksize - (pos & (blocksize-1));
 
+		BUG_ON(iocb->private == NULL);
+
+		/* If we do a overwrite dio, i_mutex locking can be released */
+		overwrite = *((int *)iocb->private);
+
+		if (overwrite) {
+			down_read(&EXT4_I(inode)->i_data_sem);
+			mutex_unlock(&inode->i_mutex);
+		}
+
 		/*
 		 * Do not unmap or zero past end of block
 		 * for this buffer head
