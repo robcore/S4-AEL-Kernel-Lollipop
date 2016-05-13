@@ -419,6 +419,16 @@ armpmu_release_hardware(struct arm_pmu *armpmu)
 	int i, irq, irqs;
 	struct platform_device *pmu_device = armpmu->plat_device;
 
+	if (plat && plat->request_pmu_irq)
+		armpmu->request_pmu_irq = plat->request_pmu_irq;
+	else if (!armpmu->request_pmu_irq)
+		armpmu->request_pmu_irq = armpmu_generic_request_irq;
+
+	if (plat && plat->free_pmu_irq)
+		armpmu->free_pmu_irq = plat->free_pmu_irq;
+	else if (!armpmu->free_pmu_irq)
+		armpmu->free_pmu_irq = armpmu_generic_free_irq;
+
 	irqs = min(pmu_device->num_resources, num_possible_cpus());
 
 	for (i = 0; i < irqs; ++i) {
@@ -804,6 +814,36 @@ static void armpmu_update_counters(void)
 
 		armpmu_read(event);
 	}
+}
+
+static int cpu_has_active_perf(void)
+{
+	struct pmu_hw_events *hw_events;
+	int enabled;
+
+	if (!cpu_pmu)
+		return 0;
+
+	hw_events = cpu_pmu->get_hw_events();
+	enabled = bitmap_weight(hw_events->used_mask, cpu_pmu->num_events);
+
+	if (enabled)
+		/*Even one event's existence is good enough.*/
+		return 1;
+
+	return 0;
+}
+
+void enable_irq_callback(void *info)
+{
+	int irq = *(unsigned int *)info;
+	enable_percpu_irq(irq, IRQ_TYPE_EDGE_RISING);
+}
+
+void disable_irq_callback(void *info)
+{
+	int irq = *(unsigned int *)info;
+	disable_percpu_irq(irq);
 }
 
 /*

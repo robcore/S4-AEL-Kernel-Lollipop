@@ -14,4 +14,12 @@
  * GNU General Public License for more details.
  *
  */
-#define FREQ_TABLE_SIZE		(15)
+#ifdef CONFIG_CPU_OVERCLOCK
+#define OVERCLOCK_EXTRA_FREQS	3
+#else
+#define OVERCLOCK_EXTRA_FREQS	0
+#endif
+#ifdef CONFIG_CPU_OVERCLOCK
+#define FREQ_TABLE_SIZE		(35 + OVERCLOCK_EXTRA_FREQS)
+#else
+#define FREQ_TABLE_SIZE		 35
