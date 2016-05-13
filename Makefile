@@ -358,10 +358,11 @@ CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
 
 KERNEL_FLAGS	= -marm -mtune=cortex-a15 -mcpu=cortex-a15 -mfpu=neon-vfpv4 \
-		  -mvectorize-with-neon-quad -ftree-vectorize \
+		  -mvectorize-with-neon-quad -fgcse-after-reload -fgcse-sm \
+		  -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fivopts \
+		  -ftree-vectorize -fmodulo-sched -ffast-math
 		  #-fsanitize=float-divide-by-zero -fsanitize=bounds \
 		  #-fsanitize=float-cast-overflow \
-		  -Wbool-compare
 
 CFLAGS_MODULE   = -marm -mtune=cortex-a15 -munaligned-access -fno-pic -mfpu=neon-vfpv4 -mvectorize-with-neon-quad -fpredictive-commoning -fno-cond-mismatch -fsingle-precision-constant -mcpu=cortex-a15 -ftree-vectorize -mvectorize-with-neon-quad -funroll-loops -ftree-loop-im -ftree-loop-ivcanon -fmodulo-sched -fmodulo-sched-allow-regmoves -fivopts -mneon-for-64bits -fopenmp -fopenmp-simd -fsimd-cost-model=unlimited -fgraphite
 CFLAGS_MODULE   = -DMODULE $(KERNEL_FLAGS)
@@ -388,17 +389,20 @@ CFLAGS_A15 = -mtune=cortex-a15 -mfpu=neon-vfpv4 -marm
 
 KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common -Wno-unused-value \
-		   -Wno-format-security -Wno-deprecated-declarations \
-		   -Wno-sizeof-pointer-memaccess \
+		   -Wno-format-security \
 		   -Wno-aggressive-loop-optimizations \
 		   -Wno-logical-not-parentheses -Wno-discarded-array-qualifiers \
 		   -Werror-implicit-function-declaration -Wno-uninitialized \
 		   -Wno-sequence-point -Wno-unused-variable -Wno-unused-function \
-		   -fno-delete-null-pointer-checks -Wno-maybe-uninitialized -Wno-declaration-after-statement \
+		   -fno-delete-null-pointer-checks -Wno-declaration-after-statement \
 		   -mtune=cortex-a15 -mfpu=neon-vfpv4 \
 		   -funsafe-math-optimizations -ftree-vectorize \
 		   -std=gnu89 \
-		   $(KERNEL_FLAGS)
+		   -Wbool-compare \
+		   -marm -mtune=cortex-a15 -mcpu=cortex-a15 -mfpu=neon-vfpv4 \
+		   -mvectorize-with-neon-quad -fgcse-after-reload -fgcse-sm \
+		   -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fivopts \
+		   -ftree-vectorize -fmodulo-sched -ffast-math
 
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
